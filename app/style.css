@@ -1,168 +1,132 @@
-*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
-html,body{height:100%;font-family:'Inter',sans-serif;background:#E8ECF0;color:#0F172A}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F1F5F9}
 
-/* Page wrapper */
-.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 40px}
-.page-title{font-size:12px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.page-title a{color:#1D4ED8;text-decoration:none}
-.page-title a:hover{text-decoration:underline}
+/* ── App shell ── */
+.app{display:flex;flex-direction:column;height:100%;height:100dvh;background:#fff;width:100%;max-width:480px;margin:0 auto}
+@media(min-width:481px){
+  .app{box-shadow:0 0 60px rgba(0,0,0,.12);border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0}
+}
 
-/* Phone frame */
-.phone{width:100%;max-width:390px;background:#fff;border-radius:40px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.18),0 0 0 8px #1a1a2e,0 0 0 10px #0F172A;display:flex;flex-direction:column;height:812px;position:relative}
-
-/* Status bar */
-.status-bar{background:#fff;padding:14px 24px 4px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
-.status-time{font-size:13px;font-weight:700;color:#0F172A}
-.status-icons{display:flex;align-items:center;gap:5px}
-.status-icons svg{width:14px;height:14px;fill:#0F172A}
-
-/* App header */
-.app-header{background:#fff;padding:8px 20px 14px;border-bottom:1px solid #F1F5F9;flex-shrink:0}
-.app-header-row{display:flex;align-items:center;justify-content:space-between}
+/* ── Header ── */
+.app-header{background:#fff;border-bottom:1px solid #F1F5F9;padding:13px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
 .app-logo{display:flex;align-items:center;gap:8px}
-.app-logo-mark{width:28px;height:28px;background:#1D4ED8;border-radius:8px;display:flex;align-items:center;justify-content:center}
-.app-logo-mark svg{stroke:#fff;width:14px;height:14px}
-.app-logo-text{font-size:14px;font-weight:800;color:#0F172A;letter-spacing:-.3px}
-.app-user{display:flex;align-items:center;gap:6px}
-.app-avatar{width:30px;height:30px;background:linear-gradient(135deg,#1D4ED8,#7C3AED);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff}
-.app-user-name{font-size:12px;font-weight:600;color:#475569}
+.app-logo-mark{width:26px;height:26px;background:#1D4ED8;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.app-logo-mark svg{stroke:#fff;width:13px;height:13px}
+.app-logo-text{font-size:15px;font-weight:800;color:#0F172A;letter-spacing:-.3px}
+.app-avatar{width:30px;height:30px;background:linear-gradient(135deg,#1D4ED8,#7C3AED);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
 
-/* Scrollable content */
-.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
-.content::-webkit-scrollbar{display:none}
+/* ── Scrollable content ── */
+.app-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;background:#F8FAFC}
+.app-content::-webkit-scrollbar{display:none}
 
-/* Pass strip (inside feed) */
-.pass-strip{background:linear-gradient(135deg,#1E40AF 0%,#1D4ED8 60%,#2563EB 100%);border-radius:16px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
-.pass-info{}
-.pass-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.8px}
-.pass-name{font-size:15px;font-weight:800;color:#fff;letter-spacing:-.3px;margin-top:1px}
-.pass-id{font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;font-weight:500}
-.pass-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:8px 12px;text-align:center;cursor:pointer}
-.pass-badge-icon{font-size:18px;line-height:1}
-.pass-badge-text{font-size:8px;font-weight:700;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+/* ── Bottom nav ── */
+.bottom-nav{background:#fff;border-top:1px solid #F1F5F9;padding:6px 0 env(safe-area-inset-bottom,6px);display:grid;grid-template-columns:repeat(5,1fr);flex-shrink:0}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer}
+.nav-item svg{width:20px;height:20px;stroke:#94A3B8;stroke-width:2;fill:none;transition:stroke .15s}
+.nav-item.active svg{stroke:#1D4ED8}
+.nav-item-label{font-size:9px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.5px;transition:color .15s}
+.nav-item.active .nav-item-label{color:#1D4ED8}
 
-/* Section headers */
-.section-head{padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between}
-.section-head-title{font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.7px}
-.section-head-link{font-size:11px;font-weight:700;color:#1D4ED8;cursor:pointer}
+/* ── View wrapper ── */
+.view{padding-bottom:20px}
 
-/* Filter chips */
-.filter-row{display:flex;gap:6px;padding:6px 16px 4px;overflow-x:auto;flex-shrink:0}
-.filter-row::-webkit-scrollbar{display:none}
-.filter-chip{font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #EAECEF;color:#64748B;white-space:nowrap;cursor:pointer;background:#fff;transition:all .12s;flex-shrink:0}
-.filter-chip.active{background:#1D4ED8;color:#fff;border-color:#1D4ED8}
+/* ── Section headers ── */
+.section-head{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+.section-head-title{font-size:14px;font-weight:800;color:#0F172A;letter-spacing:-.2px}
+.section-head-sub{font-size:11px;color:#94A3B8;font-weight:500}
+.section-head-link{font-size:12px;font-weight:700;color:#1D4ED8;cursor:pointer}
 
-/* Horizontal scroll (events in feed) */
-.hscroll{display:flex;gap:10px;padding:0 16px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.hscroll::-webkit-scrollbar{display:none}
-.event-card{background:#fff;border:1px solid #EAECEF;border-radius:14px;padding:14px;min-width:195px;flex-shrink:0;cursor:pointer}
-.event-date{font-size:10px;font-weight:700;color:#1D4ED8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-.event-name{font-size:13px;font-weight:800;color:#0F172A;letter-spacing:-.2px;margin-bottom:3px}
-.event-place{font-size:11px;color:#94A3B8;font-weight:500;margin-bottom:8px}
-.event-footer{display:flex;align-items:center;justify-content:space-between}
-.event-price{font-size:11px;font-weight:700;color:#0F172A}
-.event-going{font-size:10px;color:#16A34A;font-weight:700;background:#F0FDF4;padding:3px 7px;border-radius:5px}
+/* ── Filter chips ── */
+.chips-row{display:flex;gap:6px;padding:8px 16px;overflow-x:auto}
+.chips-row::-webkit-scrollbar{display:none}
+.chip{font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1.5px solid #E2E8F0;color:#64748B;white-space:nowrap;cursor:pointer;background:#fff;transition:all .12s;flex-shrink:0}
+.chip.active{background:#1D4ED8;color:#fff;border-color:#1D4ED8}
 
-/* Place cards */
-.place-card{margin:0 16px 10px;background:#fff;border:1px solid #EAECEF;border-radius:16px;overflow:hidden}
-.place-card-header{display:flex;align-items:flex-start;padding:12px 12px 8px;gap:10px}
-.place-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.place-body{flex:1;min-width:0}
-.place-name-row{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
-.place-name{font-size:14px;font-weight:800;color:#0F172A;letter-spacing:-.2px}
-.place-meta{font-size:11px;color:#94A3B8;margin-top:2px;font-weight:500}
-.place-tags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
-.tag{font-size:9px;font-weight:700;padding:3px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.3px}
-.tag-offer{background:#EFF6FF;color:#1D4ED8}
-.tag-premium{background:#FFF7ED;color:#D97706}
-.tag-free{background:#F0FDF4;color:#16A34A}
-.place-desc{font-size:12px;color:#64748B;padding:0 12px 12px;line-height:1.6;border-top:1px solid #F8FAFC;padding-top:8px;margin-top:2px}
+/* ── Place cards ── */
+.place-card{margin:0 16px 8px;background:#fff;border:1px solid #EAECEF;border-radius:14px;padding:14px;cursor:pointer;transition:background .1s}
+.place-card:active{background:#F8FAFC}
+.place-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:3px}
+.place-name{font-size:14px;font-weight:700;color:#0F172A;letter-spacing:-.2px;line-height:1.3}
+.place-sub{font-size:11px;color:#94A3B8;font-weight:500}
+.place-offer{font-size:12px;color:#1D4ED8;font-weight:600;margin-top:6px}
 
-/* Save button */
-.save-btn{background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1;flex-shrink:0;transition:transform .1s}
+/* ── Save button ── */
+.save-btn{background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1;flex-shrink:0;color:#CBD5E1;transition:color .15s,transform .1s}
+.save-btn.saved{color:#EF4444}
 .save-btn:active{transform:scale(1.3)}
 
-/* Search bar */
-.search-wrap{position:relative;display:flex;align-items:center}
-.search-wrap svg{position:absolute;left:10px;pointer-events:none}
-.search-input{width:100%;background:#F8FAFC;border:1px solid #EAECEF;border-radius:12px;padding:10px 12px 10px 34px;font-size:13px;font-family:'Inter',sans-serif;color:#0F172A;outline:none;transition:border-color .15s}
+/* ── Search ── */
+.search-wrap{position:relative;margin:12px 16px 0}
+.search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);pointer-events:none}
+.search-input{width:100%;background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:12px;padding:11px 12px 11px 36px;font-size:13px;font-family:'Inter',sans-serif;color:#0F172A;outline:none;transition:border-color .15s}
 .search-input:focus{border-color:#1D4ED8;background:#fff}
 .search-input::placeholder{color:#94A3B8}
 
-/* Tabs (used in eventos view) */
-.tabs{display:flex;padding:0 16px;gap:4px;border-bottom:1px solid #F1F5F9;background:#fff;flex-shrink:0}
-.tab{flex:1;text-align:center;padding:10px 4px;font-size:11px;font-weight:700;color:#94A3B8;border-bottom:2px solid transparent;cursor:pointer;transition:all .15s;letter-spacing:.2px;white-space:nowrap}
+/* ── Result count ── */
+.result-count{padding:8px 16px 2px;font-size:11px;font-weight:600;color:#94A3B8}
+
+/* ── Tabs ── */
+.tabs{display:flex;background:#fff;border-bottom:1px solid #F1F5F9}
+.tab{flex:1;text-align:center;padding:12px 4px;font-size:12px;font-weight:700;color:#94A3B8;border-bottom:2px solid transparent;cursor:pointer;transition:all .15s}
 .tab.active{color:#1D4ED8;border-bottom-color:#1D4ED8}
 
-/* Vertical event cards (eventos view) */
-.event-card-full{margin:0 16px 10px;background:#fff;border:1px solid #EAECEF;border-radius:16px;overflow:hidden}
-.event-card-full-top{display:flex;gap:12px;padding:12px 14px 8px}
-.event-icon{width:42px;height:42px;background:#EFF6FF;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.event-card-full-body{flex:1;min-width:0}
-.event-card-full-name{font-size:14px;font-weight:800;color:#0F172A;letter-spacing:-.2px}
-.event-card-full-meta{font-size:11px;color:#94A3B8;font-weight:500;margin-top:2px}
-.event-card-full-date{font-size:11px;color:#1D4ED8;font-weight:600;margin-top:5px}
-.event-card-full-price{font-size:11px;color:#64748B;font-weight:500;margin-top:2px}
-.event-card-full-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 14px 12px;border-top:1px solid #F8FAFC}
-.event-going-count{font-size:11px;font-weight:700;color:#16A34A}
-.btn-attend{font-size:11px;font-weight:800;padding:7px 14px;border-radius:9px;border:none;cursor:pointer;background:#1D4ED8;color:#fff;transition:all .12s;letter-spacing:.1px}
-.btn-attend:hover{background:#1E40AF}
+/* ── Event cards ── */
+.event-card{margin:0 16px 8px;background:#fff;border:1px solid #EAECEF;border-radius:14px;padding:14px}
+.event-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.event-name{font-size:14px;font-weight:700;color:#0F172A;letter-spacing:-.2px}
+.event-place-name{font-size:11px;color:#64748B;font-weight:500;margin-top:2px}
+.event-date{font-size:11px;font-weight:700;color:#1D4ED8;white-space:nowrap}
+.event-price-tag{font-size:11px;color:#64748B;font-weight:500}
+.event-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #F8FAFC}
+.event-going{font-size:11px;font-weight:700;color:#16A34A}
+.btn-attend{font-size:12px;font-weight:700;padding:7px 16px;border-radius:9px;border:none;cursor:pointer;background:#1D4ED8;color:#fff;transition:all .12s}
+.btn-attend:active{background:#1E40AF}
 .btn-attend.attending{background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0}
-.btn-attend.attending:hover{background:#DCFCE7}
 
-/* Full pass card */
-.pass-full{background:linear-gradient(160deg,#1E3A8A 0%,#1D4ED8 100%);border-radius:20px;padding:20px;color:#fff}
-.pass-full-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.pass-full-logo{font-size:12px;font-weight:800;letter-spacing:-.2px;opacity:.9}
-.pass-full-type{font-size:9px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase}
-.pass-full-name{font-size:22px;font-weight:900;letter-spacing:-.5px;margin-bottom:3px}
-.pass-full-uni{font-size:12px;opacity:.65;margin-bottom:18px}
-.pass-full-id-box{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:14px;text-align:center;margin-bottom:14px}
-.pass-full-id-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;opacity:.6;margin-bottom:6px}
-.pass-full-id{font-size:26px;font-weight:900;letter-spacing:4px}
-.pass-full-footer{display:flex;justify-content:space-between;font-size:10px;opacity:.55}
+/* ── GCPass card ── */
+.pass-card{margin:16px;background:linear-gradient(160deg,#1E3A8A 0%,#1D4ED8 100%);border-radius:20px;padding:22px;color:#fff}
+.pass-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.pass-brand{font-size:13px;font-weight:800;letter-spacing:-.2px}
+.pass-type{font-size:10px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase}
+.pass-name{font-size:22px;font-weight:900;letter-spacing:-.5px;margin-bottom:3px}
+.pass-uni{font-size:12px;opacity:.6;margin-bottom:20px}
+.pass-id-box{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:14px;text-align:center;margin-bottom:14px}
+.pass-id-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;opacity:.6;margin-bottom:6px}
+.pass-id{font-size:24px;font-weight:900;letter-spacing:4px}
+.pass-footer{display:flex;justify-content:space-between;font-size:10px;opacity:.55}
 
-/* Buttons */
-.btn-primary-sm{font-size:12px;font-weight:700;padding:9px 18px;border-radius:10px;border:none;cursor:pointer;background:#1D4ED8;color:#fff;transition:all .12s}
-.btn-primary-sm:hover{background:#1E40AF}
-.btn-primary-full{width:100%;font-size:13px;font-weight:700;padding:12px;border-radius:12px;border:none;cursor:pointer;background:#1D4ED8;color:#fff;transition:all .12s}
-.btn-primary-full:hover{background:#1E40AF}
+/* ── Benefit list ── */
+.benefit-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background .1s}
+.benefit-item:last-child{border-bottom:none}
+.benefit-item:active{background:#F8FAFC}
+.benefit-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.benefit-name{font-size:13px;font-weight:700;color:#0F172A}
+.benefit-offer{font-size:12px;color:#1D4ED8;font-weight:600;margin-top:1px}
 
-/* Bottom nav */
-.bottom-nav{background:#fff;border-top:1px solid #EAECEF;padding:8px 0 20px;display:grid;grid-template-columns:repeat(5,1fr);flex-shrink:0}
-.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0;cursor:pointer}
-.nav-item svg{width:20px;height:20px;stroke:#94A3B8;stroke-width:2;fill:none}
-.nav-item.active svg{stroke:#1D4ED8}
-.nav-item-label{font-size:8px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px}
-.nav-item.active .nav-item-label{color:#1D4ED8}
-
-/* Spacer */
-.spacer{height:8px;background:#F8FAFC}
-
-/* Empty states */
-.empty-state{padding:40px 16px;text-align:center}
-.empty-state-icon{font-size:40px;margin-bottom:12px}
-.empty-state-title{font-size:15px;font-weight:700;color:#0F172A;margin-bottom:6px}
-.empty-state-desc{font-size:12px;color:#94A3B8;margin-bottom:20px}
-
-/* Place card — tappable */
-.place-card{cursor:pointer}
-
-/* Detail view */
-.btn-back{display:flex;align-items:center;gap:6px;padding:12px 16px;font-size:13px;font-weight:700;color:#475569;cursor:pointer;background:#fff;border-bottom:1px solid #F1F5F9}
-.place-detail{padding-bottom:24px}
-.detail-hero{display:flex;flex-direction:column;align-items:center;padding:20px 20px 16px;background:#fff;border-bottom:1px solid #F1F5F9}
-.detail-icon-lg{width:72px;height:72px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:12px}
-.detail-name{font-size:20px;font-weight:900;color:#0F172A;letter-spacing:-.4px;text-align:center;margin-bottom:4px}
-.detail-cat{font-size:12px;color:#94A3B8;font-weight:600;text-align:center}
-.detail-offer{margin:12px 16px 0;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:12px 14px}
-.detail-offer-label{font-size:9px;font-weight:700;color:#1D4ED8;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
-.detail-offer-text{font-size:13px;font-weight:800;color:#1D4ED8}
+/* ── Detail view ── */
+.btn-back{display:flex;align-items:center;gap:6px;padding:12px 16px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;background:#fff;border-bottom:1px solid #F1F5F9}
+.detail-hero{padding:20px 16px 16px;background:#fff;border-bottom:1px solid #F1F5F9}
+.detail-name{font-size:22px;font-weight:900;color:#0F172A;letter-spacing:-.5px;margin-bottom:4px}
+.detail-cat{font-size:13px;color:#64748B;font-weight:500}
+.detail-offer{margin:12px 16px 0;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:12px 14px}
+.detail-offer-label{font-size:9px;font-weight:700;color:#1D4ED8;text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px}
+.detail-offer-text{font-size:14px;font-weight:700;color:#1D4ED8}
 .detail-info{margin:12px 16px 0;background:#fff;border:1px solid #EAECEF;border-radius:14px;overflow:hidden}
-.detail-info-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #F8FAFC}
+.detail-info-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #F8FAFC}
 .detail-info-row:last-child{border-bottom:none}
 .detail-info-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
 .detail-info-text{font-size:13px;color:#374151;font-weight:500}
 .detail-info-link{font-size:13px;color:#1D4ED8;font-weight:600;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .detail-desc{margin:12px 16px 0;font-size:13px;color:#64748B;line-height:1.65}
 .detail-actions{margin:14px 16px 0;display:flex;flex-direction:column;gap:8px}
+
+/* ── Buttons ── */
+.btn-primary-full{width:100%;font-size:13px;font-weight:700;padding:13px;border-radius:12px;border:none;cursor:pointer;background:#1D4ED8;color:#fff;transition:background .12s}
+.btn-primary-full:active{background:#1E40AF}
+.btn-primary-sm{font-size:13px;font-weight:700;padding:10px 20px;border-radius:10px;border:none;cursor:pointer;background:#1D4ED8;color:#fff}
+
+/* ── Empty state ── */
+.empty-state{padding:48px 24px;text-align:center}
+.empty-state-icon{font-size:36px;margin-bottom:12px}
+.empty-state-title{font-size:15px;font-weight:700;color:#0F172A;margin-bottom:6px}
+.empty-state-desc{font-size:13px;color:#94A3B8;margin-bottom:20px;line-height:1.5}
