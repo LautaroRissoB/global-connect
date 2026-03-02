@@ -59,7 +59,7 @@ function renderPlaceCard(place, saved) {
           </div>
           <div class="place-meta">${place.neighborhood} · ${place.category} · ${place.distance || '—'}</div>
           <div class="place-tags">
-            <span class="tag tag-offer">${place.offer.badge}</span>
+            ${place.offer?.badge ? `<span class="tag tag-offer">${place.offer.badge}</span>` : ''}
             ${planBadge}
           </div>
         </div>
@@ -403,7 +403,7 @@ function attachListeners() {
           p.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q) ||
           p.neighborhood.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q)
+          (p.description || '').toLowerCase().includes(q)
         );
       }
       const countEl   = document.getElementById('result-count');
