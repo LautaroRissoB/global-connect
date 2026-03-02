@@ -5,6 +5,8 @@ const state = {
   selectedCategory: null,
   searchQuery: '',
   eventFilter: 'all',
+  detailPlaceId: null,
+  prevView: 'feed',
 };
 
 // ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
@@ -47,7 +49,7 @@ function renderPlaceCard(place, saved) {
     : '<span class="tag tag-free">Free</span>';
 
   return `
-    <div class="place-card">
+    <div class="place-card" data-place="${place.id}">
       <div class="place-card-header">
         <div class="place-icon" style="background:${place.bgColor || '#F8FAFC'}">${place.emoji || '🏠'}</div>
         <div class="place-body">
@@ -304,6 +306,64 @@ const VIEWS = {
         <button class="btn-primary-full" id="share-btn" style="margin-top:16px">Compartir mi GCPass</button>
       </div>
       <div style="height:16px"></div>`;
+  },
+
+  detalle() {
+    const place = getPlaces().find(p => p.id === state.detailPlaceId);
+    if (!place) return `<div class="empty-state"><div class="empty-state-icon">❓</div><div class="empty-state-title">Local no encontrado</div></div>`;
+    const saved   = getSaved();
+    const isSaved = saved.includes(place.id);
+
+    const rows = [];
+    if (place.address) rows.push(`
+      <div class="detail-info-row">
+        <span class="detail-info-icon">📍</span>
+        ${place.mapsUrl
+          ? `<a href="${place.mapsUrl}" target="_blank" class="detail-info-link">${place.address}</a>`
+          : `<span class="detail-info-text">${place.address}</span>`}
+      </div>`);
+    if (place.hours) rows.push(`
+      <div class="detail-info-row">
+        <span class="detail-info-icon">🕐</span>
+        <span class="detail-info-text">${place.hours}</span>
+      </div>`);
+    if (place.phone) rows.push(`
+      <div class="detail-info-row">
+        <span class="detail-info-icon">📞</span>
+        <a href="tel:${place.phone}" class="detail-info-link">${place.phone}</a>
+      </div>`);
+    if (place.website) rows.push(`
+      <div class="detail-info-row">
+        <span class="detail-info-icon">🌐</span>
+        <a href="${place.website}" target="_blank" class="detail-info-link">${place.website.replace(/^https?:\/\//, '')}</a>
+      </div>`);
+
+    return `
+      <div class="btn-back" id="detail-back">← Volver</div>
+      <div class="place-detail">
+        <div class="detail-hero">
+          <div class="detail-icon-lg" style="background:${place.bgColor || '#F8FAFC'}">${place.emoji || '🏠'}</div>
+          <div class="detail-name">${place.name}</div>
+          <div class="detail-cat">${place.category} · ${place.neighborhood}</div>
+        </div>
+
+        ${place.offer?.text ? `
+        <div class="detail-offer">
+          <div class="detail-offer-label">Oferta GCPass</div>
+          <div class="detail-offer-text">🎫 ${place.offer.text}</div>
+        </div>` : ''}
+
+        ${rows.length > 0 ? `<div class="detail-info">${rows.join('')}</div>` : ''}
+
+        ${place.description ? `<div class="detail-desc">${place.description}</div>` : ''}
+
+        <div class="detail-actions">
+          <button class="btn-primary-full" data-save="${place.id}" style="${isSaved ? 'background:#F8FAFC;color:#64748B;border:1px solid #EAECEF' : ''}">
+            ${isSaved ? '❤️ Guardado' : '🤍 Guardar lugar'}
+          </button>
+          ${place.mapsUrl ? `<a href="${place.mapsUrl}" target="_blank" style="display:block;text-align:center;padding:12px;border:1px solid #EAECEF;border-radius:12px;font-size:13px;font-weight:700;color:#1D4ED8;text-decoration:none">📍 Cómo llegar</a>` : ''}
+        </div>
+      </div>`;
   }
 };
 
@@ -354,9 +414,19 @@ function attachListeners() {
           ? `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-title">Sin resultados</div></div>`
           : filtered.map(p => renderPlaceCard(p, saved)).join('');
         attachSaveBtns(resultsEl);
+        attachPlaceCardListeners(resultsEl);
       }
     });
   }
+
+  // Back button from detail view
+  const detailBack = content.querySelector('#detail-back');
+  if (detailBack) {
+    detailBack.addEventListener('click', () => navigate(state.prevView));
+  }
+
+  // Place card tap → detail view
+  attachPlaceCardListeners(content);
 
   // Save/unsave place
   attachSaveBtns(content);
@@ -400,6 +470,15 @@ function attachListeners() {
       }
     });
   }
+}
+
+function attachPlaceCardListeners(container) {
+  container.querySelectorAll('.place-card[data-place]').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('[data-save]')) return;
+      navigate('detalle', { detailPlaceId: parseInt(el.dataset.place), prevView: state.currentView });
+    });
+  });
 }
 
 function attachSaveBtns(container) {

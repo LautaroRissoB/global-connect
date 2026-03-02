@@ -8,6 +8,19 @@ const adminState = {
 
 const PLAN_PRICES = { free: 0, partner: 99, premium: 199 };
 
+const BG_COLORS = [
+  { value: '#FEF3C7', label: 'Amarillo' },
+  { value: '#DBEAFE', label: 'Azul' },
+  { value: '#D1FAE5', label: 'Verde' },
+  { value: '#FCE7F3', label: 'Rosa' },
+  { value: '#EDE9FE', label: 'Violeta' },
+  { value: '#FFEDD5', label: 'Naranja' },
+  { value: '#F1F5F9', label: 'Gris' },
+  { value: '#CFFAFE', label: 'Cyan' },
+  { value: '#FFF0F0', label: 'Rojo' },
+  { value: '#F0FDF4', label: 'Menta' },
+];
+
 // ─── DATA HELPERS ─────────────────────────────────────────────────────────────
 function getAdminPlaces() {
   const s = localStorage.getItem('gc_admin_places');
@@ -115,6 +128,12 @@ const ADMIN_VIEWS = {
             <span class="admin-card-title">Todos los locales (${places.length})</span>
             <button class="btn-sm-primary" data-nav="locales">Ver tabla completa</button>
           </div>
+          ${places.length === 0 ? `
+          <div style="padding:32px;text-align:center;color:#94A3B8">
+            <div style="font-size:32px;margin-bottom:10px">🏪</div>
+            <div style="font-size:14px;font-weight:700;color:#475569;margin-bottom:4px">Sin locales todavía</div>
+            <div style="font-size:12px">Agregá el primer local con el botón de arriba</div>
+          </div>` : `
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead>
@@ -144,7 +163,13 @@ const ADMIN_VIEWS = {
                   </tr>`).join('')}
               </tbody>
             </table>
-          </div>
+          </div>`}
+        </div>
+
+        <div class="danger-zone">
+          <div class="danger-zone-title">⚠️ Reiniciar plataforma</div>
+          <p>Eliminá todos los datos cargados para empezar desde cero con locales reales.</p>
+          <button class="btn-table-delete" id="clear-all-btn">Limpiar todos los datos</button>
         </div>
       </div>`;
   },
@@ -228,6 +253,7 @@ const ADMIN_VIEWS = {
     const isEditing = adminState.editingPlaceId !== null;
     const places = getAdminPlaces();
     const p = isEditing ? places.find(x => x.id === adminState.editingPlaceId) : null;
+    const currentColor = p?.bgColor || '#FEF3C7';
 
     const neighborhoods = ['Trastevere','Prati','Testaccio','Monti','Pigneto','Ghetto','Esquilino','Ostiense','Parioli','EUR','Tiburtino','Garbatella'];
     const categories    = ['Trattoria','Aperitivo bar','Bar histórico','Craft beer bar','Pizza al taglio','Cucina ebraica','Restaurante','Café','Club','Otro'];
@@ -241,12 +267,20 @@ const ADMIN_VIEWS = {
           </div>
         </div>
 
-        <div class="admin-card" style="max-width:640px">
+        <div class="admin-card" style="max-width:680px">
           <div class="admin-card-body">
 
-            <div class="form-group">
-              <label>Emoji del local &nbsp;<span id="emoji-preview" style="font-size:22px">${p?.emoji || ''}</span></label>
-              <input type="text" id="f-emoji" class="form-input" placeholder="🍝" value="${p?.emoji || ''}" maxlength="2" style="max-width:80px"/>
+            <div class="form-section-title">Identidad</div>
+
+            <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:16px">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">Vista previa</div>
+                <div id="emoji-preview-box" style="width:52px;height:52px;border-radius:14px;background:${currentColor};display:flex;align-items:center;justify-content:center;font-size:26px;border:1px solid #EAECEF;transition:all .2s">${p?.emoji || '🏠'}</div>
+              </div>
+              <div class="form-group" style="flex:1;margin-bottom:0">
+                <label>Emoji del local</label>
+                <input type="text" id="f-emoji" class="form-input" placeholder="🍝" value="${p?.emoji || ''}" maxlength="2" style="max-width:90px"/>
+              </div>
             </div>
 
             <div class="form-row">
@@ -271,6 +305,36 @@ const ADMIN_VIEWS = {
               </select>
             </div>
 
+            <div class="form-section-title">Contacto y ubicación</div>
+
+            <div class="form-group">
+              <label>Dirección</label>
+              <input type="text" id="f-address" class="form-input" placeholder="Via della Lungaretta 28, Trastevere" value="${p?.address || ''}"/>
+            </div>
+
+            <div class="form-group">
+              <label>Link Google Maps</label>
+              <input type="url" id="f-maps" class="form-input" placeholder="https://maps.google.com/..." value="${p?.mapsUrl || ''}"/>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Teléfono</label>
+                <input type="tel" id="f-phone" class="form-input" placeholder="+39 06 581 3798" value="${p?.phone || ''}"/>
+              </div>
+              <div class="form-group">
+                <label>Horario</label>
+                <input type="text" id="f-hours" class="form-input" placeholder="Lun–Dom 12:00–24:00" value="${p?.hours || ''}"/>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Sitio web</label>
+              <input type="url" id="f-website" class="form-input" placeholder="https://..." value="${p?.website || ''}"/>
+            </div>
+
+            <div class="form-section-title">Contenido</div>
+
             <div class="form-group">
               <label>Descripción</label>
               <textarea id="f-description" class="form-input form-textarea" placeholder="Describí el local para los estudiantes...">${p?.description || ''}</textarea>
@@ -280,6 +344,18 @@ const ADMIN_VIEWS = {
               <label>Oferta para estudiantes GC</label>
               <input type="text" id="f-offer" class="form-input" placeholder="Ej: 10% de descuento en almuerzo y cena" value="${p?.offer?.text || ''}"/>
             </div>
+
+            <div class="form-section-title">Apariencia</div>
+
+            <div class="form-group">
+              <label>Color de fondo del icono</label>
+              <div class="color-swatches">
+                ${BG_COLORS.map(c => `<button type="button" class="color-swatch${currentColor === c.value ? ' selected' : ''}" data-color="${c.value}" style="background:${c.value}" title="${c.label}"></button>`).join('')}
+              </div>
+              <input type="hidden" id="f-bgColor" value="${currentColor}"/>
+            </div>
+
+            <div class="form-section-title">Plan y estado</div>
 
             <div class="form-group">
               <label>Plan</label>
@@ -541,10 +617,22 @@ function attachAdminListeners() {
   const emojiInput = content.querySelector('#f-emoji');
   if (emojiInput) {
     emojiInput.addEventListener('input', () => {
-      const preview = document.getElementById('emoji-preview');
-      if (preview) preview.textContent = emojiInput.value;
+      const box = document.getElementById('emoji-preview-box');
+      if (box) box.textContent = emojiInput.value || '🏠';
     });
   }
+
+  // Color swatches
+  content.querySelectorAll('.color-swatch').forEach(el => {
+    el.addEventListener('click', () => {
+      content.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+      const colorInput = document.getElementById('f-bgColor');
+      if (colorInput) colorInput.value = el.dataset.color;
+      const box = document.getElementById('emoji-preview-box');
+      if (box) box.style.background = el.dataset.color;
+    });
+  });
   const activeToggle = content.querySelector('#f-active');
   if (activeToggle) {
     activeToggle.addEventListener('change', () => {
@@ -560,10 +648,16 @@ function attachAdminListeners() {
       const category     = document.getElementById('f-category')?.value;
       const neighborhood = document.getElementById('f-neighborhood')?.value;
       const emoji        = document.getElementById('f-emoji')?.value.trim() || '🏠';
-      const description  = document.getElementById('f-description')?.value.trim();
-      const offerText    = document.getElementById('f-offer')?.value.trim();
+      const description  = document.getElementById('f-description')?.value.trim() || '';
+      const offerText    = document.getElementById('f-offer')?.value.trim() || '';
       const plan         = document.querySelector('input[name="plan"]:checked')?.value || 'free';
       const active       = document.getElementById('f-active')?.checked ?? true;
+      const address      = document.getElementById('f-address')?.value.trim() || '';
+      const phone        = document.getElementById('f-phone')?.value.trim() || '';
+      const hours        = document.getElementById('f-hours')?.value.trim() || '';
+      const website      = document.getElementById('f-website')?.value.trim() || '';
+      const mapsUrl      = document.getElementById('f-maps')?.value.trim() || '';
+      const bgColor      = document.getElementById('f-bgColor')?.value || '#FEF3C7';
 
       const errorEl = document.getElementById('form-error');
       if (!name)         { errorEl.textContent = 'El nombre es requerido';    errorEl.style.display = 'block'; return; }
@@ -572,18 +666,18 @@ function attachAdminListeners() {
       errorEl.style.display = 'none';
 
       const places = getAdminPlaces();
-      const offerObj = { text: offerText, badge: offerText ? `🎫 ${offerText}` : 'Sin oferta' };
+      const offerObj = { text: offerText, badge: offerText ? `🎫 ${offerText}` : '' };
 
       if (adminState.editingPlaceId !== null) {
         const idx = places.findIndex(p => p.id === adminState.editingPlaceId);
         if (idx >= 0) {
-          places[idx] = { ...places[idx], name, category, neighborhood, emoji, description, offer: offerObj, plan, active };
+          places[idx] = { ...places[idx], name, category, neighborhood, emoji, bgColor, address, phone, hours, website, mapsUrl, description, offer: offerObj, plan, active };
         }
       } else {
         places.push({
           id: nextId(places), name, category, neighborhood, emoji,
-          bgColor: '#F8FAFC', description, distance: '—',
-          offer: offerObj, plan, active,
+          bgColor, address, phone, hours, website, mapsUrl,
+          description, offer: offerObj, plan, active,
           stats: { views: 0, going: 0, clicks: 0, groups: 0 }
         });
       }
@@ -640,6 +734,20 @@ function attachAdminListeners() {
       if (p) { p.plan = el.value; saveAdminPlaces(places); navigate('planes'); }
     });
   });
+
+  // ── Clear all data ────────────────────────────────────────────────────────────
+  const clearAllBtn = content.querySelector('#clear-all-btn');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      if (!confirm('¿Eliminar TODOS los locales y eventos? Esta acción no se puede deshacer.')) return;
+      localStorage.removeItem('gc_admin_places');
+      localStorage.removeItem('gc_admin_events');
+      localStorage.removeItem('gc_saved_places');
+      localStorage.removeItem('gc_attending_events');
+      showToast('Datos limpiados ✓');
+      navigate('dashboard');
+    });
+  }
 }
 
 // ─── SIDEBAR NAV (attached once) ─────────────────────────────────────────────
