@@ -8,6 +8,7 @@ const state = {
   detailPlaceId: null,
   prevView: 'feed',
   compareList: [],
+  featuredIndex: 0,
 };
 
 // ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
@@ -44,6 +45,81 @@ function updateHeader() {
   if (badge) badge.textContent = level.name;
 }
 
+// ─── CATEGORY COLORS ──────────────────────────────────────────────────────────
+const CAT_COLORS = {
+  'Restaurante':    '#0066FF',
+  'Ristorante':     '#0066FF',
+  'Pizzería':       '#0066FF',
+  'Pizza':          '#0066FF',
+  'Food':           '#0066FF',
+  'Café':           '#0066FF',
+  'Bar':            '#A855F7',
+  'Bar / Cocktail': '#A855F7',
+  'Cocktail Bar':   '#A855F7',
+  'Pub':            '#A855F7',
+  'Nightlife':      '#EC4899',
+  'Club':           '#EC4899',
+  'Discoteca':      '#EC4899',
+  'Fiesta':         '#EC4899',
+  'Cultura':        '#F97316',
+  'Arte':           '#F97316',
+  'Museo':          '#F97316',
+  'Tour':           '#F97316',
+  'Actividad':      '#10B981',
+  'Deporte':        '#10B981',
+  'Sport':          '#10B981',
+  'Naturaleza':     '#10B981',
+};
+function getCatColor(cat) {
+  return CAT_COLORS[cat] || '#0066FF';
+}
+
+// ─── AVATAR STACK ─────────────────────────────────────────────────────────────
+const _AV_NAMES  = ['LA','SO','NI','VA','MA','CA','FE','JU','MI','TO','AL','DA'];
+const _AV_COLORS = ['#0066FF','#10B981','#F97316','#A855F7','#EC4899','#00B4FF','#EF4444','#FBBF24'];
+
+function renderAvatarStack(count, seed) {
+  if (count <= 0) return '';
+  const visible = Math.min(count, 3);
+  let html = '<div class="avatar-stack">';
+  for (let i = 0; i < visible; i++) {
+    const ni = (seed * 3 + i * 7) % _AV_NAMES.length;
+    const ci = (seed * 5 + i * 3) % _AV_COLORS.length;
+    html += `<div class="avatar-xs" style="background:${_AV_COLORS[ci]}">${_AV_NAMES[ni]}</div>`;
+  }
+  if (count > 3) {
+    html += `<div class="avatar-xs avatar-more">+${count - 3}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+// ─── CONFETTI ─────────────────────────────────────────────────────────────────
+const _CONFETTI_COLORS = ['#EC4899','#0066FF','#F97316','#10B981','#A855F7','#00B4FF','#FBBF24'];
+
+function launchConfetti(originEl) {
+  if (!originEl) return;
+  const rect = originEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top  + rect.height / 2;
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-particle';
+    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const dist  = 35 + Math.random() * 30;
+    p.style.cssText = [
+      `left:${cx}px`,
+      `top:${cy}px`,
+      `background:${_CONFETTI_COLORS[i % _CONFETTI_COLORS.length]}`,
+      `--tx:${(Math.cos(angle) * dist).toFixed(1)}px`,
+      `--ty:${(Math.sin(angle) * dist - 30).toFixed(1)}px`,
+      `--rot:${Math.floor(Math.random() * 360)}deg`,
+    ].join(';');
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 700);
+  }
+}
+
 // ─── GC SCORE ─────────────────────────────────────────────────────────────────
 function calcGCScore(p) {
   let s = 0;
@@ -54,7 +130,7 @@ function calcGCScore(p) {
   return Math.round(Math.min(s, 100));
 }
 
-// ─── VERIFY CODE (deterministic per student+place) ────────────────────────────
+// ─── VERIFY CODE ──────────────────────────────────────────────────────────────
 function genVerifyCode(studentId, placeId) {
   const key = `${studentId}-${placeId}`;
   let h = 5381;
@@ -66,7 +142,7 @@ function genVerifyCode(studentId, placeId) {
   return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
 
-// ─── DATA URL → BLOB (for PDF iframe) ─────────────────────────────────────────
+// ─── DATA URL → BLOB ──────────────────────────────────────────────────────────
 function dataURLtoBlob(dataURL) {
   const [header, data] = dataURL.split(',');
   const mime = header.match(/:(.*?);/)[1];
@@ -74,6 +150,120 @@ function dataURLtoBlob(dataURL) {
   const buf = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
   return new Blob([buf], { type: mime });
+}
+
+// ─── HERO SWIPE (module-level, attached once) ──────────────────────────────────
+let _heroStartX = 0, _heroCurrentX = 0, _heroIsDragging = false, _heroMouseReady = false;
+
+function heroSwipeEnd(hero) {
+  const dx = _heroCurrentX - _heroStartX;
+  _heroStartX = 0; _heroCurrentX = 0;
+
+  if (Math.abs(dx) > 70) {
+    const right = dx > 0;
+    hero.style.transition = 'transform 300ms ease-out, opacity 300ms';
+    hero.style.transform  = `translateX(${right ? '150vw' : '-150vw'}) rotate(${right ? 22 : -22}deg)`;
+    hero.style.opacity    = '0';
+
+    if (right) {
+      // Swipe right = save
+      const placeId = parseInt(hero.dataset.place);
+      const saved   = getSaved();
+      if (!saved.includes(placeId)) { saved.push(placeId); setSaved(saved); updateHeader(); }
+      launchConfetti(hero.querySelector('.featured-card-save'));
+    }
+
+    const trending = [...getPlaces().filter(p => p.active !== false)]
+      .sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
+    state.featuredIndex = (state.featuredIndex + 1) % Math.max(trending.length, 1);
+    setTimeout(() => navigate('feed'), 320);
+  } else {
+    hero.style.transition = 'transform 200ms ease-out';
+    hero.style.transform  = '';
+    // Reset indicators
+    const si = hero.querySelector('.hero-save-indicator');
+    const ki = hero.querySelector('.hero-skip-indicator');
+    if (si) si.style.opacity = '0';
+    if (ki) ki.style.opacity = '0';
+  }
+}
+
+function initHeroSwipe() {
+  const hero = document.querySelector('.featured-card');
+  if (!hero) return;
+
+  // Touch
+  hero.addEventListener('touchstart', e => {
+    _heroStartX = _heroCurrentX = e.touches[0].clientX;
+    _heroIsDragging = true;
+    hero.style.transition = 'none';
+    hero.classList.add('dragging');
+  }, { passive: true });
+
+  hero.addEventListener('touchmove', e => {
+    if (!_heroIsDragging) return;
+    _heroCurrentX = e.touches[0].clientX;
+    const dx  = _heroCurrentX - _heroStartX;
+    hero.style.transform = `translateX(${dx}px) rotate(${dx * 0.04}deg)`;
+    const si = hero.querySelector('.hero-save-indicator');
+    const ki = hero.querySelector('.hero-skip-indicator');
+    if (si) si.style.opacity = dx > 30 ? Math.min((dx - 30) / 60, 1) : 0;
+    if (ki) ki.style.opacity = dx < -30 ? Math.min((-dx - 30) / 60, 1) : 0;
+  }, { passive: true });
+
+  hero.addEventListener('touchend', () => {
+    if (!_heroIsDragging) return;
+    _heroIsDragging = false;
+    hero.classList.remove('dragging');
+    heroSwipeEnd(hero);
+  }, { passive: true });
+
+  // Mouse (registered once on document)
+  if (!_heroMouseReady) {
+    _heroMouseReady = true;
+    document.addEventListener('mousemove', e => {
+      if (!_heroIsDragging) return;
+      const h = document.querySelector('.featured-card');
+      if (!h) return;
+      _heroCurrentX = e.clientX;
+      const dx = _heroCurrentX - _heroStartX;
+      h.style.transform = `translateX(${dx}px) rotate(${dx * 0.04}deg)`;
+      const si = h.querySelector('.hero-save-indicator');
+      const ki = h.querySelector('.hero-skip-indicator');
+      if (si) si.style.opacity = dx > 30 ? Math.min((dx - 30) / 60, 1) : 0;
+      if (ki) ki.style.opacity = dx < -30 ? Math.min((-dx - 30) / 60, 1) : 0;
+    });
+    document.addEventListener('mouseup', () => {
+      if (!_heroIsDragging) return;
+      _heroIsDragging = false;
+      const h = document.querySelector('.featured-card');
+      if (h) { h.classList.remove('dragging'); heroSwipeEnd(h); }
+    });
+  }
+
+  hero.addEventListener('mousedown', e => {
+    e.preventDefault();
+    _heroStartX = _heroCurrentX = e.clientX;
+    _heroIsDragging = true;
+    hero.style.transition = 'none';
+    hero.classList.add('dragging');
+  });
+}
+
+// ─── CARD SCROLL ANIMATION ────────────────────────────────────────────────────
+function initCardObserver() {
+  let count = 0;
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.style.transitionDelay = `${count * 35}ms`;
+      entry.target.classList.add('card-visible');
+      count++;
+      obs.unobserve(entry.target);
+    });
+  }, { threshold: 0.05, rootMargin: '0px 0px -10px 0px' });
+
+  document.querySelectorAll('.place-card, .event-card').forEach(el => obs.observe(el));
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -101,32 +291,40 @@ function renderPlaceCard(place, saved, showDescuentoBtn = false) {
   const going     = place.stats?.going || 0;
   const coverSrc  = place.imageData || place.imageUrl;
   const logoSrc   = place.logoData;
+  const catColor  = getCatColor(place.category);
 
   let imageHtml;
   if (coverSrc) {
-    imageHtml = `<img class="place-card-img" src="${coverSrc}" alt="${place.name}" onerror="this.style.display='none'"/>`;
+    imageHtml = `<img class="place-card-img" src="${coverSrc}" alt="${place.name}" loading="lazy" onerror="this.style.display='none'"/>`;
   } else if (logoSrc) {
-    imageHtml = `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F8FAFC'}"><img class="place-card-logo" src="${logoSrc}" alt="${place.name}"/></div>`;
+    imageHtml = `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F3F4F6'}"><img class="place-card-logo" src="${logoSrc}" alt="${place.name}"/></div>`;
   } else {
-    imageHtml = `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F8FAFC'}">${place.emoji || '●'}</div>`;
+    imageHtml = `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F3F4F6'}">${place.emoji || '●'}</div>`;
   }
 
   return `
-    <div class="place-card" data-place="${place.id}">
+    <div class="place-card" data-place="${place.id}" style="--cat-color:${catColor}">
       <div class="place-card-media">${imageHtml}</div>
       <div class="place-card-body">
-        <div class="place-card-row">
-          <div>
-            <div class="place-name">${place.name}</div>
-            <div class="place-sub">${place.category} · ${place.neighborhood}</div>
-          </div>
-          <div class="place-card-actions">
-            <button class="compare-btn${isCompare ? ' active' : ''}" data-compare="${place.id}" title="Comparar">⇄</button>
-            <button class="save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}" title="${isSaved ? 'Quitar' : 'Guardar'}">♥</button>
-          </div>
+        <div class="place-name">${place.name}</div>
+        <div class="place-meta">
+          <span class="place-category-dot" style="background:${catColor}"></span>
+          ${place.category} · ${place.neighborhood}
         </div>
+        ${place.priceRange ? `<div class="place-price">${place.priceRange} / persona</div>` : ''}
+        ${going > 0 ? `
+        <div class="place-social">
+          ${renderAvatarStack(going, place.id)}
+          <span class="place-social-text">${going} van a esto${going >= 15 ? ' 🔥' : ''}</span>
+        </div>` : ''}
         ${place.offer?.text ? `<div class="place-offer">${place.offer.text}</div>` : ''}
-        ${going > 0 ? `<div class="place-stats">${going >= 15 ? '<span class="badge-popular">Popular</span>' : ''} ${going} estudiantes estuvieron</div>` : ''}
+        <div class="place-actions">
+          <div class="place-actions-left">
+            <button class="save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}" title="${isSaved ? 'Quitar' : 'Guardar'}">♥</button>
+            <button class="compare-btn${isCompare ? ' active' : ''}" data-compare="${place.id}" title="Comparar">⇄</button>
+          </div>
+          <button class="btn-ir" data-ir="${place.id}">IR →</button>
+        </div>
         ${showDescuentoBtn && place.offer?.text ? `<button class="btn-descuento-sm" data-descuento="${place.id}">🎫 Mi descuento</button>` : ''}
       </div>
     </div>`;
@@ -158,11 +356,17 @@ const VIEWS = {
     const xp    = calcXP();
     const level = calcLevel(xp);
 
-    const featured = places.length > 0
-      ? [...places].sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0))[0]
-      : null;
-
+    const trending = [...places].sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
+    state.featuredIndex = Math.min(state.featuredIndex, Math.max(trending.length - 1, 0));
+    const featured     = trending[state.featuredIndex] || null;
     const featuredCover = featured ? (featured.imageData || featured.imageUrl) : null;
+    const catColor      = featured ? getCatColor(featured.category) : '#0066FF';
+    const going         = featured?.stats?.going || 0;
+
+    const dotsHtml = trending.length > 1 ? `
+      <div class="hero-dots">
+        ${trending.map((_, i) => `<div class="hero-dot${i === state.featuredIndex ? ' active' : ''}"></div>`).join('')}
+      </div>` : '';
 
     return `
       <div class="view">
@@ -181,7 +385,7 @@ const VIEWS = {
         ${featured ? `
         <div class="featured-wrap">
           <div class="featured-label">⭐ Trending</div>
-          <div class="featured-card" data-place="${featured.id}">
+          <div class="featured-card" data-place="${featured.id}" style="border-top-color:${catColor}">
             ${featuredCover
               ? `<img class="featured-card-img" src="${featuredCover}" alt="${featured.name}" onerror="this.style.display='none'"/>`
               : `<div class="featured-card-icon-bg" style="background:${featured.bgColor || '#DBEAFE'}">${featured.emoji || '🏠'}</div>`
@@ -190,10 +394,18 @@ const VIEWS = {
             <div class="featured-card-info">
               <div class="featured-card-name">${featured.name}</div>
               <div class="featured-card-sub">${featured.category} · ${featured.neighborhood}</div>
+              ${going > 0 ? `
+              <div class="featured-card-social">
+                ${renderAvatarStack(going, featured.id)}
+                <span class="featured-card-social-text">${going} van a esto</span>
+              </div>` : ''}
             </div>
-            ${(featured.stats?.going || 0) >= 15 ? '<span class="featured-card-badge">Popular</span>' : ''}
+            <div class="hero-save-indicator">❤️ Guardar</div>
+            <div class="hero-skip-indicator">→ Siguiente</div>
+            ${(featured.stats?.going || 0) >= 15 ? '<span class="featured-card-badge">🔥 Popular</span>' : ''}
             <button class="featured-card-save${saved.includes(featured.id) ? ' saved' : ''}" data-save="${featured.id}">♥</button>
           </div>
+          ${dotsHtml}
         </div>` : ''}
 
         <div class="section-head">
@@ -389,8 +601,8 @@ const VIEWS = {
   detalle() {
     const place = getPlaces().find(p => p.id === state.detailPlaceId);
     if (!place) return `<div class="empty-state"><div class="empty-state-title">Local no encontrado</div></div>`;
-    const saved   = getSaved();
-    const isSaved = saved.includes(place.id);
+    const saved    = getSaved();
+    const isSaved  = saved.includes(place.id);
     const coverSrc = place.imageData || place.imageUrl;
 
     const rows = [];
@@ -493,40 +705,20 @@ const VIEWS = {
         </div>`;
     }
 
-    const scores = places.map(p => calcGCScore(p));
+    const scores   = places.map(p => calcGCScore(p));
     const maxScore = Math.max(...scores);
-    const CIRC = 175.93; // 2π×28
+    const CIRC = 175.93;
     const PRICE_RANK = { '< €10': 1, '€10–20': 2, '€20–40': 3, '> €40': 4 };
-    const priceRanks = places.map(p => PRICE_RANK[p.priceRange] || 5);
+    const priceRanks  = places.map(p => PRICE_RANK[p.priceRange] || 5);
     const minPriceRank = Math.min(...priceRanks);
-    const maxGoing = Math.max(...places.map(p => p.stats?.going || 0));
+    const maxGoing    = Math.max(...places.map(p => p.stats?.going || 0));
 
     const rows = [
-      {
-        label: 'Popularidad',
-        fn: p => `${p.stats?.going || 0} estudiantes`,
-        winner: p => (p.stats?.going || 0) === maxGoing && maxGoing > 0,
-      },
-      {
-        label: 'Precio',
-        fn: p => p.priceRange || '—',
-        winner: p => !!p.priceRange && (PRICE_RANK[p.priceRange] || 5) === minPriceRank,
-      },
-      {
-        label: 'Oferta GC',
-        fn: p => p.offer?.text || '—',
-        winner: p => !!p.offer?.text,
-      },
-      {
-        label: 'Horario',
-        fn: p => p.hours || '—',
-        winner: () => false,
-      },
-      {
-        label: 'Barrio',
-        fn: p => p.neighborhood,
-        winner: () => false,
-      },
+      { label: 'Popularidad', fn: p => `${p.stats?.going || 0} estudiantes`, winner: p => (p.stats?.going || 0) === maxGoing && maxGoing > 0 },
+      { label: 'Precio',      fn: p => p.priceRange || '—',                  winner: p => !!p.priceRange && (PRICE_RANK[p.priceRange] || 5) === minPriceRank },
+      { label: 'Oferta GC',   fn: p => p.offer?.text || '—',                 winner: p => !!p.offer?.text },
+      { label: 'Horario',     fn: p => p.hours || '—',                       winner: () => false },
+      { label: 'Barrio',      fn: p => p.neighborhood,                       winner: () => false },
     ];
 
     return `
@@ -539,9 +731,9 @@ const VIEWS = {
 
         <div class="compare-scores-row">
           ${places.map((p, i) => {
-            const score = scores[i];
-            const isWinner = score === maxScore;
-            const color = isWinner ? '#22C55E' : '#1D4ED8';
+            const score      = scores[i];
+            const isWinner   = score === maxScore;
+            const color      = isWinner ? '#10B981' : '#0066FF';
             const dashOffset = (CIRC * (1 - score / 100)).toFixed(2);
             return `
               <div class="compare-score-card${isWinner ? ' winner' : ''}">
@@ -564,7 +756,7 @@ const VIEWS = {
           <div style="border:1px solid #EAECEF;border-radius:14px;overflow:hidden">
             <table style="width:100%;border-collapse:collapse;font-size:13px">
               <thead>
-                <tr style="background:#F8FAFC;border-bottom:2px solid #1D4ED8">
+                <tr style="background:#F8FAFC;border-bottom:2px solid #0066FF">
                   <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.5px;width:28%">Criterio</th>
                   ${places.map(p => `<th style="padding:10px 12px;text-align:center;font-size:13px;font-weight:800;color:#0F172A">${p.name}</th>`).join('')}
                 </tr>
@@ -575,7 +767,7 @@ const VIEWS = {
                     <td style="padding:11px 12px;font-size:11px;font-weight:700;color:#64748B">${row.label}</td>
                     ${places.map(p => {
                       const isW = row.winner(p);
-                      return `<td style="padding:11px 12px;text-align:center;${isW ? 'background:#F0FDF4;color:#16A34A;font-weight:700' : 'color:#374151'}">${row.fn(p)}</td>`;
+                      return `<td style="padding:11px 12px;text-align:center;${isW ? 'background:#F0FDF4;color:#10B981;font-weight:700' : 'color:#374151'}">${row.fn(p)}</td>`;
                     }).join('')}
                   </tr>`).join('')}
               </tbody>
@@ -593,9 +785,9 @@ const VIEWS = {
     if (!place) return `<div class="empty-state"><div class="empty-state-title">Local no encontrado</div></div>`;
 
     const studentId = 'GC-2026-00847';
-    const code = genVerifyCode(studentId, place.id);
-    const coverSrc = place.imageData || place.imageUrl;
-    const logoSrc  = place.logoData;
+    const code      = genVerifyCode(studentId, place.id);
+    const coverSrc  = place.imageData || place.imageUrl;
+    const logoSrc   = place.logoData;
 
     let visualContent;
     if (coverSrc) {
@@ -668,7 +860,7 @@ function attachListeners() {
     });
   });
 
-  // Search input — partial re-render to keep focus
+  // Search input — partial re-render
   const searchInput = content.querySelector('#search-input');
   if (searchInput) {
     searchInput.addEventListener('input', e => {
@@ -696,29 +888,26 @@ function attachListeners() {
         attachSaveBtns(resultsEl);
         attachCompareBtns(resultsEl);
         attachPlaceCardListeners(resultsEl);
+        attachIrBtns(resultsEl);
+        // Instant show for search results (no stagger)
+        resultsEl.querySelectorAll('.place-card').forEach(el => el.classList.add('card-visible'));
       }
     });
   }
 
-  // Back button from detail / compare / menuViewer
+  // Back button
   const detailBack = content.querySelector('#detail-back');
-  if (detailBack) {
-    detailBack.addEventListener('click', () => navigate(state.prevView));
-  }
+  if (detailBack) detailBack.addEventListener('click', () => navigate(state.prevView));
 
-  // Menu close button (menuViewer overlay)
+  // Menu close
   const menuClose = document.querySelector('#menu-close');
-  if (menuClose) {
-    menuClose.addEventListener('click', () => navigate('detalle'));
-  }
+  if (menuClose) menuClose.addEventListener('click', () => navigate('detalle'));
 
-  // Open menu button in detalle → always navigate to menuViewer (handles both image and PDF)
+  // Open menu
   const openMenuBtn = content.querySelector('#open-menu-btn');
-  if (openMenuBtn) {
-    openMenuBtn.addEventListener('click', () => navigate('menuViewer'));
-  }
+  if (openMenuBtn) openMenuBtn.addEventListener('click', () => navigate('menuViewer'));
 
-  // Inject blob URL into PDF iframe after render
+  // PDF iframe
   const menuFrame = document.querySelector('#menu-frame');
   if (menuFrame) {
     const place = getPlaces().find(p => p.id === state.detailPlaceId);
@@ -732,17 +921,13 @@ function attachListeners() {
 
   // Show descuento from detalle
   const showDescuentoBtn = content.querySelector('#show-descuento-btn');
-  if (showDescuentoBtn) {
-    showDescuentoBtn.addEventListener('click', () => navigate('descuento'));
-  }
+  if (showDescuentoBtn) showDescuentoBtn.addEventListener('click', () => navigate('descuento'));
 
-  // Close descuento overlay → back to detalle
+  // Close descuento
   const descuentoClose = document.querySelector('#descuento-close');
-  if (descuentoClose) {
-    descuentoClose.addEventListener('click', () => navigate('detalle'));
-  }
+  if (descuentoClose) descuentoClose.addEventListener('click', () => navigate('detalle'));
 
-  // Descuento buttons in guardados cards
+  // Descuento buttons in guardados
   content.querySelectorAll('[data-descuento]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
@@ -754,8 +939,11 @@ function attachListeners() {
   const featuredCard = content.querySelector('.featured-card[data-place]');
   if (featuredCard) {
     featuredCard.addEventListener('click', e => {
-      if (e.target.closest('[data-save]')) return;
-      navigate('detalle', { detailPlaceId: parseInt(featuredCard.dataset.place), prevView: state.currentView });
+      if (e.target.closest('[data-save]') || _heroIsDragging) return;
+      // Only open detail if it wasn't a swipe (small movement)
+      if (Math.abs(_heroCurrentX - _heroStartX) < 10) {
+        navigate('detalle', { detailPlaceId: parseInt(featuredCard.dataset.place), prevView: state.currentView });
+      }
     });
   }
 
@@ -768,11 +956,12 @@ function attachListeners() {
   // Compare buttons
   attachCompareBtns(content);
 
-  // Floating compare bar — search document since position:fixed
+  // IR → buttons
+  attachIrBtns(content);
+
+  // Floating compare bar
   const goCompare = document.querySelector('#go-compare');
-  if (goCompare) {
-    goCompare.addEventListener('click', () => navigate('comparar', { prevView: state.currentView }));
-  }
+  if (goCompare) goCompare.addEventListener('click', () => navigate('comparar', { prevView: state.currentView }));
   const clearCompare = document.querySelector('#clear-compare');
   if (clearCompare) {
     clearCompare.addEventListener('click', () => {
@@ -796,7 +985,7 @@ function attachListeners() {
     });
   });
 
-  // Attend / unattend event
+  // Attend / unattend
   content.querySelectorAll('[data-attend]').forEach(el => {
     el.addEventListener('click', () => {
       const id   = parseInt(el.dataset.attend);
@@ -828,18 +1017,22 @@ function attachListeners() {
         navigator.share({ title: 'Mi GCPass', text: 'GC-2026-00847 · Lautaro García · Global Connect', url: location.href });
       } else {
         navigator.clipboard.writeText('GC-2026-00847').then(() => {
-          shareBtn.textContent = 'ID copiado';
+          shareBtn.textContent = 'ID copiado ✓';
           setTimeout(() => { shareBtn.textContent = 'Compartir mi GCPass'; }, 2200);
         });
       }
     });
   }
+
+  // Init hero swipe + card scroll animations
+  initHeroSwipe();
+  initCardObserver();
 }
 
 function attachPlaceCardListeners(container) {
   container.querySelectorAll('.place-card[data-place]').forEach(el => {
     el.addEventListener('click', e => {
-      if (e.target.closest('[data-save]') || e.target.closest('[data-compare]')) return;
+      if (e.target.closest('[data-save]') || e.target.closest('[data-compare]') || e.target.closest('[data-ir]') || e.target.closest('[data-descuento]')) return;
       navigate('detalle', { detailPlaceId: parseInt(el.dataset.place), prevView: state.currentView });
     });
   });
@@ -849,11 +1042,13 @@ function attachSaveBtns(container) {
   container.querySelectorAll('[data-save]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
-      const id   = parseInt(el.dataset.save);
-      const list = getSaved();
-      const idx  = list.indexOf(id);
+      const id      = parseInt(el.dataset.save);
+      const list    = getSaved();
+      const idx     = list.indexOf(id);
+      const adding  = idx < 0;
       if (idx >= 0) list.splice(idx, 1); else list.push(id);
       setSaved(list);
+      if (adding) launchConfetti(el);
       if (state.currentView !== 'explorar' || !document.querySelector('#search-input')) {
         navigate(state.currentView);
       } else {
@@ -875,6 +1070,15 @@ function attachCompareBtns(container) {
         state.compareList = [...state.compareList, id];
       }
       navigate(state.currentView);
+    });
+  });
+}
+
+function attachIrBtns(container) {
+  container.querySelectorAll('[data-ir]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      navigate('detalle', { detailPlaceId: parseInt(el.dataset.ir), prevView: state.currentView });
     });
   });
 }

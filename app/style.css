@@ -291,3 +291,57 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#1F2937;background:#F
 .empty-state{padding:56px 24px;text-align:center}
 .empty-state-title{font-size:16px;font-weight:700;color:#1F2937;margin-bottom:8px;letter-spacing:-.2px}
 .empty-state-desc{font-size:13px;color:#9CA3AF;margin-bottom:24px;line-height:1.6}
+
+/* ════════════════════════════════════════════════════════════
+   V2 — Swipeable hero · Category colors · Avatar stacks
+       Confetti · IR button · Scroll animations
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Category border-top + scroll animation override ── */
+.place-card{border-top:3px solid var(--cat-color,#0066FF);opacity:0;transform:translateY(8px);transition:opacity .25s ease-out,transform .3s ease-out,box-shadow .3s}
+.place-card:not(.card-visible){pointer-events:none}
+.place-card.card-visible{opacity:1;transform:translateY(0)}
+.event-card{opacity:0;transform:translateY(8px);transition:opacity .25s ease-out,transform .3s ease-out,box-shadow .3s}
+.event-card:not(.card-visible){pointer-events:none}
+.event-card.card-visible{opacity:1;transform:translateY(0)}
+
+/* ── New place card body components ── */
+.place-meta{font-size:12px;color:#6B7280;font-weight:400;margin-bottom:4px;display:flex;align-items:center;gap:5px;line-height:1.4}
+.place-category-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;display:inline-block}
+.place-price{font-size:14px;font-weight:700;color:#0066FF;margin-bottom:6px}
+.place-social{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.place-social-text{font-size:11px;color:#6B7280;font-weight:500}
+.place-actions{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #F3F4F6}
+.place-actions-left{display:flex;gap:6px}
+.btn-ir{font-size:12px;font-weight:700;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;background:#0066FF;color:#fff;transition:background .2s,transform .1s;letter-spacing:-.1px}
+.btn-ir:hover{background:#003D99}
+.btn-ir:active{transform:scale(.97)}
+
+/* ── Avatar stack ── */
+.avatar-stack{display:flex;align-items:center}
+.avatar-xs{width:22px;height:22px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;margin-left:-6px;flex-shrink:0;line-height:1}
+.avatar-stack .avatar-xs:first-child{margin-left:0}
+.avatar-more{background:#E5E7EB;color:#6B7280;font-size:8px;font-weight:700}
+
+/* Hero avatar (larger + on dark bg) */
+.featured-card-social{display:flex;align-items:center;gap:8px;margin-top:8px}
+.featured-card-social .avatar-xs{width:26px;height:26px;font-size:9px;border-color:rgba(255,255,255,.4)}
+.featured-card-social-text{font-size:12px;color:rgba(255,255,255,.8);font-weight:500}
+
+/* ── Hero dots ── */
+.hero-dots{display:flex;justify-content:center;gap:5px;padding:8px 0 2px}
+.hero-dot{width:6px;height:6px;border-radius:3px;background:#D1D5DB;transition:all .25s ease}
+.hero-dot.active{width:18px;background:#0066FF}
+
+/* ── Hero swipe indicators (❤ / →) ── */
+.hero-save-indicator,.hero-skip-indicator{position:absolute;top:16px;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;opacity:0;pointer-events:none;z-index:10}
+.hero-save-indicator{left:14px;background:#EC4899;color:#fff}
+.hero-skip-indicator{right:14px;background:rgba(0,0,0,.55);color:#fff}
+.featured-card.dragging{cursor:grabbing;user-select:none}
+
+/* ── Confetti particles ── */
+.confetti-particle{position:fixed;width:7px;height:7px;border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);animation:confetti-fly .65s ease-out forwards}
+@keyframes confetti-fly{
+  0%{opacity:1;transform:translate(-50%,-50%) translate(0,0) rotate(0deg) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) translate(var(--tx),var(--ty)) rotate(var(--rot)) scale(.4)}
+}
