@@ -27,17 +27,39 @@ function getEvents() {
   return window.GC_EVENTS;
 }
 
+// ─── XP / LEVEL ───────────────────────────────────────────────────────────────
+function calcXP() {
+  return getSaved().length * 1 + getAttending().length * 2;
+}
+function calcLevel(xp) {
+  if (xp >= 20) return { name: 'Globetrotter', next: null,  progress: 100 };
+  if (xp >= 10) return { name: 'Adventurer',   next: 20,    progress: (xp - 10) / 10 * 100 };
+  if (xp >= 5)  return { name: 'Explorer',     next: 10,    progress: (xp - 5) / 5 * 100 };
+  return              { name: 'Rookie',        next: 5,     progress: xp / 5 * 100 };
+}
+
+function updateHeader() {
+  const level = calcLevel(calcXP());
+  const badge = document.getElementById('level-badge');
+  if (badge) badge.textContent = level.name;
+}
+
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
+const MAIN_VIEWS = ['feed', 'explorar', 'eventos', 'guardados', 'pass'];
+
 function navigate(view, params) {
   if (params) Object.assign(state, params);
   state.currentView = view;
-  document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.view === view);
-  });
+  if (MAIN_VIEWS.includes(view)) {
+    document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.view === view);
+    });
+  }
   const content = document.getElementById('app-content');
   content.innerHTML = VIEWS[view]();
   content.scrollTop = 0;
   attachListeners();
+  updateHeader();
 }
 
 // ─── PLACE CARD ───────────────────────────────────────────────────────────────
@@ -45,20 +67,29 @@ function renderPlaceCard(place, saved) {
   const isSaved   = saved.includes(place.id);
   const isCompare = state.compareList.includes(place.id);
   const going     = place.stats?.going || 0;
+  const coverSrc  = place.imageData || place.imageUrl;
+
+  const imageHtml = coverSrc
+    ? `<img class="place-card-img" src="${coverSrc}" alt="${place.name}" onerror="this.style.display='none'"/>`
+    : `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F8FAFC'}">${place.emoji || '●'}</div>`;
+
   return `
     <div class="place-card" data-place="${place.id}">
-      <div class="place-card-top">
-        <div>
-          <div class="place-name">${place.name}</div>
-          <div class="place-sub">${place.category} · ${place.neighborhood}</div>
+      ${imageHtml}
+      <div class="place-card-body">
+        <div class="place-card-row">
+          <div>
+            <div class="place-name">${place.name}</div>
+            <div class="place-sub">${place.category} · ${place.neighborhood}</div>
+          </div>
+          <div class="place-card-actions">
+            <button class="compare-btn${isCompare ? ' active' : ''}" data-compare="${place.id}" title="Comparar">⇄</button>
+            <button class="save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}" title="${isSaved ? 'Quitar' : 'Guardar'}">♥</button>
+          </div>
         </div>
-        <div class="place-card-actions">
-          <button class="compare-btn${isCompare ? ' active' : ''}" data-compare="${place.id}" title="Comparar">⇄</button>
-          <button class="save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}" title="${isSaved ? 'Quitar' : 'Guardar'}">♥</button>
-        </div>
+        ${place.offer?.text ? `<div class="place-offer">${place.offer.text}</div>` : ''}
+        ${going > 0 ? `<div class="place-stats">${going >= 15 ? '<span class="badge-popular">Popular</span>' : ''} ${going} estudiantes estuvieron</div>` : ''}
       </div>
-      ${place.offer?.text ? `<div class="place-offer">${place.offer.text}</div>` : ''}
-      ${going > 0 ? `<div class="place-stats">${going >= 15 ? '<span class="badge-popular">Popular</span> ' : ''}${going} estudiantes estuvieron</div>` : ''}
     </div>`;
 }
 
@@ -66,12 +97,11 @@ function renderCompareBar() {
   const n = state.compareList.length;
   if (n === 0) return '';
   return `
-    <div class="compare-bar">
-      <span class="compare-bar-info">${n} lugar${n !== 1 ? 'es' : ''} para comparar</span>
-      <div class="compare-bar-actions">
-        <span class="compare-clear" id="clear-compare">Limpiar</span>
-        <button class="btn-compare-go" id="go-compare">Comparar</button>
-      </div>
+    <div class="compare-float">
+      <span class="compare-float-info">${n} lugar${n !== 1 ? 'es' : ''}</span>
+      <div class="compare-float-divider"></div>
+      <span id="clear-compare">Limpiar</span>
+      <button id="go-compare" class="btn-compare-go">Comparar</button>
     </div>`;
 }
 
@@ -86,10 +116,49 @@ const VIEWS = {
       ? places
       : places.filter(p => p.neighborhood === state.selectedNeighborhood);
 
+    const xp    = calcXP();
+    const level = calcLevel(xp);
+
+    const featured = places.length > 0
+      ? [...places].sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0))[0]
+      : null;
+
+    const featuredCover = featured ? (featured.imageData || featured.imageUrl) : null;
+
     return `
       <div class="view">
+        <div class="feed-greeting">
+          <div class="feed-greeting-name">Buongiorno, Lautaro!</div>
+          <div class="feed-greeting-sub">Roma te espera — ${places.length} lugares disponibles</div>
+          <div class="xp-row">
+            <span class="xp-label">${level.name}</span>
+            <span class="xp-points">${xp} XP${level.next ? ' · próximo: ' + level.next + ' XP' : ' · Máximo nivel'}</span>
+          </div>
+          <div class="xp-bar-track">
+            <div class="xp-bar-fill" style="width:${level.progress}%"></div>
+          </div>
+        </div>
+
+        ${featured ? `
+        <div class="featured-wrap">
+          <div class="featured-label">⭐ Trending</div>
+          <div class="featured-card" data-place="${featured.id}">
+            ${featuredCover
+              ? `<img class="featured-card-img" src="${featuredCover}" alt="${featured.name}" onerror="this.style.display='none'"/>`
+              : `<div class="featured-card-icon-bg" style="background:${featured.bgColor || '#DBEAFE'}">${featured.emoji || '🏠'}</div>`
+            }
+            <div class="featured-card-overlay"></div>
+            <div class="featured-card-info">
+              <div class="featured-card-name">${featured.name}</div>
+              <div class="featured-card-sub">${featured.category} · ${featured.neighborhood}</div>
+            </div>
+            ${(featured.stats?.going || 0) >= 15 ? '<span class="featured-card-badge">Popular</span>' : ''}
+            <button class="featured-card-save${saved.includes(featured.id) ? ' saved' : ''}" data-save="${featured.id}">♥</button>
+          </div>
+        </div>` : ''}
+
         <div class="section-head">
-          <span class="section-head-title">Lugares${state.selectedNeighborhood !== 'Todos' ? ' · ' + state.selectedNeighborhood : ''}</span>
+          <span class="section-head-title">Lugares en Roma${state.selectedNeighborhood !== 'Todos' ? ' · ' + state.selectedNeighborhood : ''}</span>
           <span class="section-head-sub">${places.length} registrado${places.length !== 1 ? 's' : ''}</span>
         </div>
 
@@ -185,19 +254,22 @@ const VIEWS = {
                 const count = ev.going + (isAttending ? 1 : 0);
                 return `
                   <div class="event-card">
-                    <div class="event-card-head">
-                      <div>
-                        <div class="event-name">${ev.name}</div>
-                        <div class="event-place-name">${place ? place.name + ' · ' + place.neighborhood : '—'}</div>
+                    <div class="event-card-accent"></div>
+                    <div class="event-card-body">
+                      <div class="event-card-head">
+                        <div>
+                          <div class="event-name">${ev.name}</div>
+                          <div class="event-place-name">${place ? place.name + ' · ' + place.neighborhood : '—'}</div>
+                        </div>
+                        <div class="event-date-chip">${ev.displayDate}</div>
                       </div>
-                      <div class="event-date">${ev.displayDate}</div>
-                    </div>
-                    <div class="event-price-tag">${ev.time} · ${ev.price}</div>
-                    <div class="event-footer">
-                      <span class="event-going">${count} confirmados</span>
-                      <button class="btn-attend${isAttending ? ' attending' : ''}" data-attend="${ev.id}">
-                        ${isAttending ? 'Apuntado' : 'Me apunto'}
-                      </button>
+                      <div class="event-price-tag">${ev.time} · ${ev.price}</div>
+                      <div class="event-footer">
+                        <span class="event-going">${count} confirmados</span>
+                        <button class="btn-attend${isAttending ? ' attending' : ''}" data-attend="${ev.id}">
+                          ${isAttending ? 'Apuntado' : 'Me apunto'}
+                        </button>
+                      </div>
                     </div>
                   </div>`;
               }).join('')}
@@ -280,6 +352,7 @@ const VIEWS = {
     if (!place) return `<div class="empty-state"><div class="empty-state-title">Local no encontrado</div></div>`;
     const saved   = getSaved();
     const isSaved = saved.includes(place.id);
+    const coverSrc = place.imageData || place.imageUrl;
 
     const rows = [];
     if (place.priceRange) rows.push(`
@@ -310,9 +383,18 @@ const VIEWS = {
         <a href="${place.website}" target="_blank" class="detail-info-link">${place.website.replace(/^https?:\/\//, '')}</a>
       </div>`);
 
+    const menuBtn = place.menuData
+      ? `<button class="btn-primary-full" id="open-menu-btn" style="background:#F8FAFC;color:#1D4ED8;border:1px solid #BFDBFE;" data-menu-type="${place.menuType || ''}">Ver carta / menú</button>`
+      : (place.menuUrl
+          ? `<a href="${place.menuUrl}" target="_blank" style="display:block;text-align:center;padding:13px;border:1px solid #EAECEF;border-radius:12px;font-size:13px;font-weight:700;color:#1D4ED8;text-decoration:none">Ver carta / menú</a>`
+          : '');
+
     return `
       <div class="btn-back" id="detail-back">← Volver</div>
-      ${place.imageUrl ? `<img class="detail-cover" src="${place.imageUrl}" alt="${place.name}" onerror="this.style.display='none'"/>` : ''}
+      ${coverSrc
+        ? `<img class="detail-cover" src="${coverSrc}" alt="${place.name}" onerror="this.style.display='none'"/>`
+        : `<div class="detail-cover-icon-bg" style="background:${place.bgColor || '#F8FAFC'}">${place.emoji || '●'}</div>`
+      }
       <div class="detail-hero">
         <div class="detail-name">${place.name}</div>
         <div class="detail-cat">${place.category} · ${place.neighborhood}</div>
@@ -332,8 +414,23 @@ const VIEWS = {
         <button class="btn-primary-full" data-save="${place.id}" style="${isSaved ? 'background:#F8FAFC;color:#64748B;border:1px solid #EAECEF;' : ''}">
           ${isSaved ? 'Guardado' : 'Guardar lugar'}
         </button>
-        ${place.menuUrl ? `<a href="${place.menuUrl}" target="_blank" style="display:block;text-align:center;padding:12px;border:1px solid #EAECEF;border-radius:12px;font-size:13px;font-weight:700;color:#1D4ED8;text-decoration:none">Ver carta / menú</a>` : ''}
+        ${menuBtn}
         ${place.mapsUrl ? `<a href="${place.mapsUrl}" target="_blank" style="display:block;text-align:center;padding:12px;border:1px solid #EAECEF;border-radius:12px;font-size:13px;font-weight:700;color:#475569;text-decoration:none">Cómo llegar</a>` : ''}
+      </div>`;
+  },
+
+  menuViewer() {
+    const place = getPlaces().find(p => p.id === state.detailPlaceId);
+    if (!place || !place.menuData) {
+      return `<div class="empty-state"><div class="empty-state-title">Menú no disponible</div></div>`;
+    }
+    return `
+      <div class="menu-overlay">
+        <div class="menu-overlay-bar">
+          <span class="menu-overlay-title">Carta — ${place.name}</span>
+          <span class="menu-overlay-close" id="menu-close">✕ Cerrar</span>
+        </div>
+        <img class="menu-overlay-img" src="${place.menuData}" alt="Menú de ${place.name}"/>
       </div>`;
   },
 
@@ -365,7 +462,7 @@ const VIEWS = {
         <div class="btn-back" id="detail-back">← Volver</div>
         <div class="section-head">
           <span class="section-head-title">Comparando ${places.length} lugares</span>
-          <span class="compare-clear" id="clear-compare">Limpiar</span>
+          <span class="compare-clear" id="clear-compare" style="font-size:12px;font-weight:600;color:#94A3B8;cursor:pointer">Limpiar</span>
         </div>
         <div class="compare-wrap">
           <table class="compare-table">
@@ -443,10 +540,39 @@ function attachListeners() {
     });
   }
 
-  // Back button from detail / compare views
+  // Back button from detail / compare / menuViewer
   const detailBack = content.querySelector('#detail-back');
   if (detailBack) {
     detailBack.addEventListener('click', () => navigate(state.prevView));
+  }
+
+  // Menu close button (menuViewer overlay)
+  const menuClose = document.querySelector('#menu-close');
+  if (menuClose) {
+    menuClose.addEventListener('click', () => navigate('detalle'));
+  }
+
+  // Open menu button in detalle
+  const openMenuBtn = content.querySelector('#open-menu-btn');
+  if (openMenuBtn) {
+    openMenuBtn.addEventListener('click', () => {
+      const place = getPlaces().find(p => p.id === state.detailPlaceId);
+      if (!place?.menuData) return;
+      if (place.menuType && place.menuType.startsWith('image')) {
+        navigate('menuViewer');
+      } else {
+        window.open(place.menuData, '_blank');
+      }
+    });
+  }
+
+  // Featured card tap → detail
+  const featuredCard = content.querySelector('.featured-card[data-place]');
+  if (featuredCard) {
+    featuredCard.addEventListener('click', e => {
+      if (e.target.closest('[data-save]')) return;
+      navigate('detalle', { detailPlaceId: parseInt(featuredCard.dataset.place), prevView: state.currentView });
+    });
   }
 
   // Place card tap → detail
@@ -458,14 +584,12 @@ function attachListeners() {
   // Compare buttons
   attachCompareBtns(content);
 
-  // Go compare
-  const goCompare = content.querySelector('#go-compare');
+  // Floating compare bar — search document since position:fixed
+  const goCompare = document.querySelector('#go-compare');
   if (goCompare) {
     goCompare.addEventListener('click', () => navigate('comparar', { prevView: state.currentView }));
   }
-
-  // Clear compare
-  const clearCompare = content.querySelector('#clear-compare');
+  const clearCompare = document.querySelector('#clear-compare');
   if (clearCompare) {
     clearCompare.addEventListener('click', () => {
       state.compareList = [];
@@ -550,6 +674,7 @@ function attachSaveBtns(container) {
         navigate(state.currentView);
       } else {
         el.classList.toggle('saved', list.includes(id));
+        updateHeader();
       }
     });
   });

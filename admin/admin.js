@@ -376,14 +376,23 @@ const ADMIN_VIEWS = {
             </div>
 
             <div class="form-group">
-              <label>Imagen del local (URL)</label>
-              <input type="url" id="f-imageUrl" class="form-input" placeholder="https://ejemplo.com/imagen.jpg" value="${p?.imageUrl || ''}"/>
-              <img id="img-preview" class="img-preview-thumb" src="${p?.imageUrl || ''}" style="display:${p?.imageUrl ? 'block' : 'none'}"/>
+              <label>Imagen del local</label>
+              <label class="file-upload-btn" for="f-imageFile">
+                📷 ${p?.imageData ? 'Cambiar imagen' : 'Subir imagen'}
+              </label>
+              <input type="file" id="f-imageFile" accept="image/*" style="display:none"/>
+              <img id="img-preview" class="img-preview-thumb" src="${p?.imageData || p?.imageUrl || ''}" style="display:${p?.imageData || p?.imageUrl ? 'block' : 'none'}"/>
             </div>
 
             <div class="form-group">
-              <label>Menú / Carta (URL)</label>
-              <input type="url" id="f-menuUrl" class="form-input" placeholder="https://..." value="${p?.menuUrl || ''}"/>
+              <label>Menú / Carta (PDF o imagen)</label>
+              <label class="file-upload-btn file-upload-btn-secondary" for="f-menuFile">
+                📄 ${p?.menuData ? 'Cambiar menú' : 'Subir menú (PDF o imagen)'}
+              </label>
+              <input type="file" id="f-menuFile" accept=".pdf,image/*" style="display:none"/>
+              <div id="menu-upload-status" class="file-upload-status" style="display:${p?.menuData ? 'block' : 'none'}">
+                ✓ Menú cargado
+              </div>
             </div>
 
             <div class="form-section-title">Apariencia</div>
@@ -710,15 +719,42 @@ function attachAdminListeners() {
   if (hoursOpen)  hoursOpen.addEventListener('change', updateHoursFromDOM);
   if (hoursClose) hoursClose.addEventListener('change', updateHoursFromDOM);
 
-  // ── Image URL preview ────────────────────────────────────────────────────────
-  const imageUrlInput = content.querySelector('#f-imageUrl');
-  if (imageUrlInput) {
-    imageUrlInput.addEventListener('input', () => {
-      const preview = content.querySelector('#img-preview');
-      if (preview) {
-        preview.src = imageUrlInput.value;
-        preview.style.display = imageUrlInput.value ? 'block' : 'none';
-      }
+  // ── Image file upload ────────────────────────────────────────────────────────
+  const imageFileInput = content.querySelector('#f-imageFile');
+  if (imageFileInput) {
+    imageFileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { showToast('Imagen demasiado grande (máx 2 MB)'); return; }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        imageFileInput._data = ev.target.result;
+        const preview = content.querySelector('#img-preview');
+        if (preview) { preview.src = ev.target.result; preview.style.display = 'block'; }
+        const uploadBtn = content.querySelector('label[for="f-imageFile"]');
+        if (uploadBtn) uploadBtn.textContent = '📷 Cambiar imagen';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── Menu file upload ─────────────────────────────────────────────────────────
+  const menuFileInput = content.querySelector('#f-menuFile');
+  if (menuFileInput) {
+    menuFileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) { showToast('Archivo demasiado grande (máx 10 MB)'); return; }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        menuFileInput._data = ev.target.result;
+        menuFileInput._type = file.type;
+        const statusEl = content.querySelector('#menu-upload-status');
+        if (statusEl) statusEl.style.display = 'block';
+        const uploadBtn = content.querySelector('label[for="f-menuFile"]');
+        if (uploadBtn) uploadBtn.textContent = '📄 Cambiar menú';
+      };
+      reader.readAsDataURL(file);
     });
   }
 
@@ -741,8 +777,6 @@ function attachAdminListeners() {
       const mapsUrl      = document.getElementById('f-maps')?.value.trim() || '';
       const bgColor      = document.getElementById('f-bgColor')?.value || '#FEF3C7';
       const priceRange   = document.getElementById('f-priceRange')?.value || '';
-      const imageUrl     = document.getElementById('f-imageUrl')?.value.trim() || '';
-      const menuUrl      = document.getElementById('f-menuUrl')?.value.trim() || '';
 
       const errorEl = document.getElementById('form-error');
       if (!name)         { errorEl.textContent = 'El nombre es requerido';    errorEl.style.display = 'block'; return; }
@@ -750,7 +784,13 @@ function attachAdminListeners() {
       if (!neighborhood) { errorEl.textContent = 'El barrio es requerido';    errorEl.style.display = 'block'; return; }
       errorEl.style.display = 'none';
 
-      const places = getAdminPlaces();
+      const places       = getAdminPlaces();
+      const imageFileInp = document.getElementById('f-imageFile');
+      const menuFileInp  = document.getElementById('f-menuFile');
+      const existingP    = adminState.editingPlaceId !== null ? places.find(x => x.id === adminState.editingPlaceId) : null;
+      const imageData    = imageFileInp?._data || existingP?.imageData || '';
+      const menuData     = menuFileInp?._data  || existingP?.menuData  || '';
+      const menuType     = menuFileInp?._type  || existingP?.menuType  || '';
       const offerObj = { text: offerText, badge: offerText ? `🎫 ${offerText}` : '' };
 
       if (adminState.editingPlaceId !== null) {
@@ -761,7 +801,7 @@ function attachAdminListeners() {
             name, category, neighborhood, emoji, bgColor,
             address, phone, hours, website, mapsUrl,
             description, offer: offerObj, plan, active,
-            priceRange, imageUrl, menuUrl,
+            priceRange, imageData, menuData, menuType,
           };
         }
       } else {
@@ -769,7 +809,7 @@ function attachAdminListeners() {
           id: nextId(places), name, category, neighborhood, emoji,
           bgColor, address, phone, hours, website, mapsUrl,
           description, offer: offerObj, plan, active,
-          priceRange, imageUrl, menuUrl,
+          priceRange, imageData, menuData, menuType,
           stats: { views: 0, going: 0, clicks: 0, groups: 0 }
         });
       }
