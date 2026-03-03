@@ -7,6 +7,7 @@ const state = {
   eventFilter: 'all',
   detailPlaceId: null,
   prevView: 'feed',
+  compareList: [],
 };
 
 // ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
@@ -41,15 +42,36 @@ function navigate(view, params) {
 
 // ─── PLACE CARD ───────────────────────────────────────────────────────────────
 function renderPlaceCard(place, saved) {
-  const isSaved = saved.includes(place.id);
+  const isSaved   = saved.includes(place.id);
+  const isCompare = state.compareList.includes(place.id);
+  const going     = place.stats?.going || 0;
   return `
     <div class="place-card" data-place="${place.id}">
       <div class="place-card-top">
-        <div class="place-name">${place.name}</div>
-        <button class="save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}" title="${isSaved ? 'Quitar' : 'Guardar'}">♥</button>
+        <div>
+          <div class="place-name">${place.name}</div>
+          <div class="place-sub">${place.category} · ${place.neighborhood}</div>
+        </div>
+        <div class="place-card-actions">
+          <button class="compare-btn${isCompare ? ' active' : ''}" data-compare="${place.id}" title="Comparar">⇄</button>
+          <button class="save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}" title="${isSaved ? 'Quitar' : 'Guardar'}">♥</button>
+        </div>
       </div>
-      <div class="place-sub">${place.category} · ${place.neighborhood}</div>
       ${place.offer?.text ? `<div class="place-offer">${place.offer.text}</div>` : ''}
+      ${going > 0 ? `<div class="place-stats">${going >= 15 ? '<span class="badge-popular">Popular</span> ' : ''}${going} estudiantes estuvieron</div>` : ''}
+    </div>`;
+}
+
+function renderCompareBar() {
+  const n = state.compareList.length;
+  if (n === 0) return '';
+  return `
+    <div class="compare-bar">
+      <span class="compare-bar-info">${n} lugar${n !== 1 ? 'es' : ''} para comparar</span>
+      <div class="compare-bar-actions">
+        <span class="compare-clear" id="clear-compare">Limpiar</span>
+        <button class="btn-compare-go" id="go-compare">Comparar</button>
+      </div>
     </div>`;
 }
 
@@ -77,12 +99,14 @@ const VIEWS = {
           `).join('')}
         </div>
 
+        ${renderCompareBar()}
+
         ${filtered.length === 0
           ? `<div class="empty-state">
               <div class="empty-state-title">${places.length === 0 ? 'Sin lugares aún' : 'Sin lugares en ' + state.selectedNeighborhood}</div>
               <div class="empty-state-desc">${places.length === 0 ? 'Pronto habrá lugares disponibles.' : 'Probá con otro barrio.'}</div>
              </div>`
-          : filtered.map(p => renderPlaceCard(p, saved)).join('')
+          : `<div class="cards-grid">${filtered.map(p => renderPlaceCard(p, saved)).join('')}</div>`
         }
       </div>`;
   },
@@ -117,6 +141,8 @@ const VIEWS = {
           ${categories.map(c => `<div class="chip${state.selectedCategory === c ? ' active' : ''}" data-category="${c}">${c}</div>`).join('')}
         </div>` : ''}
 
+        ${renderCompareBar()}
+
         <div class="result-count" id="result-count">${filtered.length} ${filtered.length === 1 ? 'lugar' : 'lugares'}</div>
 
         <div id="search-results">
@@ -125,7 +151,7 @@ const VIEWS = {
                 <div class="empty-state-title">Sin resultados</div>
                 <div class="empty-state-desc">Probá con otro término o filtro</div>
                </div>`
-            : filtered.map(p => renderPlaceCard(p, saved)).join('')
+            : `<div class="cards-grid">${filtered.map(p => renderPlaceCard(p, saved)).join('')}</div>`
           }
         </div>
       </div>`;
@@ -152,28 +178,30 @@ const VIEWS = {
               <div class="empty-state-title">Sin eventos en este período</div>
               <div class="empty-state-desc">Cuando haya eventos disponibles aparecerán aquí</div>
              </div>`
-          : filtered.map(ev => {
-              const place = places.find(p => p.id === ev.placeId);
-              const isAttending = attending.includes(ev.id);
-              const count = ev.going + (isAttending ? 1 : 0);
-              return `
-                <div class="event-card">
-                  <div class="event-card-head">
-                    <div>
-                      <div class="event-name">${ev.name}</div>
-                      <div class="event-place-name">${place ? place.name + ' · ' + place.neighborhood : '—'}</div>
+          : `<div class="events-grid">
+              ${filtered.map(ev => {
+                const place = places.find(p => p.id === ev.placeId);
+                const isAttending = attending.includes(ev.id);
+                const count = ev.going + (isAttending ? 1 : 0);
+                return `
+                  <div class="event-card">
+                    <div class="event-card-head">
+                      <div>
+                        <div class="event-name">${ev.name}</div>
+                        <div class="event-place-name">${place ? place.name + ' · ' + place.neighborhood : '—'}</div>
+                      </div>
+                      <div class="event-date">${ev.displayDate}</div>
                     </div>
-                    <div class="event-date">${ev.displayDate}</div>
-                  </div>
-                  <div class="event-price-tag">${ev.time} · ${ev.price}</div>
-                  <div class="event-footer">
-                    <span class="event-going">${count} confirmados</span>
-                    <button class="btn-attend${isAttending ? ' attending' : ''}" data-attend="${ev.id}">
-                      ${isAttending ? 'Apuntado' : 'Me apunto'}
-                    </button>
-                  </div>
-                </div>`;
-            }).join('')
+                    <div class="event-price-tag">${ev.time} · ${ev.price}</div>
+                    <div class="event-footer">
+                      <span class="event-going">${count} confirmados</span>
+                      <button class="btn-attend${isAttending ? ' attending' : ''}" data-attend="${ev.id}">
+                        ${isAttending ? 'Apuntado' : 'Me apunto'}
+                      </button>
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>`
         }
       </div>`;
   },
@@ -188,13 +216,14 @@ const VIEWS = {
           <span class="section-head-title">Guardados</span>
           <span class="section-head-sub">${places.length} lugar${places.length !== 1 ? 'es' : ''}</span>
         </div>
+        ${renderCompareBar()}
         ${places.length === 0
           ? `<div class="empty-state">
               <div class="empty-state-title">Nada guardado todavía</div>
               <div class="empty-state-desc">Guardá lugares para encontrarlos fácilmente</div>
               <button class="btn-primary-sm" data-view="feed">Ver lugares</button>
              </div>`
-          : places.map(p => renderPlaceCard(p, saved)).join('')
+          : `<div class="cards-grid">${places.map(p => renderPlaceCard(p, saved)).join('')}</div>`
         }
       </div>`;
   },
@@ -253,6 +282,11 @@ const VIEWS = {
     const isSaved = saved.includes(place.id);
 
     const rows = [];
+    if (place.priceRange) rows.push(`
+      <div class="detail-info-row">
+        <span class="detail-info-icon">💶</span>
+        <span class="detail-info-text">${place.priceRange} por persona</span>
+      </div>`);
     if (place.address) rows.push(`
       <div class="detail-info-row">
         <span class="detail-info-icon">📍</span>
@@ -278,6 +312,7 @@ const VIEWS = {
 
     return `
       <div class="btn-back" id="detail-back">← Volver</div>
+      ${place.imageUrl ? `<img class="detail-cover" src="${place.imageUrl}" alt="${place.name}" onerror="this.style.display='none'"/>` : ''}
       <div class="detail-hero">
         <div class="detail-name">${place.name}</div>
         <div class="detail-cat">${place.category} · ${place.neighborhood}</div>
@@ -297,9 +332,63 @@ const VIEWS = {
         <button class="btn-primary-full" data-save="${place.id}" style="${isSaved ? 'background:#F8FAFC;color:#64748B;border:1px solid #EAECEF;' : ''}">
           ${isSaved ? 'Guardado' : 'Guardar lugar'}
         </button>
-        ${place.mapsUrl ? `<a href="${place.mapsUrl}" target="_blank" style="display:block;text-align:center;padding:12px;border:1px solid #EAECEF;border-radius:12px;font-size:13px;font-weight:700;color:#1D4ED8;text-decoration:none">Cómo llegar</a>` : ''}
+        ${place.menuUrl ? `<a href="${place.menuUrl}" target="_blank" style="display:block;text-align:center;padding:12px;border:1px solid #EAECEF;border-radius:12px;font-size:13px;font-weight:700;color:#1D4ED8;text-decoration:none">Ver carta / menú</a>` : ''}
+        ${place.mapsUrl ? `<a href="${place.mapsUrl}" target="_blank" style="display:block;text-align:center;padding:12px;border:1px solid #EAECEF;border-radius:12px;font-size:13px;font-weight:700;color:#475569;text-decoration:none">Cómo llegar</a>` : ''}
       </div>`;
-  }
+  },
+
+  comparar() {
+    const allPlaces = getPlaces();
+    const places = state.compareList.map(id => allPlaces.find(p => p.id === id)).filter(Boolean);
+
+    if (places.length < 2) {
+      return `
+        <div class="view">
+          <div class="btn-back" id="detail-back">← Volver</div>
+          <div class="empty-state">
+            <div class="empty-state-title">Seleccioná al menos 2 lugares</div>
+            <div class="empty-state-desc">Usá el botón ⇄ en las tarjetas para agregar lugares a la comparación</div>
+          </div>
+        </div>`;
+    }
+
+    const rows = [
+      { label: 'Barrio',       fn: p => p.neighborhood },
+      { label: 'Categoría',    fn: p => p.category },
+      { label: 'Precio prom.', fn: p => p.priceRange || '—' },
+      { label: 'Oferta GC',    fn: p => p.offer?.text || '—' },
+      { label: 'Horario',      fn: p => p.hours || '—' },
+    ];
+
+    return `
+      <div class="view">
+        <div class="btn-back" id="detail-back">← Volver</div>
+        <div class="section-head">
+          <span class="section-head-title">Comparando ${places.length} lugares</span>
+          <span class="compare-clear" id="clear-compare">Limpiar</span>
+        </div>
+        <div class="compare-wrap">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th></th>
+                ${places.map(p => `<th>${p.name}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  <td>${row.label}</td>
+                  ${places.map(p => `<td>${row.fn(p)}</td>`).join('')}
+                </tr>`).join('')}
+            </tbody>
+          </table>
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+            ${places.map(p => `<button class="btn-primary-sm" style="flex:1;min-width:120px;font-size:12px" data-compare-view="${p.id}">Ver ${p.name}</button>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  },
 };
 
 // ─── LISTENERS ────────────────────────────────────────────────────────────────
@@ -342,18 +431,19 @@ function attachListeners() {
       }
       const countEl   = document.getElementById('result-count');
       const resultsEl = document.getElementById('search-results');
-      if (countEl)   countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'lugar' : 'lugares'}`;
+      if (countEl) countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'lugar' : 'lugares'}`;
       if (resultsEl) {
         resultsEl.innerHTML = filtered.length === 0
           ? `<div class="empty-state"><div class="empty-state-title">Sin resultados</div></div>`
-          : filtered.map(p => renderPlaceCard(p, saved)).join('');
+          : `<div class="cards-grid">${filtered.map(p => renderPlaceCard(p, saved)).join('')}</div>`;
         attachSaveBtns(resultsEl);
+        attachCompareBtns(resultsEl);
         attachPlaceCardListeners(resultsEl);
       }
     });
   }
 
-  // Back button from detail view
+  // Back button from detail / compare views
   const detailBack = content.querySelector('#detail-back');
   if (detailBack) {
     detailBack.addEventListener('click', () => navigate(state.prevView));
@@ -364,6 +454,31 @@ function attachListeners() {
 
   // Save / unsave
   attachSaveBtns(content);
+
+  // Compare buttons
+  attachCompareBtns(content);
+
+  // Go compare
+  const goCompare = content.querySelector('#go-compare');
+  if (goCompare) {
+    goCompare.addEventListener('click', () => navigate('comparar', { prevView: state.currentView }));
+  }
+
+  // Clear compare
+  const clearCompare = content.querySelector('#clear-compare');
+  if (clearCompare) {
+    clearCompare.addEventListener('click', () => {
+      state.compareList = [];
+      navigate(state.currentView === 'comparar' ? state.prevView : state.currentView);
+    });
+  }
+
+  // Compare view → detail
+  content.querySelectorAll('[data-compare-view]').forEach(el => {
+    el.addEventListener('click', () => {
+      navigate('detalle', { detailPlaceId: parseInt(el.dataset.compareView), prevView: 'comparar' });
+    });
+  });
 
   // Event filter tabs
   content.querySelectorAll('[data-event-filter]').forEach(el => {
@@ -416,7 +531,7 @@ function attachListeners() {
 function attachPlaceCardListeners(container) {
   container.querySelectorAll('.place-card[data-place]').forEach(el => {
     el.addEventListener('click', e => {
-      if (e.target.closest('[data-save]')) return;
+      if (e.target.closest('[data-save]') || e.target.closest('[data-compare]')) return;
       navigate('detalle', { detailPlaceId: parseInt(el.dataset.place), prevView: state.currentView });
     });
   });
@@ -436,6 +551,21 @@ function attachSaveBtns(container) {
       } else {
         el.classList.toggle('saved', list.includes(id));
       }
+    });
+  });
+}
+
+function attachCompareBtns(container) {
+  container.querySelectorAll('[data-compare]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = parseInt(el.dataset.compare);
+      if (state.compareList.includes(id)) {
+        state.compareList = state.compareList.filter(x => x !== id);
+      } else if (state.compareList.length < 3) {
+        state.compareList = [...state.compareList, id];
+      }
+      navigate(state.currentView);
     });
   });
 }

@@ -21,6 +21,8 @@ const BG_COLORS = [
   { value: '#F0FDF4', label: 'Menta' },
 ];
 
+const DAY_PRESETS = ['Lun–Vie', 'Lun–Sáb', 'Lun–Dom', 'Fin de sem'];
+
 // ─── DATA HELPERS ─────────────────────────────────────────────────────────────
 function getAdminPlaces() {
   const s = localStorage.getItem('gc_admin_places');
@@ -255,6 +257,14 @@ const ADMIN_VIEWS = {
     const p = isEditing ? places.find(x => x.id === adminState.editingPlaceId) : null;
     const currentColor = p?.bgColor || '#FEF3C7';
 
+    // Parse existing hours string (e.g. "Lun–Dom 12:00–22:00")
+    const hoursStr   = p?.hours || '';
+    const hm         = hoursStr.match(/^(.+?)\s+(\d{2}:\d{2})[–\-](\d{2}:\d{2})$/);
+    const hoursDays  = hm ? hm[1] : '';
+    const hoursOpen  = hm ? hm[2] : '12:00';
+    const hoursClose = hm ? hm[3] : '22:00';
+    const hoursPreview = p?.hours || 'Sin horario definido';
+
     const neighborhoods = ['Trastevere','Prati','Testaccio','Monti','Pigneto','Ghetto','Esquilino','Ostiense','Parioli','EUR','Tiburtino','Garbatella'];
     const categories    = ['Trattoria','Aperitivo bar','Bar histórico','Craft beer bar','Pizza al taglio','Cucina ebraica','Restaurante','Café','Club','Otro'];
 
@@ -297,12 +307,24 @@ const ADMIN_VIEWS = {
               </div>
             </div>
 
-            <div class="form-group">
-              <label>Barrio *</label>
-              <select id="f-neighborhood" class="form-input">
-                <option value="">Seleccionar...</option>
-                ${neighborhoods.map(n => `<option value="${n}"${p?.neighborhood === n ? ' selected' : ''}>${n}</option>`).join('')}
-              </select>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Barrio *</label>
+                <select id="f-neighborhood" class="form-input">
+                  <option value="">Seleccionar...</option>
+                  ${neighborhoods.map(n => `<option value="${n}"${p?.neighborhood === n ? ' selected' : ''}>${n}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Precio promedio por persona</label>
+                <select id="f-priceRange" class="form-input">
+                  <option value="">Sin especificar</option>
+                  <option value="< €10"  ${p?.priceRange === '< €10'  ? 'selected' : ''}>Económico · menos de €10</option>
+                  <option value="€10–20" ${p?.priceRange === '€10–20' ? 'selected' : ''}>Moderado · €10–20</option>
+                  <option value="€20–40" ${p?.priceRange === '€20–40' ? 'selected' : ''}>Medio-alto · €20–40</option>
+                  <option value="> €40"  ${p?.priceRange === '> €40'  ? 'selected' : ''}>Premium · más de €40</option>
+                </select>
+              </div>
             </div>
 
             <div class="form-section-title">Contacto y ubicación</div>
@@ -317,15 +339,23 @@ const ADMIN_VIEWS = {
               <input type="url" id="f-maps" class="form-input" placeholder="https://maps.google.com/..." value="${p?.mapsUrl || ''}"/>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label>Teléfono</label>
-                <input type="tel" id="f-phone" class="form-input" placeholder="+39 06 581 3798" value="${p?.phone || ''}"/>
+            <div class="form-group">
+              <label>Teléfono</label>
+              <input type="tel" id="f-phone" class="form-input" placeholder="+39 06 581 3798" value="${p?.phone || ''}"/>
+            </div>
+
+            <div class="form-group">
+              <label>Horario</label>
+              <div class="hours-presets">
+                ${DAY_PRESETS.map(d => `<button type="button" class="hours-preset-btn${hoursDays === d ? ' active' : ''}" data-days="${d}">${d}</button>`).join('')}
               </div>
-              <div class="form-group">
-                <label>Horario</label>
-                <input type="text" id="f-hours" class="form-input" placeholder="Lun–Dom 12:00–24:00" value="${p?.hours || ''}"/>
+              <div class="hours-time-row">
+                <input type="time" id="f-hours-open" class="form-input" style="width:130px" value="${hoursOpen}"/>
+                <span class="hours-sep">–</span>
+                <input type="time" id="f-hours-close" class="form-input" style="width:130px" value="${hoursClose}"/>
               </div>
+              <div class="hours-preview-text" id="hours-preview">${hoursPreview}</div>
+              <input type="hidden" id="f-hours" value="${p?.hours || ''}"/>
             </div>
 
             <div class="form-group">
@@ -343,6 +373,17 @@ const ADMIN_VIEWS = {
             <div class="form-group">
               <label>Oferta para estudiantes GC</label>
               <input type="text" id="f-offer" class="form-input" placeholder="Ej: 10% de descuento en almuerzo y cena" value="${p?.offer?.text || ''}"/>
+            </div>
+
+            <div class="form-group">
+              <label>Imagen del local (URL)</label>
+              <input type="url" id="f-imageUrl" class="form-input" placeholder="https://ejemplo.com/imagen.jpg" value="${p?.imageUrl || ''}"/>
+              <img id="img-preview" class="img-preview-thumb" src="${p?.imageUrl || ''}" style="display:${p?.imageUrl ? 'block' : 'none'}"/>
+            </div>
+
+            <div class="form-group">
+              <label>Menú / Carta (URL)</label>
+              <input type="url" id="f-menuUrl" class="form-input" placeholder="https://..." value="${p?.menuUrl || ''}"/>
             </div>
 
             <div class="form-section-title">Apariencia</div>
@@ -633,6 +674,8 @@ function attachAdminListeners() {
       if (box) box.style.background = el.dataset.color;
     });
   });
+
+  // Active toggle label
   const activeToggle = content.querySelector('#f-active');
   if (activeToggle) {
     activeToggle.addEventListener('change', () => {
@@ -641,6 +684,45 @@ function attachAdminListeners() {
     });
   }
 
+  // ── Hours UI ─────────────────────────────────────────────────────────────────
+  function updateHoursFromDOM() {
+    const activeBtn  = content.querySelector('.hours-preset-btn.active');
+    const days       = activeBtn?.dataset.days || '';
+    const open       = content.querySelector('#f-hours-open')?.value  || '';
+    const close      = content.querySelector('#f-hours-close')?.value || '';
+    const value      = days && open && close ? `${days} ${open}–${close}` : '';
+    const hiddenInput = content.querySelector('#f-hours');
+    if (hiddenInput) hiddenInput.value = value;
+    const preview = content.querySelector('#hours-preview');
+    if (preview) preview.textContent = value || 'Sin horario definido';
+  }
+
+  content.querySelectorAll('.hours-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      content.querySelectorAll('.hours-preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateHoursFromDOM();
+    });
+  });
+
+  const hoursOpen  = content.querySelector('#f-hours-open');
+  const hoursClose = content.querySelector('#f-hours-close');
+  if (hoursOpen)  hoursOpen.addEventListener('change', updateHoursFromDOM);
+  if (hoursClose) hoursClose.addEventListener('change', updateHoursFromDOM);
+
+  // ── Image URL preview ────────────────────────────────────────────────────────
+  const imageUrlInput = content.querySelector('#f-imageUrl');
+  if (imageUrlInput) {
+    imageUrlInput.addEventListener('input', () => {
+      const preview = content.querySelector('#img-preview');
+      if (preview) {
+        preview.src = imageUrlInput.value;
+        preview.style.display = imageUrlInput.value ? 'block' : 'none';
+      }
+    });
+  }
+
+  // ── Save place form ───────────────────────────────────────────────────────────
   const savePlaceBtn = content.querySelector('#save-place-btn');
   if (savePlaceBtn) {
     savePlaceBtn.addEventListener('click', () => {
@@ -658,6 +740,9 @@ function attachAdminListeners() {
       const website      = document.getElementById('f-website')?.value.trim() || '';
       const mapsUrl      = document.getElementById('f-maps')?.value.trim() || '';
       const bgColor      = document.getElementById('f-bgColor')?.value || '#FEF3C7';
+      const priceRange   = document.getElementById('f-priceRange')?.value || '';
+      const imageUrl     = document.getElementById('f-imageUrl')?.value.trim() || '';
+      const menuUrl      = document.getElementById('f-menuUrl')?.value.trim() || '';
 
       const errorEl = document.getElementById('form-error');
       if (!name)         { errorEl.textContent = 'El nombre es requerido';    errorEl.style.display = 'block'; return; }
@@ -671,13 +756,20 @@ function attachAdminListeners() {
       if (adminState.editingPlaceId !== null) {
         const idx = places.findIndex(p => p.id === adminState.editingPlaceId);
         if (idx >= 0) {
-          places[idx] = { ...places[idx], name, category, neighborhood, emoji, bgColor, address, phone, hours, website, mapsUrl, description, offer: offerObj, plan, active };
+          places[idx] = {
+            ...places[idx],
+            name, category, neighborhood, emoji, bgColor,
+            address, phone, hours, website, mapsUrl,
+            description, offer: offerObj, plan, active,
+            priceRange, imageUrl, menuUrl,
+          };
         }
       } else {
         places.push({
           id: nextId(places), name, category, neighborhood, emoji,
           bgColor, address, phone, hours, website, mapsUrl,
           description, offer: offerObj, plan, active,
+          priceRange, imageUrl, menuUrl,
           stats: { views: 0, going: 0, clicks: 0, groups: 0 }
         });
       }

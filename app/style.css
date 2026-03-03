@@ -2,13 +2,10 @@
 html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F1F5F9}
 
 /* ── App shell ── */
-.app{display:flex;flex-direction:column;height:100%;height:100dvh;background:#fff;width:100%;max-width:480px;margin:0 auto}
-@media(min-width:481px){
-  .app{box-shadow:0 0 60px rgba(0,0,0,.12);border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0}
-}
+.app{display:flex;flex-direction:column;height:100dvh;background:#fff;width:100%;max-width:480px;margin:0 auto}
 
 /* ── Header ── */
-.app-header{background:#fff;border-bottom:1px solid #F1F5F9;padding:13px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.app-header{background:#fff;border-bottom:1px solid #F1F5F9;padding:13px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;order:0}
 .app-logo{display:flex;align-items:center;gap:8px}
 .app-logo-mark{width:26px;height:26px;background:#1D4ED8;border-radius:7px;display:flex;align-items:center;justify-content:center}
 .app-logo-mark svg{stroke:#fff;width:13px;height:13px}
@@ -16,19 +13,38 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F
 .app-avatar{width:30px;height:30px;background:linear-gradient(135deg,#1D4ED8,#7C3AED);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
 
 /* ── Scrollable content ── */
-.app-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;background:#F8FAFC}
+.app-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;background:#F8FAFC;order:2}
 .app-content::-webkit-scrollbar{display:none}
 
 /* ── Bottom nav ── */
-.bottom-nav{background:#fff;border-top:1px solid #F1F5F9;padding:6px 0 env(safe-area-inset-bottom,6px);display:grid;grid-template-columns:repeat(5,1fr);flex-shrink:0}
+.bottom-nav{background:#fff;border-top:1px solid #F1F5F9;padding:6px 0 env(safe-area-inset-bottom,6px);display:grid;grid-template-columns:repeat(5,1fr);flex-shrink:0;order:3}
 .nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer}
 .nav-item svg{width:20px;height:20px;stroke:#94A3B8;stroke-width:2;fill:none;transition:stroke .15s}
 .nav-item.active svg{stroke:#1D4ED8}
 .nav-item-label{font-size:9px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.5px;transition:color .15s}
 .nav-item.active .nav-item-label{color:#1D4ED8}
 
+/* ── Desktop: wider layout, nav below header ── */
+@media(min-width:768px){
+  body{background:#E8ECF0}
+  .app{max-width:1024px;box-shadow:0 0 60px rgba(0,0,0,.1);border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0}
+  .app-header{order:0;padding:13px 24px}
+  .bottom-nav{order:1;border-top:none;border-bottom:1px solid #F1F5F9;padding:0;display:flex;flex-shrink:0}
+  .app-content{order:2}
+  .nav-item{flex-direction:row;gap:8px;padding:12px 20px;border-bottom:2px solid transparent;border-top:none}
+  .nav-item.active{border-bottom-color:#1D4ED8}
+  .nav-item svg{width:16px;height:16px}
+  .nav-item-label{font-size:13px;font-weight:600;text-transform:none;letter-spacing:0}
+  /* 2-column card grid */
+  .cards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px}
+  .cards-grid .place-card{margin:0}
+  /* Events 2-col */
+  .events-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px}
+  .events-grid .event-card{margin:0}
+}
+
 /* ── View wrapper ── */
-.view{padding-bottom:20px}
+.view{padding-bottom:24px}
 
 /* ── Section headers ── */
 .section-head{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between}
@@ -43,12 +59,22 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F
 .chip.active{background:#1D4ED8;color:#fff;border-color:#1D4ED8}
 
 /* ── Place cards ── */
-.place-card{margin:0 16px 8px;background:#fff;border:1px solid #EAECEF;border-radius:14px;padding:14px;cursor:pointer;transition:background .1s}
+.place-card{margin:0 16px 8px;background:#fff;border:1px solid #EAECEF;border-radius:14px;padding:14px;cursor:pointer;transition:border-color .12s}
 .place-card:active{background:#F8FAFC}
 .place-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:3px}
 .place-name{font-size:14px;font-weight:700;color:#0F172A;letter-spacing:-.2px;line-height:1.3}
 .place-sub{font-size:11px;color:#94A3B8;font-weight:500}
 .place-offer{font-size:12px;color:#1D4ED8;font-weight:600;margin-top:6px}
+.place-card-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+/* ── Gamification ── */
+.place-stats{font-size:11px;color:#94A3B8;font-weight:500;margin-top:5px}
+.badge-popular{font-size:10px;font-weight:700;color:#D97706;background:#FFF7ED;padding:1px 6px;border-radius:4px;display:inline}
+
+/* ── Compare button ── */
+.compare-btn{width:22px;height:22px;border-radius:6px;border:1.5px solid #CBD5E1;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#94A3B8;display:flex;align-items:center;justify-content:center;transition:all .12s;flex-shrink:0}
+.compare-btn.active{background:#1D4ED8;border-color:#1D4ED8;color:#fff}
+.btn-compare-go{font-size:11px;font-weight:700;padding:5px 12px;border-radius:8px;border:none;cursor:pointer;background:#1D4ED8;color:#fff}
 
 /* ── Save button ── */
 .save-btn{background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1;flex-shrink:0;color:#CBD5E1;transition:color .15s,transform .1s}
@@ -105,6 +131,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F
 
 /* ── Detail view ── */
 .btn-back{display:flex;align-items:center;gap:6px;padding:12px 16px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;background:#fff;border-bottom:1px solid #F1F5F9}
+.detail-cover{width:100%;height:180px;object-fit:cover;display:block}
 .detail-hero{padding:20px 16px 16px;background:#fff;border-bottom:1px solid #F1F5F9}
 .detail-name{font-size:22px;font-weight:900;color:#0F172A;letter-spacing:-.5px;margin-bottom:4px}
 .detail-cat{font-size:13px;color:#64748B;font-weight:500}
@@ -120,13 +147,27 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F
 .detail-desc{margin:12px 16px 0;font-size:13px;color:#64748B;line-height:1.65}
 .detail-actions{margin:14px 16px 0;display:flex;flex-direction:column;gap:8px}
 
+/* ── Compare table ── */
+.compare-wrap{padding:16px 16px 24px}
+.compare-table{width:100%;border-collapse:collapse;font-size:13px;border-radius:14px;overflow:hidden;border:1px solid #EAECEF}
+.compare-table th{padding:12px 14px;font-weight:800;color:#0F172A;font-size:13px;text-align:center;border-bottom:2px solid #1D4ED8;background:#EFF6FF}
+.compare-table th:first-child{text-align:left;font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.5px;background:#F8FAFC;border-bottom-color:#E2E8F0;width:28%}
+.compare-table td{padding:11px 14px;border-bottom:1px solid #F1F5F9;text-align:center;vertical-align:middle;font-size:13px;color:#374151}
+.compare-table td:first-child{text-align:left;font-size:11px;font-weight:600;color:#64748B;background:#FAFBFC}
+.compare-table tr:last-child td{border-bottom:none}
+
 /* ── Buttons ── */
 .btn-primary-full{width:100%;font-size:13px;font-weight:700;padding:13px;border-radius:12px;border:none;cursor:pointer;background:#1D4ED8;color:#fff;transition:background .12s}
 .btn-primary-full:active{background:#1E40AF}
 .btn-primary-sm{font-size:13px;font-weight:700;padding:10px 20px;border-radius:10px;border:none;cursor:pointer;background:#1D4ED8;color:#fff}
 
+/* ── Compare bar ── */
+.compare-bar{margin:0 16px 8px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+.compare-bar-info{font-size:12px;font-weight:700;color:#1D4ED8}
+.compare-bar-actions{display:flex;align-items:center;gap:8px}
+.compare-clear{font-size:11px;font-weight:600;color:#94A3B8;cursor:pointer}
+
 /* ── Empty state ── */
 .empty-state{padding:48px 24px;text-align:center}
-.empty-state-icon{font-size:36px;margin-bottom:12px}
 .empty-state-title{font-size:15px;font-weight:700;color:#0F172A;margin-bottom:6px}
 .empty-state-desc{font-size:13px;color:#94A3B8;margin-bottom:20px;line-height:1.5}
