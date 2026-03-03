@@ -153,7 +153,7 @@ function dataURLtoBlob(dataURL) {
 }
 
 // ─── HERO SWIPE (module-level, attached once) ──────────────────────────────────
-let _heroStartX = 0, _heroCurrentX = 0, _heroIsDragging = false, _heroMouseReady = false;
+let _heroStartX = 0, _heroCurrentX = 0, _heroIsDragging = false, _heroMouseReady = false, _heroDidDrag = false;
 
 function heroSwipeEnd(hero) {
   const dx = _heroCurrentX - _heroStartX;
@@ -191,11 +191,13 @@ function heroSwipeEnd(hero) {
 function initHeroSwipe() {
   const hero = document.querySelector('.featured-card');
   if (!hero) return;
+  _heroDidDrag = false;
 
-  // Touch
+  // Touch only (no mouse drag)
   hero.addEventListener('touchstart', e => {
     _heroStartX = _heroCurrentX = e.touches[0].clientX;
     _heroIsDragging = true;
+    _heroDidDrag = false;
     hero.style.transition = 'none';
     hero.classList.add('dragging');
   }, { passive: true });
@@ -203,8 +205,9 @@ function initHeroSwipe() {
   hero.addEventListener('touchmove', e => {
     if (!_heroIsDragging) return;
     _heroCurrentX = e.touches[0].clientX;
-    const dx  = _heroCurrentX - _heroStartX;
-    hero.style.transform = `translateX(${dx}px) rotate(${dx * 0.04}deg)`;
+    const dx = _heroCurrentX - _heroStartX;
+    if (Math.abs(dx) > 8) _heroDidDrag = true;
+    hero.style.transform = `translateX(${dx}px) rotate(${dx * 0.03}deg)`;
     const si = hero.querySelector('.hero-save-indicator');
     const ki = hero.querySelector('.hero-skip-indicator');
     if (si) si.style.opacity = dx > 30 ? Math.min((dx - 30) / 60, 1) : 0;
@@ -217,37 +220,6 @@ function initHeroSwipe() {
     hero.classList.remove('dragging');
     heroSwipeEnd(hero);
   }, { passive: true });
-
-  // Mouse (registered once on document)
-  if (!_heroMouseReady) {
-    _heroMouseReady = true;
-    document.addEventListener('mousemove', e => {
-      if (!_heroIsDragging) return;
-      const h = document.querySelector('.featured-card');
-      if (!h) return;
-      _heroCurrentX = e.clientX;
-      const dx = _heroCurrentX - _heroStartX;
-      h.style.transform = `translateX(${dx}px) rotate(${dx * 0.04}deg)`;
-      const si = h.querySelector('.hero-save-indicator');
-      const ki = h.querySelector('.hero-skip-indicator');
-      if (si) si.style.opacity = dx > 30 ? Math.min((dx - 30) / 60, 1) : 0;
-      if (ki) ki.style.opacity = dx < -30 ? Math.min((-dx - 30) / 60, 1) : 0;
-    });
-    document.addEventListener('mouseup', () => {
-      if (!_heroIsDragging) return;
-      _heroIsDragging = false;
-      const h = document.querySelector('.featured-card');
-      if (h) { h.classList.remove('dragging'); heroSwipeEnd(h); }
-    });
-  }
-
-  hero.addEventListener('mousedown', e => {
-    e.preventDefault();
-    _heroStartX = _heroCurrentX = e.clientX;
-    _heroIsDragging = true;
-    hero.style.transition = 'none';
-    hero.classList.add('dragging');
-  });
 }
 
 // ─── CARD SCROLL ANIMATION ────────────────────────────────────────────────────
@@ -321,9 +293,11 @@ function renderPlaceCard(place, saved, showDescuentoBtn = false) {
         <div class="place-actions">
           <div class="place-actions-left">
             <button class="save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}" title="${isSaved ? 'Quitar' : 'Guardar'}">♥</button>
-            <button class="compare-btn${isCompare ? ' active' : ''}" data-compare="${place.id}" title="Comparar">⇄</button>
           </div>
-          <button class="btn-ir" data-ir="${place.id}">IR →</button>
+          <div class="place-actions-right">
+            <button class="btn-compare-card${isCompare ? ' active' : ''}" data-compare="${place.id}">${isCompare ? '✓ Seleccionado' : '⇄ Comparar'}</button>
+            <button class="btn-ir" data-ir="${place.id}">IR →</button>
+          </div>
         </div>
         ${showDescuentoBtn && place.offer?.text ? `<button class="btn-descuento-sm" data-descuento="${place.id}">🎫 Mi descuento</button>` : ''}
       </div>
@@ -385,25 +359,29 @@ const VIEWS = {
         ${featured ? `
         <div class="featured-wrap">
           <div class="featured-label">⭐ Trending</div>
-          <div class="featured-card" data-place="${featured.id}" style="border-top-color:${catColor}">
-            ${featuredCover
-              ? `<img class="featured-card-img" src="${featuredCover}" alt="${featured.name}" onerror="this.style.display='none'"/>`
-              : `<div class="featured-card-icon-bg" style="background:${featured.bgColor || '#DBEAFE'}">${featured.emoji || '🏠'}</div>`
-            }
-            <div class="featured-card-overlay"></div>
-            <div class="featured-card-info">
-              <div class="featured-card-name">${featured.name}</div>
-              <div class="featured-card-sub">${featured.category} · ${featured.neighborhood}</div>
-              ${going > 0 ? `
-              <div class="featured-card-social">
-                ${renderAvatarStack(going, featured.id)}
-                <span class="featured-card-social-text">${going} van a esto</span>
-              </div>` : ''}
+          <div class="hero-card-area">
+            ${trending.length > 1 ? `<button class="hero-nav-btn hero-prev" id="hero-prev">&#8249;</button>` : ''}
+            <div class="featured-card" data-place="${featured.id}" style="border-top-color:${catColor}">
+              ${featuredCover
+                ? `<img class="featured-card-img" src="${featuredCover}" alt="${featured.name}" onerror="this.style.display='none'"/>`
+                : `<div class="featured-card-icon-bg" style="background:${featured.bgColor || '#DBEAFE'}">${featured.emoji || '🏠'}</div>`
+              }
+              <div class="featured-card-overlay"></div>
+              <div class="featured-card-info">
+                <div class="featured-card-name">${featured.name}</div>
+                <div class="featured-card-sub">${featured.category} · ${featured.neighborhood}</div>
+                ${going > 0 ? `
+                <div class="featured-card-social">
+                  ${renderAvatarStack(going, featured.id)}
+                  <span class="featured-card-social-text">${going} van a esto</span>
+                </div>` : ''}
+              </div>
+              <div class="hero-save-indicator">❤️ Guardar</div>
+              <div class="hero-skip-indicator">→ Siguiente</div>
+              ${(featured.stats?.going || 0) >= 15 ? '<span class="featured-card-badge">🔥 Popular</span>' : ''}
+              <button class="featured-card-save${saved.includes(featured.id) ? ' saved' : ''}" data-save="${featured.id}">♥</button>
             </div>
-            <div class="hero-save-indicator">❤️ Guardar</div>
-            <div class="hero-skip-indicator">→ Siguiente</div>
-            ${(featured.stats?.going || 0) >= 15 ? '<span class="featured-card-badge">🔥 Popular</span>' : ''}
-            <button class="featured-card-save${saved.includes(featured.id) ? ' saved' : ''}" data-save="${featured.id}">♥</button>
+            ${trending.length > 1 ? `<button class="hero-nav-btn hero-next" id="hero-next">&#8250;</button>` : ''}
           </div>
           ${dotsHtml}
         </div>` : ''}
@@ -700,83 +678,85 @@ const VIEWS = {
           <div class="btn-back" id="detail-back">← Volver</div>
           <div class="empty-state">
             <div class="empty-state-title">Seleccioná al menos 2 lugares</div>
-            <div class="empty-state-desc">Usá el botón ⇄ en las tarjetas para agregar lugares a la comparación</div>
+            <div class="empty-state-desc">Usá el botón "⇄ Comparar" en las tarjetas para agregar hasta 3 lugares</div>
           </div>
         </div>`;
     }
 
+    const n        = places.length;
     const scores   = places.map(p => calcGCScore(p));
     const maxScore = Math.max(...scores);
-    const CIRC = 175.93;
+    const CIRC     = 125.66; // 2π × 20
     const PRICE_RANK = { '< €10': 1, '€10–20': 2, '€20–40': 3, '> €40': 4 };
-    const priceRanks  = places.map(p => PRICE_RANK[p.priceRange] || 5);
+    const priceRanks   = places.map(p => PRICE_RANK[p.priceRange] || 5);
     const minPriceRank = Math.min(...priceRanks);
-    const maxGoing    = Math.max(...places.map(p => p.stats?.going || 0));
+    const maxGoing     = Math.max(...places.map(p => p.stats?.going || 0));
 
     const rows = [
-      { label: 'Popularidad', fn: p => `${p.stats?.going || 0} estudiantes`, winner: p => (p.stats?.going || 0) === maxGoing && maxGoing > 0 },
-      { label: 'Precio',      fn: p => p.priceRange || '—',                  winner: p => !!p.priceRange && (PRICE_RANK[p.priceRange] || 5) === minPriceRank },
-      { label: 'Oferta GC',   fn: p => p.offer?.text || '—',                 winner: p => !!p.offer?.text },
-      { label: 'Horario',     fn: p => p.hours || '—',                       winner: () => false },
-      { label: 'Barrio',      fn: p => p.neighborhood,                       winner: () => false },
+      { label: 'Popularidad', fn: p => `${p.stats?.going || 0} estudiantes`,  winner: p => (p.stats?.going || 0) === maxGoing && maxGoing > 0 },
+      { label: 'Precio',      fn: p => p.priceRange || '—',                   winner: p => !!p.priceRange && (PRICE_RANK[p.priceRange] || 5) === minPriceRank },
+      { label: 'Oferta GC',   fn: p => p.offer?.text ? '✓ ' + p.offer.text : '—', winner: p => !!p.offer?.text },
+      { label: 'Horario',     fn: p => p.hours || '—',                        winner: () => false },
+      { label: 'Barrio',      fn: p => p.neighborhood,                        winner: () => false },
+      { label: 'Plan',        fn: p => ({ premium: '⭐ Premium', partner: 'Partner', free: 'Free' }[p.plan] || '—'), winner: p => p.plan === 'premium' },
     ];
 
     return `
-      <div class="view">
-        <div class="btn-back" id="detail-back">← Volver</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:#fff">
-          <span style="font-size:14px;font-weight:900;color:#0F172A">Comparando ${places.length} lugares</span>
-          <span id="clear-compare" style="font-size:12px;font-weight:600;color:#94A3B8;cursor:pointer">Limpiar</span>
+      <div class="compare-fullscreen" style="--n:${n}">
+
+        <div class="compare-top-bar">
+          <span class="compare-top-bar-back" id="detail-back">← Volver</span>
+          <span class="compare-top-bar-title">Comparando ${n} lugares</span>
+          <span class="compare-top-bar-clear" id="clear-compare">Limpiar</span>
         </div>
 
-        <div class="compare-scores-row">
+        <div class="compare-places-bar" style="--n:${n}">
+          <div class="compare-bar-spacer"></div>
           ${places.map((p, i) => {
             const score      = scores[i];
             const isWinner   = score === maxScore;
             const color      = isWinner ? '#10B981' : '#0066FF';
             const dashOffset = (CIRC * (1 - score / 100)).toFixed(2);
+            const coverSrc   = p.imageData || p.imageUrl;
             return `
-              <div class="compare-score-card${isWinner ? ' winner' : ''}">
-                <div class="compare-score-ring">
-                  <svg width="72" height="72" viewBox="0 0 72 72">
-                    <circle cx="36" cy="36" r="28" fill="none" stroke="#E2E8F0" stroke-width="8"/>
-                    <circle cx="36" cy="36" r="28" fill="none" stroke="${color}" stroke-width="8"
+              <div class="compare-place-header${isWinner ? ' winner' : ''}">
+                ${coverSrc
+                  ? `<img class="compare-place-thumb" src="${coverSrc}" alt="${p.name}" onerror="this.style.display='none'"/>`
+                  : `<div class="compare-place-thumb-placeholder">${p.emoji || '●'}</div>`
+                }
+                <div class="compare-score-mini">
+                  <svg width="44" height="44" viewBox="0 0 44 44">
+                    <circle cx="22" cy="22" r="18" fill="none" stroke="#E2E8F0" stroke-width="5"/>
+                    <circle cx="22" cy="22" r="18" fill="none" stroke="${color}" stroke-width="5"
                       stroke-dasharray="${CIRC.toFixed(2)}" stroke-dashoffset="${dashOffset}"
-                      stroke-linecap="round" transform="rotate(-90 36 36)"/>
+                      stroke-linecap="round" transform="rotate(-90 22 22)"/>
                   </svg>
-                  <span class="compare-score-ring-val">${score}</span>
+                  <span class="compare-score-mini-val">${score}</span>
                 </div>
-                <div class="compare-score-name">${p.name}</div>
-                ${isWinner ? '<div class="gc-recommend">GC Recomienda</div>' : ''}
+                <div class="compare-place-name-mini">${p.name}</div>
+                ${isWinner ? '<div class="compare-winner-badge">GC ★</div>' : ''}
               </div>`;
           }).join('')}
         </div>
 
-        <div class="compare-wrap">
-          <div style="border:1px solid #EAECEF;border-radius:14px;overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
-              <thead>
-                <tr style="background:#F8FAFC;border-bottom:2px solid #0066FF">
-                  <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.5px;width:28%">Criterio</th>
-                  ${places.map(p => `<th style="padding:10px 12px;text-align:center;font-size:13px;font-weight:800;color:#0F172A">${p.name}</th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${rows.map(row => `
-                  <tr style="border-bottom:1px solid #F1F5F9">
-                    <td style="padding:11px 12px;font-size:11px;font-weight:700;color:#64748B">${row.label}</td>
-                    ${places.map(p => {
-                      const isW = row.winner(p);
-                      return `<td style="padding:11px 12px;text-align:center;${isW ? 'background:#F0FDF4;color:#10B981;font-weight:700' : 'color:#374151'}">${row.fn(p)}</td>`;
-                    }).join('')}
-                  </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-            ${places.map(p => `<button class="btn-primary-sm" style="flex:1;min-width:120px;font-size:12px" data-compare-view="${p.id}">Ver ${p.name}</button>`).join('')}
-          </div>
+        <div class="compare-content">
+          ${rows.map(row => `
+            <div class="compare-row" style="--n:${n}">
+              <div class="compare-row-label">${row.label}</div>
+              ${places.map(p => {
+                const isW = row.winner(p);
+                return `<div class="compare-row-cell${isW ? ' winner' : ''}">${row.fn(p)}</div>`;
+              }).join('')}
+            </div>`).join('')}
         </div>
+
+        <div class="compare-bottom-ctas" style="--n:${n}">
+          ${places.map((p, i) => {
+            const isWinner = scores[i] === maxScore;
+            return `<button class="compare-cta-btn${isWinner ? ' winner' : ''}" data-compare-view="${p.id}">IR a ${p.name}</button>`;
+          }).join('')}
+        </div>
+
       </div>`;
   },
 
@@ -939,11 +919,8 @@ function attachListeners() {
   const featuredCard = content.querySelector('.featured-card[data-place]');
   if (featuredCard) {
     featuredCard.addEventListener('click', e => {
-      if (e.target.closest('[data-save]') || _heroIsDragging) return;
-      // Only open detail if it wasn't a swipe (small movement)
-      if (Math.abs(_heroCurrentX - _heroStartX) < 10) {
-        navigate('detalle', { detailPlaceId: parseInt(featuredCard.dataset.place), prevView: state.currentView });
-      }
+      if (e.target.closest('[data-save]') || _heroIsDragging || _heroDidDrag) return;
+      navigate('detalle', { detailPlaceId: parseInt(featuredCard.dataset.place), prevView: state.currentView });
     });
   }
 
@@ -1021,6 +998,28 @@ function attachListeners() {
           setTimeout(() => { shareBtn.textContent = 'Compartir mi GCPass'; }, 2200);
         });
       }
+    });
+  }
+
+  // Hero prev/next buttons
+  const heroPrev = content.querySelector('#hero-prev');
+  if (heroPrev) {
+    heroPrev.addEventListener('click', e => {
+      e.stopPropagation();
+      const trending = [...getPlaces().filter(p => p.active !== false)]
+        .sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
+      state.featuredIndex = (state.featuredIndex - 1 + trending.length) % Math.max(trending.length, 1);
+      navigate('feed');
+    });
+  }
+  const heroNext = content.querySelector('#hero-next');
+  if (heroNext) {
+    heroNext.addEventListener('click', e => {
+      e.stopPropagation();
+      const trending = [...getPlaces().filter(p => p.active !== false)]
+        .sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
+      state.featuredIndex = (state.featuredIndex + 1) % Math.max(trending.length, 1);
+      navigate('feed');
     });
   }
 
