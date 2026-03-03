@@ -9,7 +9,10 @@ const state = {
   prevView: 'feed',
   compareList: [],
   featuredIndex: 0,
+  feedPage: 0,
 };
+
+const FEED_PAGE_SIZE = 12;
 
 // ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
 function getSaved()        { return JSON.parse(localStorage.getItem('gc_saved_places') || '[]'); }
@@ -238,6 +241,164 @@ function initCardObserver() {
   document.querySelectorAll('.place-card, .event-card').forEach(el => obs.observe(el));
 }
 
+// ─── SMART CHIPS ──────────────────────────────────────────────────────────────
+function initSmartChips() {
+  const wrap = document.querySelector('.chips-smart-wrap');
+  if (!wrap) return;
+  const scroller = document.getElementById('app-content');
+  if (!scroller) return;
+  let lastY = scroller.scrollTop;
+  scroller.addEventListener('scroll', () => {
+    const y  = scroller.scrollTop;
+    const dy = y - lastY;
+    if (dy > 0 && y > 80) wrap.classList.add('chips-hidden');
+    else if (dy < -40)    wrap.classList.remove('chips-hidden');
+    lastY = y;
+  }, { passive: true });
+}
+
+// ─── INFINITE SCROLL ──────────────────────────────────────────────────────────
+function initInfiniteScroll() {
+  const sentinel = document.getElementById('feed-sentinel');
+  if (!sentinel) return;
+
+  const obs = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) return;
+    obs.unobserve(sentinel);
+
+    const loading = document.getElementById('feed-loading');
+    if (loading) loading.style.display = 'flex';
+
+    setTimeout(() => {
+      const places   = getPlaces().filter(p => p.active !== false);
+      const saved    = getSaved();
+      const filtered = state.selectedNeighborhood === 'Todos'
+        ? places
+        : places.filter(p => p.neighborhood === state.selectedNeighborhood);
+
+      state.feedPage++;
+      const start = state.feedPage * FEED_PAGE_SIZE;
+      const end   = start + FEED_PAGE_SIZE;
+      const next  = filtered.slice(start, end);
+
+      if (loading) loading.style.display = 'none';
+
+      const grid = document.getElementById('dense-grid');
+      if (!grid || next.length === 0) {
+        sentinel.remove();
+        if (loading) loading.remove();
+        if (grid) {
+          const e = document.createElement('div');
+          e.className = 'feed-end';
+          e.textContent = 'Has visto todo ✓';
+          grid.after(e);
+        }
+        return;
+      }
+
+      // Build new cards in a temp container so listeners attach only to them
+      const tmp = document.createElement('div');
+      next.forEach(place => {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = renderMiniCard(place, saved).trim();
+        tmp.appendChild(wrap.firstElementChild);
+      });
+      attachMiniCardListeners(tmp);
+      attachSaveBtns(tmp);
+      attachIrBtns(tmp);
+
+      // Move cards to grid with staggered fade-in
+      Array.from(tmp.children).forEach((card, i) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(16px)';
+        card.style.transition = `opacity 250ms ease ${i * 40}ms, transform 250ms ease ${i * 40}ms`;
+        grid.appendChild(card);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          card.style.opacity = '1';
+          card.style.transform = 'translateY(0)';
+        }));
+      });
+
+      if (filtered.length > end) {
+        obs.observe(sentinel);
+      } else {
+        sentinel.remove();
+        if (loading) loading.remove();
+        const e = document.createElement('div');
+        e.className = 'feed-end';
+        e.textContent = 'Has visto todo ✓';
+        grid.after(e);
+      }
+    }, 350);
+  }, { threshold: 0.1 });
+
+  obs.observe(sentinel);
+}
+
+// ─── HERO PARALLAX ────────────────────────────────────────────────────────────
+function initHeroParallax() {
+  const scroller = document.getElementById('app-content');
+  const heroImg  = document.querySelector('.featured-card-img');
+  if (!scroller || !heroImg) return;
+  let ticking = false;
+  scroller.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        heroImg.style.transform = `translateY(${Math.min(scroller.scrollTop * 0.15, 20)}%)`;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+}
+
+// ─── MINI CARD FLIP LISTENERS ─────────────────────────────────────────────────
+function attachMiniCardListeners(container) {
+  const isTouchOnly = window.matchMedia('(hover: none)').matches;
+  container.querySelectorAll('.mini-card').forEach(card => {
+    const inner = card.querySelector('.mini-card-inner');
+    if (!inner) return;
+
+    if (isTouchOnly) {
+      // Mobile: tap → flip; auto-flip back after 5s
+      let autoFlipTimer = null;
+      card.addEventListener('click', e => {
+        if (e.target.closest('[data-save]') || e.target.closest('[data-ir]') || e.target.closest('[data-flip-back]')) return;
+        inner.classList.toggle('is-flipped');
+        if (inner.classList.contains('is-flipped')) {
+          clearTimeout(autoFlipTimer);
+          autoFlipTimer = setTimeout(() => inner.classList.remove('is-flipped'), 5000);
+        }
+      });
+    } else {
+      // Desktop: mouseenter 350ms delay → flip; mouseleave → unflip; click → detail
+      let hoverTimer = null;
+      card.addEventListener('mouseenter', () => {
+        hoverTimer = setTimeout(() => inner.classList.add('is-flipped'), 350);
+      });
+      card.addEventListener('mouseleave', () => {
+        clearTimeout(hoverTimer);
+        inner.classList.remove('is-flipped');
+      });
+      card.addEventListener('click', e => {
+        if (e.target.closest('[data-save]') || e.target.closest('[data-ir]') || e.target.closest('[data-flip-back]')) return;
+        if (!inner.classList.contains('is-flipped')) {
+          navigate('detalle', { detailPlaceId: parseInt(card.dataset.place), prevView: state.currentView });
+        }
+      });
+    }
+
+    // Flip-back button
+    const flipBackBtn = card.querySelector('[data-flip-back]');
+    if (flipBackBtn) {
+      flipBackBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        inner.classList.remove('is-flipped');
+      });
+    }
+  });
+}
+
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 const MAIN_VIEWS = ['feed', 'explorar', 'eventos', 'guardados', 'pass'];
 
@@ -304,6 +465,66 @@ function renderPlaceCard(place, saved, showDescuentoBtn = false) {
     </div>`;
 }
 
+// ─── MINI CARD ────────────────────────────────────────────────────────────────
+function renderMiniCard(place, saved) {
+  const isSaved  = saved.includes(place.id);
+  const going    = place.stats?.going || 0;
+  const coverSrc = place.imageData || place.imageUrl;
+  const catColor = getCatColor(place.category);
+
+  let imgHtml;
+  if (coverSrc) {
+    imgHtml = `<img src="${coverSrc}" alt="${place.name}" loading="lazy" onerror="this.style.display='none'"/>`;
+  } else {
+    imgHtml = `<div class="mini-img-wrap-icon" style="background:${place.bgColor || '#F3F4F6'}">${place.emoji || '●'}</div>`;
+  }
+
+  const desc = (place.description || '').slice(0, 90) + ((place.description || '').length > 90 ? '…' : '');
+
+  return `
+    <div class="mini-card" data-place="${place.id}" style="--cat-color:${catColor}">
+      <div class="mini-card-inner">
+        <div class="mini-card-front">
+          <div class="mini-img-wrap">
+            ${imgHtml}
+            <div class="mini-title-overlay">${place.name}</div>
+            ${isSaved ? '<div class="mini-saved-badge">♥</div>' : ''}
+          </div>
+          <div class="mini-body">
+            <div>
+              <div class="mini-meta">${place.category} · ${place.neighborhood}</div>
+              ${place.priceRange ? `<div class="mini-price">${place.priceRange}</div>` : ''}
+              ${going >= 8 ? `<div class="mini-urgency">🔥 ${going} van</div>` : ''}
+            </div>
+            <div class="mini-actions">
+              <button class="mini-save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}">♥</button>
+              <button class="mini-ir-btn" data-ir="${place.id}">IR →</button>
+            </div>
+          </div>
+        </div>
+        <div class="mini-card-back">
+          <div class="mini-back-body">
+            ${going > 0 ? `
+            <div class="mini-social-row">
+              ${renderAvatarStack(going, place.id)}
+              <span class="mini-social-text">${going} van a esto</span>
+            </div>` : ''}
+            <div class="mini-back-desc">${desc || place.category + ' en ' + place.neighborhood}</div>
+            <div class="mini-back-info">
+              ${place.hours   ? `<span>🕐 ${place.hours}</span>`      : ''}
+              ${place.address ? `<span>📍 ${place.address}</span>`    : ''}
+              ${place.offer?.text ? `<span>🎫 ${place.offer.text}</span>` : ''}
+            </div>
+          </div>
+          <div class="mini-back-actions">
+            <button class="mini-flip-back-btn" data-flip-back>← Volver</button>
+            <button class="mini-back-save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}">${isSaved ? 'Guardado' : 'Guardar'}</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderCompareBar() {
   const n = state.compareList.length;
   if (n === 0) return '';
@@ -320,6 +541,7 @@ function renderCompareBar() {
 const VIEWS = {
 
   feed() {
+    state.feedPage = 0;
     const places = getPlaces().filter(p => p.active !== false);
     const saved  = getSaved();
     const neighborhoods = ['Todos', ...new Set(places.map(p => p.neighborhood))];
@@ -332,7 +554,7 @@ const VIEWS = {
 
     const trending = [...places].sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
     state.featuredIndex = Math.min(state.featuredIndex, Math.max(trending.length - 1, 0));
-    const featured     = trending[state.featuredIndex] || null;
+    const featured      = trending[state.featuredIndex] || null;
     const featuredCover = featured ? (featured.imageData || featured.imageUrl) : null;
     const catColor      = featured ? getCatColor(featured.category) : '#0066FF';
     const going         = featured?.stats?.going || 0;
@@ -341,6 +563,9 @@ const VIEWS = {
       <div class="hero-dots">
         ${trending.map((_, i) => `<div class="hero-dot${i === state.featuredIndex ? ' active' : ''}"></div>`).join('')}
       </div>` : '';
+
+    const firstPage = filtered.slice(0, FEED_PAGE_SIZE);
+    const hasMore   = filtered.length > FEED_PAGE_SIZE;
 
     return `
       <div class="view">
@@ -357,7 +582,7 @@ const VIEWS = {
         </div>
 
         ${featured ? `
-        <div class="featured-wrap">
+        <div class="featured-wrap featured-wrap-compact">
           <div class="featured-label">⭐ Trending</div>
           <div class="hero-card-area">
             ${trending.length > 1 ? `<button class="hero-nav-btn hero-prev" id="hero-prev">&#8249;</button>` : ''}
@@ -391,10 +616,12 @@ const VIEWS = {
           <span class="section-head-sub">${places.length} registrado${places.length !== 1 ? 's' : ''}</span>
         </div>
 
-        <div class="chips-row">
-          ${neighborhoods.map(n => `
-            <div class="chip${n === state.selectedNeighborhood ? ' active' : ''}" data-neighborhood="${n}">${n}</div>
-          `).join('')}
+        <div class="chips-smart-wrap">
+          <div class="chips-row">
+            ${neighborhoods.map(n => `
+              <div class="chip${n === state.selectedNeighborhood ? ' active' : ''}" data-neighborhood="${n}">${n}</div>
+            `).join('')}
+          </div>
         </div>
 
         ${renderCompareBar()}
@@ -404,7 +631,12 @@ const VIEWS = {
               <div class="empty-state-title">${places.length === 0 ? 'Sin lugares aún' : 'Sin lugares en ' + state.selectedNeighborhood}</div>
               <div class="empty-state-desc">${places.length === 0 ? 'Pronto habrá lugares disponibles.' : 'Probá con otro barrio.'}</div>
              </div>`
-          : `<div class="cards-grid">${filtered.map(p => renderPlaceCard(p, saved)).join('')}</div>`
+          : `<div class="dense-grid" id="dense-grid">${firstPage.map(p => renderMiniCard(p, saved)).join('')}</div>
+             ${hasMore
+               ? `<div id="feed-sentinel" class="feed-sentinel"></div>
+                  <div id="feed-loading" class="feed-loading" style="display:none"><div class="feed-spinner"></div><span style="font-size:13px;color:#9CA3AF">Cargando...</span></div>`
+               : `<div class="feed-end">Has visto todo ✓</div>`
+             }`
         }
       </div>`;
   },
@@ -1026,6 +1258,10 @@ function attachListeners() {
   // Init hero swipe + card scroll animations
   initHeroSwipe();
   initCardObserver();
+  attachMiniCardListeners(content);
+  initSmartChips();
+  initInfiniteScroll();
+  initHeroParallax();
 }
 
 function attachPlaceCardListeners(container) {
