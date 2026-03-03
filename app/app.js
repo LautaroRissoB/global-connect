@@ -113,7 +113,7 @@ function renderPlaceCard(place, saved, showDescuentoBtn = false) {
 
   return `
     <div class="place-card" data-place="${place.id}">
-      ${imageHtml}
+      <div class="place-card-media">${imageHtml}</div>
       <div class="place-card-body">
         <div class="place-card-row">
           <div>
