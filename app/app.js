@@ -471,6 +471,7 @@ function renderMiniCard(place, saved) {
   const going    = place.stats?.going || 0;
   const coverSrc = place.imageData || place.imageUrl;
   const catColor = getCatColor(place.category);
+  const location = place.address || place.neighborhood;
 
   let imgHtml;
   if (coverSrc) {
@@ -487,19 +488,21 @@ function renderMiniCard(place, saved) {
         <div class="mini-card-front">
           <div class="mini-img-wrap">
             ${imgHtml}
-            <div class="mini-title-overlay">${place.name}</div>
+            <div class="mini-title-overlay">
+              <div class="mini-card-name">${place.name}</div>
+              <div class="mini-card-cat">${place.category}</div>
+            </div>
             ${isSaved ? '<div class="mini-saved-badge">♥</div>' : ''}
           </div>
-          <div class="mini-body">
-            <div>
-              <div class="mini-meta">${place.category} · ${place.neighborhood}</div>
-              ${place.priceRange ? `<div class="mini-price">${place.priceRange}</div>` : ''}
-              ${going >= 8 ? `<div class="mini-urgency">🔥 ${going} van</div>` : ''}
-            </div>
-            <div class="mini-actions">
-              <button class="mini-save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}">♥</button>
-              <button class="mini-ir-btn" data-ir="${place.id}">IR →</button>
-            </div>
+          <div class="mini-info">
+            ${location ? `<div class="mini-info-row">📍 ${location}</div>` : ''}
+            <div class="mini-info-row"><span class="mini-cat-dot"></span>${place.category}</div>
+            ${place.priceRange ? `<div class="mini-info-price">${place.priceRange} / persona</div>` : ''}
+            ${going >= 8 ? `<div class="mini-info-urgency">🔥 Se llena rápido</div>` : ''}
+          </div>
+          <div class="mini-cta">
+            <button class="mini-heart-btn${isSaved ? ' saved' : ''}" data-save="${place.id}">♥</button>
+            <button class="mini-ir-btn" data-ir="${place.id}">IR →</button>
           </div>
         </div>
         <div class="mini-card-back">

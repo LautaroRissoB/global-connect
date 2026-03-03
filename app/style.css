@@ -405,32 +405,36 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#1F2937;background:#F
 .chips-smart-wrap.chips-hidden{transform:translateY(-100%);pointer-events:none}
 
 /* ── Dense grid ── */
-.dense-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px}
+.dense-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:12px}
 @media(max-width:640px){.dense-grid{grid-template-columns:1fr;gap:8px;padding:8px}}
-@media(min-width:641px) and (max-width:1024px){.dense-grid{grid-template-columns:repeat(2,1fr)}}
-@media(min-width:1025px){.dense-grid{gap:12px;padding:16px 32px}}
+@media(min-width:641px) and (max-width:1024px){.dense-grid{grid-template-columns:repeat(2,1fr);gap:12px}}
+@media(min-width:1025px){.dense-grid{padding:16px}}
 
 /* ── Mini card ── */
-.mini-card{height:200px;perspective:1000px;position:relative}
+.mini-card{height:200px;perspective:1000px;position:relative;transition:transform 300ms ease-out}
 .mini-card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform 300ms ease}
 .mini-card-inner.is-flipped{transform:rotateY(180deg)}
-.mini-card-front,.mini-card-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.10);border-top:3px solid var(--cat-color,#0066FF)}
+.mini-card-front,.mini-card-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-top:3px solid var(--cat-color,#0066FF);display:flex;flex-direction:column}
 .mini-card-back{transform:rotateY(180deg)}
-@media(hover:hover){.mini-card:hover .mini-card-front{box-shadow:0 8px 24px rgba(0,0,0,.15)}}
-.mini-img-wrap{height:115px;overflow:hidden;position:relative}
-.mini-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+@media(hover:hover){.mini-card:hover{transform:scale(1.03);z-index:1}.mini-card:hover .mini-card-front{box-shadow:0 8px 20px rgba(0,102,255,.15)}.mini-card:hover .mini-img-wrap img{transform:translateY(-3%)}.mini-card:hover .mini-heart-btn{opacity:1}}
+.mini-img-wrap{height:120px;overflow:hidden;position:relative;flex-shrink:0}
+.mini-img-wrap img{width:100%;height:106%;object-fit:cover;display:block;transition:transform 300ms ease}
 .mini-img-wrap-icon{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:36px}
-.mini-body{height:82px;padding:6px 8px;display:flex;flex-direction:column;justify-content:space-between}
-.mini-title-overlay{position:absolute;bottom:0;left:0;right:0;padding:5px 7px;background:linear-gradient(to top,rgba(0,0,0,.65),transparent);font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-title-overlay{position:absolute;bottom:0;left:0;right:0;padding:8px 8px 6px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%)}
+.mini-card-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;margin:0}
+.mini-card-cat{font-size:12px;color:rgba(255,255,255,.8);line-height:1.2;margin:0}
 .mini-saved-badge{position:absolute;top:5px;right:5px;width:22px;height:22px;background:rgba(255,255,255,.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#EC4899;line-height:1}
-.mini-meta{font-size:10px;color:#9CA3AF;line-height:1.3}
-.mini-price{font-size:11px;font-weight:700;color:#0066FF}
-.mini-urgency{font-size:10px;color:#F97316;font-style:italic}
-.mini-actions{display:flex;gap:4px;align-items:center}
-.mini-save-btn{font-size:12px;padding:4px 7px;border-radius:6px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;color:#D1D5DB;transition:all .15s}
-.mini-save-btn.saved{color:#EC4899;border-color:#FBCFE8;background:#FDF2F8}
-.mini-ir-btn{font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;border:none;cursor:pointer;background:#0066FF;color:#fff;flex:1;transition:background .15s}
+.mini-cat-dot{width:6px;height:6px;border-radius:50%;background:var(--cat-color,#0066FF);display:inline-block;flex-shrink:0;margin-right:2px;vertical-align:middle}
+.mini-info{flex:1;padding:8px 10px 4px;display:flex;flex-direction:column;gap:2px;overflow:hidden;min-height:0}
+.mini-info-row{font-size:11px;color:#6B7280;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-info-price{font-size:13px;font-weight:700;color:#0066FF;line-height:1.4}
+.mini-info-urgency{font-size:11px;color:#F97316;font-style:italic;line-height:1.4}
+.mini-cta{height:32px;border-top:1px solid #D1D5DB;display:flex;align-items:center;justify-content:space-between;padding:0 10px;flex-shrink:0}
+.mini-heart-btn{width:24px;height:24px;background:transparent;border:none;cursor:pointer;font-size:16px;color:#D1D5DB;opacity:.6;transition:opacity .2s,color .2s;display:flex;align-items:center;justify-content:center;padding:0}
+.mini-heart-btn.saved{color:#EC4899;opacity:1}
+.mini-ir-btn{font-size:12px;font-weight:700;padding:5px 14px;border-radius:8px;border:none;cursor:pointer;background:#0066FF;color:#fff;transition:background .2s}
 .mini-ir-btn:hover{background:#003D99}
+@media(max-width:640px){.mini-card{height:180px}.mini-img-wrap{height:100px}}
 
 /* ── Mini card back ── */
 .mini-back-body{height:152px;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:5px}
