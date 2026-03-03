@@ -37,11 +37,13 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F
   .nav-item.active{border-bottom-color:#1D4ED8}
   .nav-item svg{width:16px;height:16px}
   .nav-item-label{font-size:13px;font-weight:600;text-transform:none;letter-spacing:0}
-  .cards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px}
+  .view{padding-bottom:32px}
+  .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 16px}
   .cards-grid .place-card{margin:0}
-  .events-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px}
+  .events-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 16px}
   .events-grid .event-card{margin:0}
-  .compare-float{max-width:992px}
+  .featured-card{height:240px}
+  .compare-float{bottom:16px;max-width:920px}
 }
 
 /* ── View wrapper ── */
@@ -208,3 +210,54 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#0F172A;background:#F
 .empty-state{padding:48px 24px;text-align:center}
 .empty-state-title{font-size:15px;font-weight:700;color:#0F172A;margin-bottom:6px}
 .empty-state-desc{font-size:13px;color:#94A3B8;margin-bottom:20px;line-height:1.5}
+
+/* ── Compare gamification ── */
+.compare-scores-row{display:flex;gap:12px;padding:16px;overflow-x:auto}
+.compare-scores-row::-webkit-scrollbar{display:none}
+.compare-score-card{flex:1;min-width:130px;background:#fff;border:2px solid #EAECEF;border-radius:18px;padding:16px 12px;text-align:center;transition:border-color .2s,background .2s}
+.compare-score-card.winner{border-color:#22C55E;background:#F0FDF4}
+.compare-score-ring{position:relative;width:72px;height:72px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center}
+.compare-score-ring svg{position:absolute;inset:0}
+.compare-score-ring-val{font-size:20px;font-weight:900;color:#0F172A;letter-spacing:-.5px;position:relative;z-index:1}
+.compare-score-name{font-size:12px;font-weight:800;color:#0F172A;letter-spacing:-.2px;margin-bottom:4px}
+.gc-recommend{display:inline-block;font-size:9px;font-weight:800;background:#22C55E;color:#fff;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+
+/* ── Menu overlay frame (PDF) ── */
+.menu-overlay-frame{flex:1;width:100%;border:none;background:#fff;min-height:0;display:block}
+
+/* ── Place card logo ── */
+.place-card-logo{width:70px;height:70px;border-radius:50%;object-fit:cover}
+
+/* ── Descuento button (small, inside card) ── */
+.btn-descuento-sm{width:100%;font-size:11px;font-weight:800;padding:7px;border-radius:9px;border:none;cursor:pointer;background:linear-gradient(135deg,#1D4ED8,#7C3AED);color:#fff;margin-top:8px;display:block}
+
+/* ── Descuento button (full, in detail) ── */
+.btn-descuento{width:100%;font-size:13px;font-weight:800;padding:13px;border-radius:12px;border:none;cursor:pointer;background:linear-gradient(135deg,#1D4ED8,#7C3AED);color:#fff;transition:opacity .12s}
+.btn-descuento:active{opacity:.88}
+
+/* ── Descuento fullscreen overlay ── */
+.descuento-overlay{position:fixed;inset:0;z-index:200;background:#fff;display:flex;flex-direction:column;overflow-y:auto}
+.descuento-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #F1F5F9;flex-shrink:0;gap:8px}
+.descuento-header-logo{font-size:13px;font-weight:900;color:#1D4ED8;letter-spacing:-.2px;flex-shrink:0}
+.descuento-header-place{font-size:13px;font-weight:700;color:#0F172A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:center}
+.descuento-close{font-size:13px;font-weight:700;color:#94A3B8;cursor:pointer;padding:6px 12px;border:1px solid #EAECEF;border-radius:8px;flex-shrink:0;white-space:nowrap}
+.descuento-visual{position:relative;height:180px;background:linear-gradient(135deg,#1E3A8A,#4F46E5);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.descuento-visual-logo{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.5);position:relative;z-index:1}
+.descuento-visual-emoji{font-size:64px;position:relative;z-index:1}
+.descuento-offer{margin:16px;background:linear-gradient(135deg,#1D4ED8,#7C3AED);border-radius:18px;padding:20px;color:#fff}
+.descuento-offer-badge{font-size:10px;font-weight:800;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px;letter-spacing:.5px;display:inline-block;margin-bottom:10px;text-transform:uppercase}
+.descuento-offer-text{font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1.2;margin-bottom:6px}
+.descuento-offer-place{font-size:13px;opacity:.75;font-weight:600}
+.descuento-student{display:flex;align-items:center;gap:12px;margin:0 16px 16px;background:#F8FAFC;border:1px solid #EAECEF;border-radius:14px;padding:14px}
+.descuento-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1D4ED8,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0}
+.descuento-student-name{font-size:14px;font-weight:800;color:#0F172A;margin-bottom:2px}
+.descuento-student-id{font-size:11px;font-weight:700;color:#1D4ED8}
+.descuento-student-uni{font-size:11px;color:#94A3B8;font-weight:500;margin-top:1px}
+.descuento-code-box{margin:0 16px 16px;background:#0F172A;border-radius:18px;padding:20px;text-align:center}
+.descuento-code-label{font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.descuento-code{font-size:36px;font-weight:900;color:#fff;letter-spacing:8px;margin-bottom:12px;font-variant-numeric:tabular-nums}
+.descuento-code-status{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;font-weight:700;color:#22C55E}
+.descuento-code-dot{width:8px;height:8px;background:#22C55E;border-radius:50%;animation:pulse-dot 1.5s infinite;flex-shrink:0}
+.descuento-code-note{font-size:11px;color:#475569;margin-top:8px}
+.descuento-footer{padding:14px 16px;background:#F8FAFC;border-top:1px solid #F1F5F9;text-align:center;font-size:13px;font-weight:700;color:#475569;flex-shrink:0;margin-top:auto}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}

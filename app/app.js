@@ -44,6 +44,38 @@ function updateHeader() {
   if (badge) badge.textContent = level.name;
 }
 
+// ─── GC SCORE ─────────────────────────────────────────────────────────────────
+function calcGCScore(p) {
+  let s = 0;
+  s += Math.min((p.stats?.going || 0) / 20 * 40, 40);
+  s += ({ '< €10': 25, '€10–20': 18, '€20–40': 10, '> €40': 5 }[p.priceRange] ?? 12);
+  s += p.offer?.text ? 20 : 0;
+  s += ({ premium: 15, partner: 10, free: 5 }[p.plan] ?? 5);
+  return Math.round(Math.min(s, 100));
+}
+
+// ─── VERIFY CODE (deterministic per student+place) ────────────────────────────
+function genVerifyCode(studentId, placeId) {
+  const key = `${studentId}-${placeId}`;
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) h = ((h << 5) + h) ^ key.charCodeAt(i);
+  h = Math.abs(h);
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) { code += chars[h % chars.length]; h = Math.floor(h / chars.length); }
+  return `${code.slice(0, 3)}-${code.slice(3)}`;
+}
+
+// ─── DATA URL → BLOB (for PDF iframe) ─────────────────────────────────────────
+function dataURLtoBlob(dataURL) {
+  const [header, data] = dataURL.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const binary = atob(data);
+  const buf = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+  return new Blob([buf], { type: mime });
+}
+
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 const MAIN_VIEWS = ['feed', 'explorar', 'eventos', 'guardados', 'pass'];
 
@@ -63,15 +95,21 @@ function navigate(view, params) {
 }
 
 // ─── PLACE CARD ───────────────────────────────────────────────────────────────
-function renderPlaceCard(place, saved) {
+function renderPlaceCard(place, saved, showDescuentoBtn = false) {
   const isSaved   = saved.includes(place.id);
   const isCompare = state.compareList.includes(place.id);
   const going     = place.stats?.going || 0;
   const coverSrc  = place.imageData || place.imageUrl;
+  const logoSrc   = place.logoData;
 
-  const imageHtml = coverSrc
-    ? `<img class="place-card-img" src="${coverSrc}" alt="${place.name}" onerror="this.style.display='none'"/>`
-    : `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F8FAFC'}">${place.emoji || '●'}</div>`;
+  let imageHtml;
+  if (coverSrc) {
+    imageHtml = `<img class="place-card-img" src="${coverSrc}" alt="${place.name}" onerror="this.style.display='none'"/>`;
+  } else if (logoSrc) {
+    imageHtml = `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F8FAFC'}"><img class="place-card-logo" src="${logoSrc}" alt="${place.name}"/></div>`;
+  } else {
+    imageHtml = `<div class="place-card-icon-bg" style="background:${place.bgColor || '#F8FAFC'}">${place.emoji || '●'}</div>`;
+  }
 
   return `
     <div class="place-card" data-place="${place.id}">
@@ -89,6 +127,7 @@ function renderPlaceCard(place, saved) {
         </div>
         ${place.offer?.text ? `<div class="place-offer">${place.offer.text}</div>` : ''}
         ${going > 0 ? `<div class="place-stats">${going >= 15 ? '<span class="badge-popular">Popular</span>' : ''} ${going} estudiantes estuvieron</div>` : ''}
+        ${showDescuentoBtn && place.offer?.text ? `<button class="btn-descuento-sm" data-descuento="${place.id}">🎫 Mi descuento</button>` : ''}
       </div>
     </div>`;
 }
@@ -295,7 +334,7 @@ const VIEWS = {
               <div class="empty-state-desc">Guardá lugares para encontrarlos fácilmente</div>
               <button class="btn-primary-sm" data-view="feed">Ver lugares</button>
              </div>`
-          : `<div class="cards-grid">${places.map(p => renderPlaceCard(p, saved)).join('')}</div>`
+          : `<div class="cards-grid">${places.map(p => renderPlaceCard(p, saved, true)).join('')}</div>`
         }
       </div>`;
   },
@@ -411,6 +450,7 @@ const VIEWS = {
       ${place.description ? `<div class="detail-desc">${place.description}</div>` : ''}
 
       <div class="detail-actions">
+        ${place.offer?.text ? `<button class="btn-descuento" id="show-descuento-btn">🎫 Mostrar mi descuento</button>` : ''}
         <button class="btn-primary-full" data-save="${place.id}" style="${isSaved ? 'background:#F8FAFC;color:#64748B;border:1px solid #EAECEF;' : ''}">
           ${isSaved ? 'Guardado' : 'Guardar lugar'}
         </button>
@@ -424,13 +464,17 @@ const VIEWS = {
     if (!place || !place.menuData) {
       return `<div class="empty-state"><div class="empty-state-title">Menú no disponible</div></div>`;
     }
+    const isPDF = place.menuType?.includes('pdf');
+    const mediaEl = isPDF
+      ? `<iframe id="menu-frame" class="menu-overlay-frame" src="about:blank"></iframe>`
+      : `<img class="menu-overlay-img" src="${place.menuData}" alt="Menú de ${place.name}"/>`;
     return `
       <div class="menu-overlay">
         <div class="menu-overlay-bar">
           <span class="menu-overlay-title">Carta — ${place.name}</span>
           <span class="menu-overlay-close" id="menu-close">✕ Cerrar</span>
         </div>
-        <img class="menu-overlay-img" src="${place.menuData}" alt="Menú de ${place.name}"/>
+        ${mediaEl}
       </div>`;
   },
 
@@ -449,41 +493,157 @@ const VIEWS = {
         </div>`;
     }
 
+    const scores = places.map(p => calcGCScore(p));
+    const maxScore = Math.max(...scores);
+    const CIRC = 175.93; // 2π×28
+    const PRICE_RANK = { '< €10': 1, '€10–20': 2, '€20–40': 3, '> €40': 4 };
+    const priceRanks = places.map(p => PRICE_RANK[p.priceRange] || 5);
+    const minPriceRank = Math.min(...priceRanks);
+    const maxGoing = Math.max(...places.map(p => p.stats?.going || 0));
+
     const rows = [
-      { label: 'Barrio',       fn: p => p.neighborhood },
-      { label: 'Categoría',    fn: p => p.category },
-      { label: 'Precio prom.', fn: p => p.priceRange || '—' },
-      { label: 'Oferta GC',    fn: p => p.offer?.text || '—' },
-      { label: 'Horario',      fn: p => p.hours || '—' },
+      {
+        label: 'Popularidad',
+        fn: p => `${p.stats?.going || 0} estudiantes`,
+        winner: p => (p.stats?.going || 0) === maxGoing && maxGoing > 0,
+      },
+      {
+        label: 'Precio',
+        fn: p => p.priceRange || '—',
+        winner: p => !!p.priceRange && (PRICE_RANK[p.priceRange] || 5) === minPriceRank,
+      },
+      {
+        label: 'Oferta GC',
+        fn: p => p.offer?.text || '—',
+        winner: p => !!p.offer?.text,
+      },
+      {
+        label: 'Horario',
+        fn: p => p.hours || '—',
+        winner: () => false,
+      },
+      {
+        label: 'Barrio',
+        fn: p => p.neighborhood,
+        winner: () => false,
+      },
     ];
 
     return `
       <div class="view">
         <div class="btn-back" id="detail-back">← Volver</div>
-        <div class="section-head">
-          <span class="section-head-title">Comparando ${places.length} lugares</span>
-          <span class="compare-clear" id="clear-compare" style="font-size:12px;font-weight:600;color:#94A3B8;cursor:pointer">Limpiar</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:#fff">
+          <span style="font-size:14px;font-weight:900;color:#0F172A">Comparando ${places.length} lugares</span>
+          <span id="clear-compare" style="font-size:12px;font-weight:600;color:#94A3B8;cursor:pointer">Limpiar</span>
         </div>
+
+        <div class="compare-scores-row">
+          ${places.map((p, i) => {
+            const score = scores[i];
+            const isWinner = score === maxScore;
+            const color = isWinner ? '#22C55E' : '#1D4ED8';
+            const dashOffset = (CIRC * (1 - score / 100)).toFixed(2);
+            return `
+              <div class="compare-score-card${isWinner ? ' winner' : ''}">
+                <div class="compare-score-ring">
+                  <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="28" fill="none" stroke="#E2E8F0" stroke-width="8"/>
+                    <circle cx="36" cy="36" r="28" fill="none" stroke="${color}" stroke-width="8"
+                      stroke-dasharray="${CIRC.toFixed(2)}" stroke-dashoffset="${dashOffset}"
+                      stroke-linecap="round" transform="rotate(-90 36 36)"/>
+                  </svg>
+                  <span class="compare-score-ring-val">${score}</span>
+                </div>
+                <div class="compare-score-name">${p.name}</div>
+                ${isWinner ? '<div class="gc-recommend">GC Recomienda</div>' : ''}
+              </div>`;
+          }).join('')}
+        </div>
+
         <div class="compare-wrap">
-          <table class="compare-table">
-            <thead>
-              <tr>
-                <th></th>
-                ${places.map(p => `<th>${p.name}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map(row => `
-                <tr>
-                  <td>${row.label}</td>
-                  ${places.map(p => `<td>${row.fn(p)}</td>`).join('')}
-                </tr>`).join('')}
-            </tbody>
-          </table>
+          <div style="border:1px solid #EAECEF;border-radius:14px;overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead>
+                <tr style="background:#F8FAFC;border-bottom:2px solid #1D4ED8">
+                  <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.5px;width:28%">Criterio</th>
+                  ${places.map(p => `<th style="padding:10px 12px;text-align:center;font-size:13px;font-weight:800;color:#0F172A">${p.name}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(row => `
+                  <tr style="border-bottom:1px solid #F1F5F9">
+                    <td style="padding:11px 12px;font-size:11px;font-weight:700;color:#64748B">${row.label}</td>
+                    ${places.map(p => {
+                      const isW = row.winner(p);
+                      return `<td style="padding:11px 12px;text-align:center;${isW ? 'background:#F0FDF4;color:#16A34A;font-weight:700' : 'color:#374151'}">${row.fn(p)}</td>`;
+                    }).join('')}
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
           <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
             ${places.map(p => `<button class="btn-primary-sm" style="flex:1;min-width:120px;font-size:12px" data-compare-view="${p.id}">Ver ${p.name}</button>`).join('')}
           </div>
         </div>
+      </div>`;
+  },
+
+  descuento() {
+    const place = getPlaces().find(p => p.id === state.detailPlaceId);
+    if (!place) return `<div class="empty-state"><div class="empty-state-title">Local no encontrado</div></div>`;
+
+    const studentId = 'GC-2026-00847';
+    const code = genVerifyCode(studentId, place.id);
+    const coverSrc = place.imageData || place.imageUrl;
+    const logoSrc  = place.logoData;
+
+    let visualContent;
+    if (coverSrc) {
+      visualContent = `<img src="${coverSrc}" alt="${place.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6"/>`;
+    } else if (logoSrc) {
+      visualContent = `<img class="descuento-visual-logo" src="${logoSrc}" alt="${place.name}"/>`;
+    } else {
+      visualContent = `<div class="descuento-visual-emoji">${place.emoji || '🏠'}</div>`;
+    }
+
+    return `
+      <div class="descuento-overlay">
+        <div class="descuento-header">
+          <span class="descuento-header-logo">Global Connect</span>
+          <span class="descuento-header-place">${place.name}</span>
+          <span class="descuento-close" id="descuento-close">✕ Cerrar</span>
+        </div>
+
+        <div class="descuento-visual">
+          ${visualContent}
+        </div>
+
+        <div class="descuento-offer">
+          <div class="descuento-offer-badge">🎫 Oferta GCPass</div>
+          <div class="descuento-offer-text">${place.offer?.text || ''}</div>
+          <div class="descuento-offer-place">${place.name}</div>
+        </div>
+
+        <div class="descuento-student">
+          <div class="descuento-avatar">LG</div>
+          <div>
+            <div class="descuento-student-name">Lautaro García</div>
+            <div class="descuento-student-id">${studentId}</div>
+            <div class="descuento-student-uni">UBA · Erasmus Roma · Feb–Jul 2026</div>
+          </div>
+        </div>
+
+        <div class="descuento-code-box">
+          <div class="descuento-code-label">Código de verificación</div>
+          <div class="descuento-code">${code}</div>
+          <div class="descuento-code-status">
+            <span class="descuento-code-dot"></span>
+            <span>Activo</span>
+          </div>
+          <div class="descuento-code-note">Código único para vos en este local</div>
+        </div>
+
+        <div class="descuento-footer">Mostrá esta pantalla al personal del local</div>
       </div>`;
   },
 };
@@ -552,19 +712,43 @@ function attachListeners() {
     menuClose.addEventListener('click', () => navigate('detalle'));
   }
 
-  // Open menu button in detalle
+  // Open menu button in detalle → always navigate to menuViewer (handles both image and PDF)
   const openMenuBtn = content.querySelector('#open-menu-btn');
   if (openMenuBtn) {
-    openMenuBtn.addEventListener('click', () => {
-      const place = getPlaces().find(p => p.id === state.detailPlaceId);
-      if (!place?.menuData) return;
-      if (place.menuType && place.menuType.startsWith('image')) {
-        navigate('menuViewer');
-      } else {
-        window.open(place.menuData, '_blank');
-      }
-    });
+    openMenuBtn.addEventListener('click', () => navigate('menuViewer'));
   }
+
+  // Inject blob URL into PDF iframe after render
+  const menuFrame = document.querySelector('#menu-frame');
+  if (menuFrame) {
+    const place = getPlaces().find(p => p.id === state.detailPlaceId);
+    if (place?.menuData) {
+      try {
+        const blob = dataURLtoBlob(place.menuData);
+        menuFrame.src = URL.createObjectURL(blob);
+      } catch(e) {}
+    }
+  }
+
+  // Show descuento from detalle
+  const showDescuentoBtn = content.querySelector('#show-descuento-btn');
+  if (showDescuentoBtn) {
+    showDescuentoBtn.addEventListener('click', () => navigate('descuento'));
+  }
+
+  // Close descuento overlay → back to detalle
+  const descuentoClose = document.querySelector('#descuento-close');
+  if (descuentoClose) {
+    descuentoClose.addEventListener('click', () => navigate('detalle'));
+  }
+
+  // Descuento buttons in guardados cards
+  content.querySelectorAll('[data-descuento]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      navigate('descuento', { detailPlaceId: parseInt(el.dataset.descuento) });
+    });
+  });
 
   // Featured card tap → detail
   const featuredCard = content.querySelector('.featured-card[data-place]');

@@ -268,6 +268,18 @@ const ADMIN_VIEWS = {
     const neighborhoods = ['Trastevere','Prati','Testaccio','Monti','Pigneto','Ghetto','Esquilino','Ostiense','Parioli','EUR','Tiburtino','Garbatella'];
     const categories    = ['Trattoria','Aperitivo bar','Bar histórico','Craft beer bar','Pizza al taglio','Cucina ebraica','Restaurante','Café','Club','Otro'];
 
+    // Initial card preview content
+    const previewCover = p?.imageData || p?.imageUrl || '';
+    const previewLogo  = p?.logoData || '';
+    let previewImgHtml;
+    if (previewCover) {
+      previewImgHtml = `<img class="card-preview-img" src="${previewCover}" alt=""/>`;
+    } else if (previewLogo) {
+      previewImgHtml = `<div class="card-preview-icon-bg" style="background:${currentColor}"><img class="card-preview-logo" src="${previewLogo}" alt=""/></div>`;
+    } else {
+      previewImgHtml = `<div class="card-preview-icon-bg" style="background:${currentColor}">${p?.emoji || '🏠'}</div>`;
+    }
+
     return `
       <div class="admin-page">
         <div class="admin-page-header">
@@ -277,171 +289,191 @@ const ADMIN_VIEWS = {
           </div>
         </div>
 
-        <div class="admin-card" style="max-width:680px">
-          <div class="admin-card-body">
+        <div class="agregar-layout">
 
-            <div class="form-section-title">Identidad</div>
+          <div class="admin-card agregar-form-col">
+            <div class="admin-card-body">
 
-            <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:16px">
-              <div>
-                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">Vista previa</div>
-                <div id="emoji-preview-box" style="width:52px;height:52px;border-radius:14px;background:${currentColor};display:flex;align-items:center;justify-content:center;font-size:26px;border:1px solid #EAECEF;transition:all .2s">${p?.emoji || '🏠'}</div>
-              </div>
-              <div class="form-group" style="flex:1;margin-bottom:0">
-                <label>Emoji del local</label>
-                <input type="text" id="f-emoji" class="form-input" placeholder="🍝" value="${p?.emoji || ''}" maxlength="2" style="max-width:90px"/>
-              </div>
-            </div>
+              <div class="form-section-title">Identidad visual</div>
 
-            <div class="form-row">
               <div class="form-group">
-                <label>Nombre del local *</label>
-                <input type="text" id="f-name" class="form-input" placeholder="Osteria dell'Angelo" value="${p?.name || ''}"/>
-              </div>
-              <div class="form-group">
-                <label>Categoría *</label>
-                <select id="f-category" class="form-input">
-                  <option value="">Seleccionar...</option>
-                  ${categories.map(c => `<option value="${c}"${p?.category === c ? ' selected' : ''}>${c}</option>`).join('')}
-                </select>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Barrio *</label>
-                <select id="f-neighborhood" class="form-input">
-                  <option value="">Seleccionar...</option>
-                  ${neighborhoods.map(n => `<option value="${n}"${p?.neighborhood === n ? ' selected' : ''}>${n}</option>`).join('')}
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Precio promedio por persona</label>
-                <select id="f-priceRange" class="form-input">
-                  <option value="">Sin especificar</option>
-                  <option value="< €10"  ${p?.priceRange === '< €10'  ? 'selected' : ''}>Económico · menos de €10</option>
-                  <option value="€10–20" ${p?.priceRange === '€10–20' ? 'selected' : ''}>Moderado · €10–20</option>
-                  <option value="€20–40" ${p?.priceRange === '€20–40' ? 'selected' : ''}>Medio-alto · €20–40</option>
-                  <option value="> €40"  ${p?.priceRange === '> €40'  ? 'selected' : ''}>Premium · más de €40</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-section-title">Contacto y ubicación</div>
-
-            <div class="form-group">
-              <label>Dirección</label>
-              <input type="text" id="f-address" class="form-input" placeholder="Via della Lungaretta 28, Trastevere" value="${p?.address || ''}"/>
-            </div>
-
-            <div class="form-group">
-              <label>Link Google Maps</label>
-              <input type="url" id="f-maps" class="form-input" placeholder="https://maps.google.com/..." value="${p?.mapsUrl || ''}"/>
-            </div>
-
-            <div class="form-group">
-              <label>Teléfono</label>
-              <input type="tel" id="f-phone" class="form-input" placeholder="+39 06 581 3798" value="${p?.phone || ''}"/>
-            </div>
-
-            <div class="form-group">
-              <label>Horario</label>
-              <div class="hours-presets">
-                ${DAY_PRESETS.map(d => `<button type="button" class="hours-preset-btn${hoursDays === d ? ' active' : ''}" data-days="${d}">${d}</button>`).join('')}
-              </div>
-              <div class="hours-time-row">
-                <input type="time" id="f-hours-open" class="form-input" style="width:130px" value="${hoursOpen}"/>
-                <span class="hours-sep">–</span>
-                <input type="time" id="f-hours-close" class="form-input" style="width:130px" value="${hoursClose}"/>
-              </div>
-              <div class="hours-preview-text" id="hours-preview">${hoursPreview}</div>
-              <input type="hidden" id="f-hours" value="${p?.hours || ''}"/>
-            </div>
-
-            <div class="form-group">
-              <label>Sitio web</label>
-              <input type="url" id="f-website" class="form-input" placeholder="https://..." value="${p?.website || ''}"/>
-            </div>
-
-            <div class="form-section-title">Contenido</div>
-
-            <div class="form-group">
-              <label>Descripción</label>
-              <textarea id="f-description" class="form-input form-textarea" placeholder="Describí el local para los estudiantes...">${p?.description || ''}</textarea>
-            </div>
-
-            <div class="form-group">
-              <label>Oferta para estudiantes GC</label>
-              <input type="text" id="f-offer" class="form-input" placeholder="Ej: 10% de descuento en almuerzo y cena" value="${p?.offer?.text || ''}"/>
-            </div>
-
-            <div class="form-group">
-              <label>Imagen del local</label>
-              <label class="file-upload-btn" for="f-imageFile">
-                📷 ${p?.imageData ? 'Cambiar imagen' : 'Subir imagen'}
-              </label>
-              <input type="file" id="f-imageFile" accept="image/*" style="display:none"/>
-              <img id="img-preview" class="img-preview-thumb" src="${p?.imageData || p?.imageUrl || ''}" style="display:${p?.imageData || p?.imageUrl ? 'block' : 'none'}"/>
-            </div>
-
-            <div class="form-group">
-              <label>Menú / Carta (PDF o imagen)</label>
-              <label class="file-upload-btn file-upload-btn-secondary" for="f-menuFile">
-                📄 ${p?.menuData ? 'Cambiar menú' : 'Subir menú (PDF o imagen)'}
-              </label>
-              <input type="file" id="f-menuFile" accept=".pdf,image/*" style="display:none"/>
-              <div id="menu-upload-status" class="file-upload-status" style="display:${p?.menuData ? 'block' : 'none'}">
-                ✓ Menú cargado
-              </div>
-            </div>
-
-            <div class="form-section-title">Apariencia</div>
-
-            <div class="form-group">
-              <label>Color de fondo del icono</label>
-              <div class="color-swatches">
-                ${BG_COLORS.map(c => `<button type="button" class="color-swatch${currentColor === c.value ? ' selected' : ''}" data-color="${c.value}" style="background:${c.value}" title="${c.label}"></button>`).join('')}
-              </div>
-              <input type="hidden" id="f-bgColor" value="${currentColor}"/>
-            </div>
-
-            <div class="form-section-title">Plan y estado</div>
-
-            <div class="form-group">
-              <label>Plan</label>
-              <div class="plan-radio-group">
-                <label class="plan-radio-option">
-                  <input type="radio" name="plan" value="free" ${(!p || p.plan === 'free') ? 'checked' : ''}/>
-                  <span class="plan-radio-label"><strong>Free</strong> — €0/mes · Perfil básico</span>
+                <label>Foto de portada</label>
+                <label class="file-upload-btn" for="f-imageFile">
+                  📷 ${p?.imageData || p?.imageUrl ? 'Cambiar foto' : 'Subir foto de portada'}
                 </label>
-                <label class="plan-radio-option">
-                  <input type="radio" name="plan" value="partner" ${p?.plan === 'partner' ? 'checked' : ''}/>
-                  <span class="plan-radio-label"><strong>Partner</strong> — €99/mes · Oferta destacada + métricas</span>
+                <input type="file" id="f-imageFile" accept="image/*" style="display:none"/>
+                <img id="img-preview" class="img-preview-thumb" src="${p?.imageData || p?.imageUrl || ''}" style="display:${p?.imageData || p?.imageUrl ? 'block' : 'none'}"/>
+              </div>
+
+              <div class="form-group">
+                <label>Logo del local <span style="font-size:11px;color:#94A3B8;font-weight:500">(máx 500 KB)</span></label>
+                <label class="file-upload-btn file-upload-btn-secondary" for="f-logoFile">
+                  🖼 ${p?.logoData ? 'Cambiar logo' : 'Subir logo'}
                 </label>
-                <label class="plan-radio-option">
-                  <input type="radio" name="plan" value="premium" ${p?.plan === 'premium' ? 'checked' : ''}/>
-                  <span class="plan-radio-label"><strong>Premium</strong> — €199/mes · Posición top + exclusividad</span>
+                <input type="file" id="f-logoFile" accept="image/*" style="display:none"/>
+                <img id="logo-preview" class="logo-preview-circle" src="${p?.logoData || ''}" style="display:${p?.logoData ? 'block' : 'none'}"/>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group" style="margin-bottom:0">
+                  <label>Emoji <span style="font-size:11px;color:#94A3B8;font-weight:500">Solo si no hay logo</span></label>
+                  <input type="text" id="f-emoji" class="form-input" placeholder="🍝" value="${p?.emoji || ''}" maxlength="2" style="max-width:90px"/>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label>Color de fondo <span style="font-size:11px;color:#94A3B8;font-weight:500">Sin logo ni foto</span></label>
+                  <div class="color-swatches" style="margin-top:0">
+                    ${BG_COLORS.map(c => `<button type="button" class="color-swatch${currentColor === c.value ? ' selected' : ''}" data-color="${c.value}" style="background:${c.value}" title="${c.label}"></button>`).join('')}
+                  </div>
+                  <input type="hidden" id="f-bgColor" value="${currentColor}"/>
+                </div>
+              </div>
+
+              <div class="form-section-title">Información básica</div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Nombre del local *</label>
+                  <input type="text" id="f-name" class="form-input" placeholder="Osteria dell'Angelo" value="${p?.name || ''}"/>
+                </div>
+                <div class="form-group">
+                  <label>Categoría *</label>
+                  <select id="f-category" class="form-input">
+                    <option value="">Seleccionar...</option>
+                    ${categories.map(c => `<option value="${c}"${p?.category === c ? ' selected' : ''}>${c}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Barrio *</label>
+                  <select id="f-neighborhood" class="form-input">
+                    <option value="">Seleccionar...</option>
+                    ${neighborhoods.map(n => `<option value="${n}"${p?.neighborhood === n ? ' selected' : ''}>${n}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Precio promedio por persona</label>
+                  <select id="f-priceRange" class="form-input">
+                    <option value="">Sin especificar</option>
+                    <option value="< €10"  ${p?.priceRange === '< €10'  ? 'selected' : ''}>Económico · menos de €10</option>
+                    <option value="€10–20" ${p?.priceRange === '€10–20' ? 'selected' : ''}>Moderado · €10–20</option>
+                    <option value="€20–40" ${p?.priceRange === '€20–40' ? 'selected' : ''}>Medio-alto · €20–40</option>
+                    <option value="> €40"  ${p?.priceRange === '> €40'  ? 'selected' : ''}>Premium · más de €40</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-section-title">Contacto y ubicación</div>
+
+              <div class="form-group">
+                <label>Dirección</label>
+                <input type="text" id="f-address" class="form-input" placeholder="Via della Lungaretta 28, Trastevere" value="${p?.address || ''}"/>
+              </div>
+
+              <div class="form-group">
+                <label>Link Google Maps</label>
+                <input type="url" id="f-maps" class="form-input" placeholder="https://maps.google.com/..." value="${p?.mapsUrl || ''}"/>
+              </div>
+
+              <div class="form-group">
+                <label>Teléfono</label>
+                <input type="tel" id="f-phone" class="form-input" placeholder="+39 06 581 3798" value="${p?.phone || ''}"/>
+              </div>
+
+              <div class="form-group">
+                <label>Horario</label>
+                <div class="hours-presets">
+                  ${DAY_PRESETS.map(d => `<button type="button" class="hours-preset-btn${hoursDays === d ? ' active' : ''}" data-days="${d}">${d}</button>`).join('')}
+                </div>
+                <div class="hours-time-row">
+                  <input type="time" id="f-hours-open" class="form-input" style="width:130px" value="${hoursOpen}"/>
+                  <span class="hours-sep">–</span>
+                  <input type="time" id="f-hours-close" class="form-input" style="width:130px" value="${hoursClose}"/>
+                </div>
+                <div class="hours-preview-text" id="hours-preview">${hoursPreview}</div>
+                <input type="hidden" id="f-hours" value="${p?.hours || ''}"/>
+              </div>
+
+              <div class="form-group">
+                <label>Sitio web</label>
+                <input type="url" id="f-website" class="form-input" placeholder="https://..." value="${p?.website || ''}"/>
+              </div>
+
+              <div class="form-section-title">Contenido</div>
+
+              <div class="form-group">
+                <label>Descripción</label>
+                <textarea id="f-description" class="form-input form-textarea" placeholder="Describí el local para los estudiantes...">${p?.description || ''}</textarea>
+              </div>
+
+              <div class="form-group">
+                <label>Oferta para estudiantes GC</label>
+                <input type="text" id="f-offer" class="form-input" placeholder="Ej: 10% de descuento en almuerzo y cena" value="${p?.offer?.text || ''}"/>
+              </div>
+
+              <div class="form-group">
+                <label>Menú / Carta (PDF o imagen)</label>
+                <label class="file-upload-btn file-upload-btn-secondary" for="f-menuFile">
+                  📄 ${p?.menuData ? 'Cambiar menú' : 'Subir menú (PDF o imagen)'}
+                </label>
+                <input type="file" id="f-menuFile" accept=".pdf,image/*" style="display:none"/>
+                <div id="menu-upload-status" class="file-upload-status" style="display:${p?.menuData ? 'block' : 'none'}">
+                  ✓ Menú cargado
+                </div>
+              </div>
+
+              <div class="form-section-title">Plan y estado</div>
+
+              <div class="form-group">
+                <label>Plan</label>
+                <div class="plan-radio-group">
+                  <label class="plan-radio-option">
+                    <input type="radio" name="plan" value="free" ${(!p || p.plan === 'free') ? 'checked' : ''}/>
+                    <span class="plan-radio-label"><strong>Free</strong> — €0/mes · Perfil básico</span>
+                  </label>
+                  <label class="plan-radio-option">
+                    <input type="radio" name="plan" value="partner" ${p?.plan === 'partner' ? 'checked' : ''}/>
+                    <span class="plan-radio-label"><strong>Partner</strong> — €99/mes · Oferta destacada + métricas</span>
+                  </label>
+                  <label class="plan-radio-option">
+                    <input type="radio" name="plan" value="premium" ${p?.plan === 'premium' ? 'checked' : ''}/>
+                    <span class="plan-radio-label"><strong>Premium</strong> — €199/mes · Posición top + exclusividad</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Estado</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="f-active" ${!p || p.active ? 'checked' : ''}/>
+                  <span class="toggle-slider"></span>
+                  <span id="toggle-label">${!p || p.active ? 'Activo' : 'Inactivo'}</span>
                 </label>
               </div>
+
+              <div id="form-error" class="form-error" style="display:none"></div>
+
+              <div class="form-actions">
+                <button class="btn-ghost" data-nav="locales">Cancelar</button>
+                <button class="btn-primary" id="save-place-btn">${isEditing ? 'Guardar cambios' : 'Agregar local'}</button>
+              </div>
+
             </div>
-
-            <div class="form-group">
-              <label>Estado</label>
-              <label class="toggle-switch">
-                <input type="checkbox" id="f-active" ${!p || p.active ? 'checked' : ''}/>
-                <span class="toggle-slider"></span>
-                <span id="toggle-label">${!p || p.active ? 'Activo' : 'Inactivo'}</span>
-              </label>
-            </div>
-
-            <div id="form-error" class="form-error" style="display:none"></div>
-
-            <div class="form-actions">
-              <button class="btn-ghost" data-nav="locales">Cancelar</button>
-              <button class="btn-primary" id="save-place-btn">${isEditing ? 'Guardar cambios' : 'Agregar local'}</button>
-            </div>
-
           </div>
+
+          <div class="card-preview-panel">
+            <div class="card-preview-label">Vista del estudiante</div>
+            <div class="card-preview" id="card-preview">
+              ${previewImgHtml}
+              <div class="card-preview-body">
+                <div class="card-preview-name">${p?.name || 'Nombre del local'}</div>
+                <div class="card-preview-sub">${p?.category || 'Categoría'} · ${p?.neighborhood || 'Barrio'}</div>
+                ${p?.offer?.text ? `<div class="card-preview-offer">${p.offer.text}</div>` : ''}
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>`;
   },
@@ -679,8 +711,7 @@ function attachAdminListeners() {
       el.classList.add('selected');
       const colorInput = document.getElementById('f-bgColor');
       if (colorInput) colorInput.value = el.dataset.color;
-      const box = document.getElementById('emoji-preview-box');
-      if (box) box.style.background = el.dataset.color;
+      updateCardPreview();
     });
   });
 
@@ -719,6 +750,45 @@ function attachAdminListeners() {
   if (hoursOpen)  hoursOpen.addEventListener('change', updateHoursFromDOM);
   if (hoursClose) hoursClose.addEventListener('change', updateHoursFromDOM);
 
+  // ── Live card preview ─────────────────────────────────────────────────────────
+  function updateCardPreview() {
+    const preview = document.getElementById('card-preview');
+    if (!preview) return;
+    const name         = document.getElementById('f-name')?.value.trim()    || 'Nombre del local';
+    const category     = document.getElementById('f-category')?.value        || 'Categoría';
+    const neighborhood = document.getElementById('f-neighborhood')?.value    || 'Barrio';
+    const offerText    = document.getElementById('f-offer')?.value.trim()    || '';
+    const emoji        = document.getElementById('f-emoji')?.value.trim()    || '🏠';
+    const bgColor      = document.getElementById('f-bgColor')?.value         || '#FEF3C7';
+    const imageFileInp = document.getElementById('f-imageFile');
+    const logoFileInp  = document.getElementById('f-logoFile');
+    const imageSrc     = imageFileInp?._data || '';
+    const logoSrc      = logoFileInp?._data  || '';
+
+    let imgHtml;
+    if (imageSrc) {
+      imgHtml = `<img class="card-preview-img" src="${imageSrc}" alt=""/>`;
+    } else if (logoSrc) {
+      imgHtml = `<div class="card-preview-icon-bg" style="background:${bgColor}"><img class="card-preview-logo" src="${logoSrc}" alt=""/></div>`;
+    } else {
+      imgHtml = `<div class="card-preview-icon-bg" style="background:${bgColor}">${emoji}</div>`;
+    }
+    preview.innerHTML = `
+      ${imgHtml}
+      <div class="card-preview-body">
+        <div class="card-preview-name">${name}</div>
+        <div class="card-preview-sub">${category} · ${neighborhood}</div>
+        ${offerText ? `<div class="card-preview-offer">${offerText}</div>` : ''}
+      </div>`;
+  }
+
+  // Connect preview-triggering inputs
+  ['f-name','f-category','f-neighborhood','f-offer','f-emoji'].forEach(id => {
+    const el = content.querySelector(`#${id}`);
+    if (el) el.addEventListener('input', updateCardPreview);
+    if (el && el.tagName === 'SELECT') el.addEventListener('change', updateCardPreview);
+  });
+
   // ── Image file upload ────────────────────────────────────────────────────────
   const imageFileInput = content.querySelector('#f-imageFile');
   if (imageFileInput) {
@@ -732,7 +802,28 @@ function attachAdminListeners() {
         const preview = content.querySelector('#img-preview');
         if (preview) { preview.src = ev.target.result; preview.style.display = 'block'; }
         const uploadBtn = content.querySelector('label[for="f-imageFile"]');
-        if (uploadBtn) uploadBtn.textContent = '📷 Cambiar imagen';
+        if (uploadBtn) uploadBtn.textContent = '📷 Cambiar foto';
+        updateCardPreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── Logo file upload ──────────────────────────────────────────────────────────
+  const logoFileInput = content.querySelector('#f-logoFile');
+  if (logoFileInput) {
+    logoFileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 500 * 1024) { showToast('Logo demasiado grande (máx 500 KB)'); return; }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        logoFileInput._data = ev.target.result;
+        const logoPreview = content.querySelector('#logo-preview');
+        if (logoPreview) { logoPreview.src = ev.target.result; logoPreview.style.display = 'block'; }
+        const uploadBtn = content.querySelector('label[for="f-logoFile"]');
+        if (uploadBtn) uploadBtn.textContent = '🖼 Cambiar logo';
+        updateCardPreview();
       };
       reader.readAsDataURL(file);
     });
@@ -786,9 +877,11 @@ function attachAdminListeners() {
 
       const places       = getAdminPlaces();
       const imageFileInp = document.getElementById('f-imageFile');
+      const logoFileInp  = document.getElementById('f-logoFile');
       const menuFileInp  = document.getElementById('f-menuFile');
       const existingP    = adminState.editingPlaceId !== null ? places.find(x => x.id === adminState.editingPlaceId) : null;
       const imageData    = imageFileInp?._data || existingP?.imageData || '';
+      const logoData     = logoFileInp?._data  || existingP?.logoData  || '';
       const menuData     = menuFileInp?._data  || existingP?.menuData  || '';
       const menuType     = menuFileInp?._type  || existingP?.menuType  || '';
       const offerObj = { text: offerText, badge: offerText ? `🎫 ${offerText}` : '' };
@@ -801,7 +894,7 @@ function attachAdminListeners() {
             name, category, neighborhood, emoji, bgColor,
             address, phone, hours, website, mapsUrl,
             description, offer: offerObj, plan, active,
-            priceRange, imageData, menuData, menuType,
+            priceRange, imageData, logoData, menuData, menuType,
           };
         }
       } else {
@@ -809,7 +902,7 @@ function attachAdminListeners() {
           id: nextId(places), name, category, neighborhood, emoji,
           bgColor, address, phone, hours, website, mapsUrl,
           description, offer: offerObj, plan, active,
-          priceRange, imageData, menuData, menuType,
+          priceRange, imageData, logoData, menuData, menuType,
           stats: { views: 0, going: 0, clicks: 0, groups: 0 }
         });
       }
