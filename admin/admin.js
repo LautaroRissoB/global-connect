@@ -10,6 +10,7 @@ const _adminCache = {
   places:       [],
   events:       [],
   domains:      [],
+  students:     [],
   studentCount: 0,
 };
 
@@ -80,12 +81,13 @@ async function loadAdminData() {
     sb.from('places').select('*').order('id'),
     sb.from('events').select('*').order('id'),
     sb.from('allowed_domains').select('*').order('domain'),
-    sb.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+    sb.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false }),
   ]);
   _adminCache.places       = (placesRes.data  || []).map(normalizePlace);
   _adminCache.events       = (eventsRes.data  || []).map(normalizeEvent);
   _adminCache.domains      = domainsRes.data  || [];
-  _adminCache.studentCount = studentsRes.count || 0;
+  _adminCache.students     = studentsRes.data  || [];
+  _adminCache.studentCount = _adminCache.students.length;
 }
 
 // ─── ASYNC CRUD HELPERS ───────────────────────────────────────────────────────
@@ -219,6 +221,7 @@ function renderAdminLogin() {
 
     _adminCache.session = data.session;
     _adminCache.profile = profile;
+    updateTopbarName();
     await loadAdminData();
     navigate('dashboard');
   });
@@ -236,13 +239,21 @@ function renderAdminUnauthorized() {
     </div>`;
 }
 
+function updateTopbarName() {
+  const el = document.getElementById('topbar-admin-name');
+  if (!el) return;
+  const p = _adminCache.profile;
+  if (p) el.textContent = '● ' + (p.name || p.email || 'Admin');
+}
+
 async function initAdmin() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { renderAdminLogin(); return; }
-  const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if (!profile || profile.role !== 'admin') { renderAdminUnauthorized(); return; }
   _adminCache.session = session;
   _adminCache.profile = profile;
+  updateTopbarName();
   await loadAdminData();
   navigate('dashboard');
 }
@@ -901,6 +912,66 @@ const ADMIN_VIEWS = {
         </div>
       </div>`;
   },
+
+  estudiantes() {
+    const students = _adminCache.students || [];
+    const PERIOD_LABELS = {
+      feb26: 'Feb–Jun 2026', sep26: 'Sep 2026–Feb 2027',
+      feb27: 'Feb–Jun 2027', sep27: 'Sep 2027–Feb 2028',
+    };
+    return `
+      <div class="admin-page">
+        <div class="admin-page-header">
+          <div>
+            <h1>Estudiantes</h1>
+            <p>${students.length} alumno${students.length !== 1 ? 's' : ''} registrado${students.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-body" style="padding:0">
+            ${students.length === 0
+              ? `<div style="padding:32px;text-align:center;color:#94A3B8;font-size:14px">Ningún estudiante registrado todavía.</div>`
+              : `<div class="admin-table-wrap">
+                  <table class="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Alumno</th>
+                        <th>Email</th>
+                        <th>Universidad</th>
+                        <th>Período</th>
+                        <th>ID</th>
+                        <th>Registrado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${students.map(s => {
+                        const initials = s.initials || ((s.name||'')[0]||'') + ((s.last_name||'')[0]||'');
+                        const date = s.created_at ? new Date(s.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+                        const period = PERIOD_LABELS[s.exchange_period] || s.exchange_period || '—';
+                        return `<tr>
+                          <td>
+                            <div style="display:flex;align-items:center;gap:10px">
+                              <div style="width:32px;height:32px;border-radius:50%;background:${s.avatar_color||'#0066FF'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0">${initials}</div>
+                              <div>
+                                <div style="font-weight:600;color:#0F172A">${s.name} ${s.last_name}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style="color:#475569">${s.email || '—'}</td>
+                          <td>${s.university || '—'}</td>
+                          <td><span style="font-size:11px;background:#F1F5F9;padding:2px 8px;border-radius:4px;font-weight:600">${period}</span></td>
+                          <td style="font-family:monospace;font-size:12px;color:#1D4ED8">${s.student_id || '—'}</td>
+                          <td style="color:#94A3B8;font-size:12px">${date}</td>
+                        </tr>`;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>`}
+          </div>
+        </div>
+      </div>`;
+  },
 };
 
 // ─── CONTENT-LEVEL LISTENERS (re-attached on every navigate) ──────────────────
@@ -1252,6 +1323,16 @@ document.querySelectorAll('#sidebar [data-nav]').forEach(el => {
     if (el.dataset.nav === 'agregar') adminState.editingPlaceId = null;
     navigate(el.dataset.nav);
   });
+});
+
+document.getElementById('sidebar-logout')?.addEventListener('click', async () => {
+  if (!confirm('¿Cerrar sesión?')) return;
+  await sb.auth.signOut();
+  _adminCache.session = null;
+  _adminCache.profile = null;
+  const el = document.getElementById('topbar-admin-name');
+  if (el) el.textContent = '●';
+  renderAdminLogin();
 });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────

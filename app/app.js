@@ -100,6 +100,7 @@ async function createProfileFromMetadata(user) {
   const sid    = 'GC-' + new Date().getFullYear() + '-' + String(Math.floor(10000 + Math.random() * 90000));
   await sb.from('profiles').insert({
     id:              user.id,
+    email:           user.email || '',
     name,
     last_name:       lname,
     initials:        ((name[0] || '') + (lname[0] || '')).toUpperCase() || name.slice(0, 2).toUpperCase(),

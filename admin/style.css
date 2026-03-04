@@ -19,13 +19,15 @@ body{font-family:'Inter',sans-serif;background:#F8FAFC;color:#0F172A;min-height:
 .back-link:hover{background:#F1F5F9}
 
 /* Sidebar */
-.sidebar{background:#fff;border-right:1px solid #EAECEF;padding:16px 0;overflow-y:auto}
+.sidebar{background:#fff;border-right:1px solid #EAECEF;padding:16px 0;overflow-y:auto;display:flex;flex-direction:column}
 .sidebar::-webkit-scrollbar{display:none}
 .sidebar-label{font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.8px;padding:8px 16px 4px}
 .sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;transition:all .12s;border-radius:0;border-left:3px solid transparent}
 .sidebar-link:hover{background:#F8FAFC;color:#0F172A}
 .sidebar-link.active{color:#1D4ED8;background:#EFF6FF;border-left-color:#1D4ED8}
 .sidebar-icon{font-size:15px;width:20px;text-align:center}
+.sidebar-logout{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:13px;font-weight:600;color:#EF4444;cursor:pointer;transition:all .12s;border-left:3px solid transparent;margin-top:auto}
+.sidebar-logout:hover{background:#FEF2F2}
 
 /* Main content */
 #admin-content{overflow-y:auto;background:#F8FAFC}
