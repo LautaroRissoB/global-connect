@@ -18,6 +18,7 @@ const _adminCache = {
 const adminState = {
   currentView: 'dashboard',
   editingPlaceId: null,
+  reportPlaceId: null,
   filterPlan: 'all',
   filterActive: 'all',
 };
@@ -77,17 +78,54 @@ function denormalizeEvent(event) {
 
 // ─── ASYNC DATA LOADERS ───────────────────────────────────────────────────────
 async function loadAdminData() {
-  const [placesRes, eventsRes, domainsRes, studentsRes] = await Promise.all([
+  const now        = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const prevStart  = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+
+  const [placesRes, eventsRes, domainsRes, studentsRes, viewsRes, savesRes, attendRes] = await Promise.all([
     sb.from('places').select('*').order('id'),
     sb.from('events').select('*').order('id'),
     sb.from('allowed_domains').select('*').order('domain'),
     sb.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false }),
+    sb.from('place_views').select('place_id, viewed_at').gte('viewed_at', prevStart),
+    sb.from('saved_places').select('place_id, created_at').gte('created_at', prevStart),
+    sb.from('attending_events').select('event_id, created_at').gte('created_at', prevStart),
   ]);
+
   _adminCache.places       = (placesRes.data  || []).map(normalizePlace);
   _adminCache.events       = (eventsRes.data  || []).map(normalizeEvent);
   _adminCache.domains      = domainsRes.data  || [];
   _adminCache.students     = studentsRes.data  || [];
   _adminCache.studentCount = _adminCache.students.length;
+
+  // Build per-place analytics for current and previous month
+  const views   = viewsRes.data  || [];
+  const saves   = savesRes.data  || [];
+  const attends = attendRes.data || [];
+
+  // Map event_id → place_id
+  const eventPlaceMap = {};
+  for (const e of _adminCache.events) if (e.placeId) eventPlaceMap[e.id] = e.placeId;
+
+  _adminCache.analytics = {};
+  for (const place of _adminCache.places) {
+    const pid = place.id;
+    const placeEvents = _adminCache.events.filter(e => e.placeId === pid).map(e => e.id);
+
+    const viewsThis  = views.filter(v => v.place_id === pid && v.viewed_at >= monthStart).length;
+    const viewsPrev  = views.filter(v => v.place_id === pid && v.viewed_at < monthStart).length;
+    const savesThis  = saves.filter(s => s.place_id === pid && s.created_at >= monthStart).length;
+    const savesPrev  = saves.filter(s => s.place_id === pid && s.created_at < monthStart).length;
+    const attendThis = attends.filter(a => placeEvents.includes(a.event_id) && a.created_at >= monthStart).length;
+    const attendPrev = attends.filter(a => placeEvents.includes(a.event_id) && a.created_at < monthStart).length;
+
+    _adminCache.analytics[pid] = {
+      viewsThis, viewsPrev, savesThis, savesPrev, attendThis, attendPrev,
+      eventsThis: _adminCache.events.filter(e => e.placeId === pid && e.date >= monthStart.slice(0,10)).length,
+    };
+  }
+
+  _adminCache.analyticsMonth = now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
 }
 
 // ─── ASYNC CRUD HELPERS ───────────────────────────────────────────────────────
@@ -972,6 +1010,178 @@ const ADMIN_VIEWS = {
         </div>
       </div>`;
   },
+
+  analitica() {
+    const places = getAdminPlaces().filter(p => p.active);
+    const month  = _adminCache.analyticsMonth || '';
+
+    function trend(cur, prev) {
+      if (prev === 0 && cur === 0) return `<span style="color:#94A3B8">—</span>`;
+      if (prev === 0) return `<span style="color:#22C55E">+${cur} nuevo</span>`;
+      const pct = Math.round(((cur - prev) / prev) * 100);
+      const color = pct >= 0 ? '#22C55E' : '#EF4444';
+      const sign  = pct >= 0 ? '+' : '';
+      return `<span style="color:${color}">${sign}${pct}% vs mes ant.</span>`;
+    }
+
+    return `
+      <div class="admin-page">
+        <div class="admin-page-header">
+          <div>
+            <h1>Analítica</h1>
+            <p>Métricas del mes actual — ${month}</p>
+          </div>
+        </div>
+
+        ${places.length === 0 ? `<div class="admin-card"><div class="admin-card-body" style="padding:32px;text-align:center;color:#94A3B8">No hay locales activos todavía.</div></div>` : `
+        <div class="admin-card">
+          <div class="admin-card-body" style="padding:0">
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Local</th>
+                    <th>Plan</th>
+                    <th>👁 Vistas</th>
+                    <th>💾 Guardados</th>
+                    <th>✅ Asistencia</th>
+                    <th>📅 Eventos</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${places.map(p => {
+                    const a = _adminCache.analytics?.[p.id] || {};
+                    return `<tr>
+                      <td>
+                        <div style="display:flex;align-items:center;gap:8px">
+                          <span style="font-size:20px">${p.emoji||'📍'}</span>
+                          <div>
+                            <div style="font-weight:700;color:#0F172A">${p.name}</div>
+                            <div style="font-size:11px;color:#94A3B8">${p.neighborhood||''}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span class="plan-chip plan-chip-${p.plan}">${p.plan}</span></td>
+                      <td>
+                        <div style="font-weight:700">${a.viewsThis||0}</div>
+                        <div style="font-size:11px">${trend(a.viewsThis||0, a.viewsPrev||0)}</div>
+                      </td>
+                      <td>
+                        <div style="font-weight:700">${a.savesThis||0}</div>
+                        <div style="font-size:11px">${trend(a.savesThis||0, a.savesPrev||0)}</div>
+                      </td>
+                      <td>
+                        <div style="font-weight:700">${a.attendThis||0}</div>
+                        <div style="font-size:11px">${trend(a.attendThis||0, a.attendPrev||0)}</div>
+                      </td>
+                      <td style="font-weight:700">${a.eventsThis||0}</td>
+                      <td><button class="btn-sm-primary" data-report="${p.id}">Ver reporte</button></td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>`}
+      </div>`;
+  },
+
+  reporte() {
+    const placeId = adminState.reportPlaceId;
+    const place   = getAdminPlaces().find(p => p.id === placeId);
+    if (!place) return `<div class="admin-page"><div class="admin-card"><div class="admin-card-body" style="padding:32px;text-align:center;color:#94A3B8">Local no encontrado.</div></div></div>`;
+
+    const a     = _adminCache.analytics?.[placeId] || {};
+    const month = _adminCache.analyticsMonth || '';
+
+    function metricRow(icon, label, value, prev) {
+      const pct   = prev === 0 ? null : Math.round(((value - prev) / prev) * 100);
+      const arrow = pct === null ? '' : pct >= 0 ? '↑' : '↓';
+      const color = pct === null ? '#94A3B8' : pct >= 0 ? '#22C55E' : '#EF4444';
+      const pctTxt = pct === null ? (prev === 0 && value > 0 ? 'Primeros datos' : '—') : `${arrow} ${Math.abs(pct)}% vs mes anterior`;
+      return `
+        <div class="report-metric">
+          <div class="report-metric-icon">${icon}</div>
+          <div class="report-metric-body">
+            <div class="report-metric-label">${label}</div>
+            <div class="report-metric-value">${value}</div>
+            <div class="report-metric-trend" style="color:${color}">${pctTxt}</div>
+          </div>
+        </div>`;
+    }
+
+    const placeEvents = _adminCache.events.filter(e => e.placeId === placeId);
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+    const eventsThisMonth = placeEvents.filter(e => e.date >= monthStart);
+
+    return `
+      <div class="admin-page">
+        <div class="admin-page-header">
+          <div>
+            <button class="btn-ghost back-btn" data-nav="analitica">← Analítica</button>
+          </div>
+          <button class="btn-primary" onclick="window.print()">🖨 Imprimir / Exportar PDF</button>
+        </div>
+
+        <div class="report-card" id="printable-report">
+          <!-- REPORT HEADER -->
+          <div class="report-header">
+            <div class="report-header-logo">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:#fff;width:20px;height:20px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span>Global Connect</span>
+            </div>
+            <div class="report-header-title">Reporte Mensual de Performance</div>
+            <div class="report-header-sub">${month}</div>
+          </div>
+
+          <!-- BUSINESS INFO -->
+          <div class="report-business">
+            <div class="report-business-emoji">${place.emoji||'📍'}</div>
+            <div>
+              <div class="report-business-name">${place.name}</div>
+              <div class="report-business-meta">${place.category||''} · ${place.neighborhood||''} · Plan <strong>${place.plan}</strong></div>
+            </div>
+          </div>
+
+          <!-- METRICS -->
+          <div class="report-section-title">Métricas del mes</div>
+          <div class="report-metrics-grid">
+            ${metricRow('👁', 'Vistas al perfil', a.viewsThis||0, a.viewsPrev||0)}
+            ${metricRow('💾', 'Nuevos guardados', a.savesThis||0, a.savesPrev||0)}
+            ${metricRow('✅', 'Asistencias confirmadas', a.attendThis||0, a.attendPrev||0)}
+            ${metricRow('📅', 'Eventos realizados', a.eventsThis||0, a.eventsThis||0)}
+          </div>
+
+          <!-- OFFER -->
+          ${place.offer?.text ? `
+          <div class="report-section-title">Oferta activa</div>
+          <div class="report-offer-box">
+            <div class="report-offer-label">🎫 Oferta GCPass</div>
+            <div class="report-offer-text">${place.offer.text}</div>
+          </div>` : ''}
+
+          <!-- EVENTS THIS MONTH -->
+          ${eventsThisMonth.length > 0 ? `
+          <div class="report-section-title">Eventos este mes</div>
+          <div class="report-events-list">
+            ${eventsThisMonth.map(e => `
+              <div class="report-event-row">
+                <span>${e.emoji||'🎉'} <strong>${e.name}</strong></span>
+                <span style="color:#64748B">${e.date||''} ${e.time||''}</span>
+                <span style="color:#1D4ED8;font-weight:700">${e.price||'—'}</span>
+              </div>`).join('')}
+          </div>` : ''}
+
+          <!-- FOOTER -->
+          <div class="report-footer">
+            <div>Generado por Global Connect · hola@globalconnect.app</div>
+            <div>${new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+          </div>
+        </div>
+      </div>`;
+  },
 };
 
 // ─── CONTENT-LEVEL LISTENERS (re-attached on every navigate) ──────────────────
@@ -1036,6 +1246,13 @@ function attachAdminListeners() {
       const id = el.dataset.delDomain;
       const ok = await deleteDomain(id);
       if (ok) { showToast('Dominio eliminado'); navigate('dominios'); }
+    });
+  });
+
+  // Analytics → reporte
+  content.querySelectorAll('[data-report]').forEach(el => {
+    el.addEventListener('click', () => {
+      navigate('reporte', { reportPlaceId: parseInt(el.dataset.report) });
     });
   });
 

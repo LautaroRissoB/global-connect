@@ -114,6 +114,11 @@ async function createProfileFromMetadata(user) {
 }
 
 // ─── ASYNC MUTATIONS ──────────────────────────────────────────────────────────
+async function trackPlaceView(placeId) {
+  if (!_cache.session) return;
+  await sb.from('place_views').insert({ user_id: _cache.session.user.id, place_id: placeId });
+}
+
 async function toggleSave(placeId) {
   if (!_cache.session) return;
   const uid = _cache.session.user.id;
@@ -585,6 +590,7 @@ function navigate(view, params) {
   content.scrollTop = 0;
   attachListeners();
   updateHeader();
+  if (view === 'detalle' && state.detailPlaceId) trackPlaceView(state.detailPlaceId);
 }
 
 // ─── PLACE CARD ───────────────────────────────────────────────────────────────
