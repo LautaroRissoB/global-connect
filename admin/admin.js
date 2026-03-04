@@ -1,6 +1,6 @@
 // ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
-const SUPABASE_URL      = 'https://XXXX.supabase.co';  // ← fill in your project URL
-const SUPABASE_ANON_KEY = 'eyJ...';                     // ← fill in your anon key
+const SUPABASE_URL      = 'https://hiokmuvqwosipgzvkqoo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4SNcRuP6ig9jFYVe4u8bpQ_BseeKIvq';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ─── ADMIN CACHE ──────────────────────────────────────────────────────────────
