@@ -11,6 +11,7 @@ const state = {
   compareList: [],
   featuredIndex: 0,
   feedPage: 0,
+  onboardingSlide: 0,
 };
 
 const FEED_PAGE_SIZE = 12;
@@ -427,6 +428,10 @@ function navigate(view, params) {
   clearTimeout(_heroAutoTimer);
   if (params) Object.assign(state, params);
   state.currentView = view;
+  // Show/hide app chrome for auth views
+  const appEl = document.querySelector('.app');
+  const isAuth = ['onboarding', 'signup', 'login'].includes(view);
+  if (appEl) appEl.classList.toggle('auth-mode', isAuth);
   if (MAIN_VIEWS.includes(view)) {
     document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
       el.classList.toggle('active', el.dataset.view === view);
@@ -566,8 +571,139 @@ function renderCompareBar() {
     </div>`;
 }
 
+// ─── AUTH EXCHANGE PERIODS ────────────────────────────────────────────────────
+const EXCHANGE_PERIODS = {
+  feb26:  { label: 'Feb – Jul 2026',       from: 'Feb',      to: 'Jul 2026',  tag: 'Erasmus Roma 2026' },
+  sep26:  { label: 'Sep 2026 – Feb 2027',  from: 'Sep 2026', to: 'Feb 2027', tag: 'Erasmus Roma 2026–27' },
+  feb27:  { label: 'Feb – Jul 2027',       from: 'Feb',      to: 'Jul 2027',  tag: 'Erasmus Roma 2027' },
+  other:  { label: 'Otro período',          from: '—',        to: '—',         tag: 'Intercambio Roma' },
+};
+
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
 const VIEWS = {
+
+  onboarding() {
+    const slide = state.onboardingSlide;
+    const SLIDES = [
+      {
+        bg: 'linear-gradient(160deg,#003D99 0%,#0066FF 55%,#4F46E5 100%)',
+        emoji: '🌍',
+        title: 'Roma te está esperando',
+        desc: 'Descubrí los mejores restaurantes, bares y actividades pensados para estudiantes de intercambio.',
+      },
+      {
+        bg: 'linear-gradient(160deg,#5B21B6 0%,#7C3AED 55%,#EC4899 100%)',
+        emoji: '🎫',
+        title: 'Descuentos solo para vos',
+        desc: 'Mostrá tu GCPass en locales partner y ahorrá en cada visita con tu carnet de estudiante.',
+      },
+      {
+        bg: 'linear-gradient(160deg,#B45309 0%,#F97316 55%,#FBBF24 100%)',
+        emoji: '🏆',
+        title: 'Ganá XP explorando',
+        desc: 'Guardá lugares, anotate a eventos y subí de nivel: Rookie → Explorer → Globetrotter.',
+      },
+    ];
+    const s = SLIDES[slide];
+    return `
+      <div class="onb-view" style="background:${s.bg}">
+        ${slide < SLIDES.length - 1 ? '<span class="onb-skip" id="onb-skip">Saltar</span>' : ''}
+        <div class="onb-content">
+          <span class="onb-emoji">${s.emoji}</span>
+          <div class="onb-title">${s.title}</div>
+          <div class="onb-desc">${s.desc}</div>
+        </div>
+        <div class="onb-bottom">
+          <div class="onb-dots">
+            ${SLIDES.map((_, i) => `<div class="onb-dot${i === slide ? ' active' : ''}"></div>`).join('')}
+          </div>
+          ${slide < SLIDES.length - 1
+            ? `<button class="onb-btn" id="onb-next">Siguiente →</button>`
+            : `<button class="onb-btn" id="onb-start">Empezar gratis →</button>`
+          }
+          <div class="onb-login">¿Ya tenés cuenta? <span id="onb-login-link">Iniciá sesión</span></div>
+        </div>
+      </div>`;
+  },
+
+  signup() {
+    const partnerCount = getPlaces().filter(p => p.plan !== 'free' && p.active !== false).length;
+    return `
+      <div class="auth-view">
+        <div class="auth-topbar">
+          <div class="auth-topbar-logo">
+            <div class="auth-topbar-logo-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <span class="auth-topbar-logo-text">Global Connect</span>
+          </div>
+          <span class="auth-back-btn" id="auth-back">← Volver</span>
+        </div>
+        <div class="auth-body">
+          <div class="auth-value-banner">
+            <span class="auth-value-icon">🎫</span>
+            <div class="auth-value-text"><strong>¡Es gratis!</strong> Registrate y accedé a descuentos exclusivos en ${partnerCount || '10'}+ locales en Roma.</div>
+          </div>
+          <div class="auth-heading">Creá tu cuenta</div>
+          <div class="auth-subhead">Solo toma un minuto.</div>
+          <div class="auth-field">
+            <label>Nombre *</label>
+            <input type="text" id="f-name" placeholder="Tu nombre" autocomplete="given-name"/>
+            <div class="auth-error" id="err-name">Ingresá tu nombre</div>
+          </div>
+          <div class="auth-field">
+            <label>Apellido</label>
+            <input type="text" id="f-lastname" placeholder="Tu apellido" autocomplete="family-name"/>
+          </div>
+          <div class="auth-field">
+            <label>Universidad de origen *</label>
+            <input type="text" id="f-uni" placeholder="Ej: UBA, UNC, UAM…" autocomplete="organization"/>
+            <div class="auth-error" id="err-uni">Ingresá tu universidad</div>
+          </div>
+          <div class="auth-field">
+            <label>Email *</label>
+            <input type="email" id="f-email" placeholder="tu@email.com" autocomplete="email"/>
+            <div class="auth-error" id="err-email">Ingresá un email válido</div>
+          </div>
+          <div class="auth-field">
+            <label>Período de intercambio</label>
+            <select id="f-period">
+              ${Object.entries(EXCHANGE_PERIODS).map(([k, p]) => `<option value="${k}">${p.label}</option>`).join('')}
+            </select>
+          </div>
+          <button class="auth-submit" id="signup-submit">Crear mi cuenta →</button>
+          <div class="auth-alt">¿Ya tenés cuenta? <span id="go-login">Iniciá sesión</span></div>
+        </div>
+      </div>`;
+  },
+
+  login() {
+    return `
+      <div class="auth-view">
+        <div class="auth-topbar">
+          <div class="auth-topbar-logo">
+            <div class="auth-topbar-logo-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <span class="auth-topbar-logo-text">Global Connect</span>
+          </div>
+          <span class="auth-back-btn" id="auth-back">← Volver</span>
+        </div>
+        <div class="auth-body">
+          <div class="auth-heading">Bienvenido de vuelta 👋</div>
+          <div class="auth-subhead">Ingresá con el email con el que te registraste.</div>
+          <div class="auth-field">
+            <label>Email</label>
+            <input type="email" id="l-email" placeholder="tu@email.com" autocomplete="email"/>
+            <div class="auth-error" id="err-login">
+              No encontramos esa cuenta. ¿Querés <span class="auth-inline-link" id="err-signup-link">registrarte</span>?
+            </div>
+          </div>
+          <button class="auth-submit" id="login-submit">Entrar →</button>
+          <div class="auth-alt">¿No tenés cuenta? <span id="go-signup">Registrate gratis</span></div>
+        </div>
+      </div>`;
+  },
 
   feed() {
     state.feedPage = 0;
@@ -1091,6 +1227,81 @@ const VIEWS = {
 function attachListeners() {
   const content = document.getElementById('app-content');
 
+  // ── Onboarding navigation ──────────────────────────────────────────────────
+  const onbNext = content.querySelector('#onb-next');
+  if (onbNext) onbNext.addEventListener('click', () => { state.onboardingSlide++; navigate('onboarding'); });
+
+  const onbStart = content.querySelector('#onb-start');
+  if (onbStart) onbStart.addEventListener('click', () => { state.onboardingSlide = 0; navigate('signup'); });
+
+  const onbSkip = content.querySelector('#onb-skip');
+  if (onbSkip) onbSkip.addEventListener('click', () => { state.onboardingSlide = 0; navigate('signup'); });
+
+  const onbLoginLink = content.querySelector('#onb-login-link');
+  if (onbLoginLink) onbLoginLink.addEventListener('click', () => navigate('login'));
+
+  // ── Auth back + cross-links ────────────────────────────────────────────────
+  const authBack = content.querySelector('#auth-back');
+  if (authBack) authBack.addEventListener('click', () => navigate('onboarding'));
+
+  const goLogin = content.querySelector('#go-login');
+  if (goLogin) goLogin.addEventListener('click', () => navigate('login'));
+
+  const goSignup = content.querySelector('#go-signup');
+  if (goSignup) goSignup.addEventListener('click', () => navigate('signup'));
+
+  // ── Sign up form ───────────────────────────────────────────────────────────
+  const signupSubmit = content.querySelector('#signup-submit');
+  if (signupSubmit) {
+    signupSubmit.addEventListener('click', () => {
+      const name     = (document.getElementById('f-name')?.value     || '').trim();
+      const lastName = (document.getElementById('f-lastname')?.value || '').trim();
+      const uni      = (document.getElementById('f-uni')?.value      || '').trim();
+      const email    = (document.getElementById('f-email')?.value    || '').trim();
+      const period   = document.getElementById('f-period')?.value || 'feb26';
+
+      let valid = true;
+      const setErr = (id, show) => document.getElementById(id)?.classList.toggle('visible', show);
+      if (!name)                  { setErr('err-name', true);  valid = false; } else setErr('err-name', false);
+      if (!uni)                   { setErr('err-uni', true);   valid = false; } else setErr('err-uni', false);
+      if (!email || !email.includes('@')) { setErr('err-email', true); valid = false; } else setErr('err-email', false);
+      if (!valid) return;
+
+      const p  = EXCHANGE_PERIODS[period] || EXCHANGE_PERIODS.feb26;
+      const id = 'GC-' + new Date().getFullYear() + '-' + String(Math.floor(10000 + Math.random() * 90000));
+      setUser({
+        name, lastName,
+        initials: ((name[0] || '') + (lastName[0] || '')).toUpperCase() || name.slice(0, 2).toUpperCase(),
+        avatarColor: '#0066FF',
+        uni,
+        exchange: `${uni} · ${p.tag}`,
+        studentId: id,
+        validFrom: p.from, validTo: p.to,
+        email,
+      });
+      state.onboardingSlide = 0;
+      navigate('feed');
+    });
+  }
+
+  // ── Log in form ────────────────────────────────────────────────────────────
+  const loginSubmit = content.querySelector('#login-submit');
+  if (loginSubmit) {
+    loginSubmit.addEventListener('click', () => {
+      const email  = (document.getElementById('l-email')?.value || '').trim();
+      const errEl  = document.getElementById('err-login');
+      const stored = (() => { try { return JSON.parse(localStorage.getItem('gc_user') || 'null'); } catch(e) { return null; } })();
+      if (stored && stored.email === email) {
+        navigate('feed');
+      } else {
+        if (errEl) {
+          errEl.classList.add('visible');
+          document.getElementById('err-signup-link')?.addEventListener('click', () => navigate('signup'), { once: true });
+        }
+      }
+    });
+  }
+
   // Neighborhood chips
   content.querySelectorAll('[data-neighborhood]').forEach(el => {
     el.addEventListener('click', () => {
@@ -1409,4 +1620,4 @@ document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
 });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-navigate('feed');
+navigate(getUser() ? 'feed' : 'onboarding');
