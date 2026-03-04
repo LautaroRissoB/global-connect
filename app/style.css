@@ -590,3 +590,15 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#1F2937;background:#F
   .onb-title{font-size:32px}
   .auth-body{padding:36px 32px}
 }
+
+/* ── Global loader ── */
+.gc-loader{position:fixed;inset:0;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:opacity .2s}
+.gc-loader.visible{opacity:1;pointer-events:all}
+.gc-loader-spinner{width:36px;height:36px;border:3px solid #E2E8F0;border-top-color:#0066FF;border-radius:50%;animation:gc-spin .7s linear infinite}
+@keyframes gc-spin{to{transform:rotate(360deg)}}
+
+/* ── Email verify view ── */
+.email-verify-body{text-align:center;padding-top:40px}
+.verify-icon{font-size:56px;margin-bottom:20px;display:block}
+.email-verify-body .auth-heading{font-size:22px}
+.email-verify-body .auth-subhead{margin-top:10px;line-height:1.5}

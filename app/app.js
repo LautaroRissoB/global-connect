@@ -1,3 +1,21 @@
+// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
+const SUPABASE_URL     = 'https://XXXX.supabase.co';  // ← fill in your project URL
+const SUPABASE_ANON_KEY = 'eyJ...';                    // ← fill in your anon key
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── IN-MEMORY CACHE ──────────────────────────────────────────────────────────
+const _cache = {
+  session:   null,
+  profile:   null,
+  places:    [],
+  events:    [],
+  saved:     new Set(),
+  attending: new Set(),
+};
+
+// Temporary storage for email-verify flow
+let _pendingEmail = '';
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let _heroAutoTimer = null;
 const state = {
@@ -16,40 +34,159 @@ const state = {
 
 const FEED_PAGE_SIZE = 12;
 
-// ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
-function getSaved()        { return JSON.parse(localStorage.getItem('gc_saved_places') || '[]'); }
-function setSaved(ids)     { localStorage.setItem('gc_saved_places', JSON.stringify(ids)); }
-function getAttending()    { return JSON.parse(localStorage.getItem('gc_attending_events') || '[]'); }
-function setAttending(ids) { localStorage.setItem('gc_attending_events', JSON.stringify(ids)); }
-
-function getPlaces() {
-  const s = localStorage.getItem('gc_admin_places');
-  if (s) { try { return JSON.parse(s); } catch(e) {} }
-  return window.GC_PLACES;
-}
-function getEvents() {
-  const s = localStorage.getItem('gc_admin_events');
-  if (s) { try { return JSON.parse(s); } catch(e) {} }
-  return window.GC_EVENTS;
+// ─── CACHE HELPERS (sync, for views) ──────────────────────────────────────────
+function getSaved()     { return [..._cache.saved]; }
+function getAttending() { return [..._cache.attending]; }
+function getPlaces()    { return _cache.places; }
+function getEvents()    { return _cache.events; }
+function getUser()      {
+  return _cache.profile || {
+    name: '', lastName: '', initials: '?', avatarColor: '#0066FF',
+    uni: '', exchange: '', studentId: 'GC-0000-00000',
+    validFrom: '', validTo: '', email: '',
+  };
 }
 
-// ─── USER PROFILE ─────────────────────────────────────────────────────────────
-const _USER_DEFAULT = {
-  name: 'Lautaro', lastName: 'García', initials: 'LG', avatarColor: '#0066FF',
-  uni: 'UBA', exchange: 'Erasmus Roma 2026',
-  studentId: 'GC-2026-00847',
-  validFrom: 'Feb', validTo: 'Jul 2026',
-  email: '',
-};
-function getUser() {
-  try { const u = JSON.parse(localStorage.getItem('gc_user') || 'null'); if (u?.name) return u; } catch(e) {}
-  return { ..._USER_DEFAULT };
+// ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
+function normalizePlace(p) {
+  const data = (p && p.data) ? p.data : {};
+  return { ...data, id: p.id, name: p.name, emoji: p.emoji, category: p.category,
+    plan: p.plan, active: p.active, stats: p.stats || { views: 0, going: 0 } };
 }
-function setUser(u) { localStorage.setItem('gc_user', JSON.stringify(u)); }
+function normalizeEvent(e) {
+  const data = (e && e.data) ? e.data : {};
+  return { ...data, id: e.id, name: e.name, emoji: e.emoji, placeId: e.place_id,
+    plan: e.plan, active: e.active };
+}
+
+// ─── ASYNC DATA LOADERS ───────────────────────────────────────────────────────
+async function loadUserData(userId) {
+  const [profileRes, savedRes, attendingRes] = await Promise.all([
+    sb.from('profiles').select('*').eq('id', userId).single(),
+    sb.from('saved_places').select('place_id').eq('user_id', userId),
+    sb.from('attending_events').select('event_id').eq('user_id', userId),
+  ]);
+  if (profileRes.data) {
+    const p = profileRes.data;
+    _cache.profile = {
+      ...p,
+      lastName:    p.last_name,
+      avatarColor: p.avatar_color || '#0066FF',
+      studentId:   p.student_id,
+      validFrom:   p.valid_from,
+      validTo:     p.valid_to,
+      uni:         p.university,
+      exchange:    p.exchange_period,
+    };
+  }
+  _cache.saved     = new Set((savedRes.data     || []).map(r => r.place_id));
+  _cache.attending = new Set((attendingRes.data || []).map(r => r.event_id));
+}
+
+async function loadAppData() {
+  const [placesRes, eventsRes] = await Promise.all([
+    sb.from('places').select('*').eq('active', true).order('id'),
+    sb.from('events').select('*').eq('active', true).order('id'),
+  ]);
+  _cache.places = (placesRes.data || []).map(normalizePlace);
+  _cache.events = (eventsRes.data || []).map(normalizeEvent);
+}
+
+async function createProfileFromMetadata(user) {
+  const meta   = user.user_metadata || {};
+  const name   = meta.name     || '';
+  const lname  = meta.last_name || '';
+  const period = EXCHANGE_PERIODS[meta.exchange_period] || EXCHANGE_PERIODS.feb26;
+  const sid    = 'GC-' + new Date().getFullYear() + '-' + String(Math.floor(10000 + Math.random() * 90000));
+  await sb.from('profiles').insert({
+    id:              user.id,
+    name,
+    last_name:       lname,
+    initials:        ((name[0] || '') + (lname[0] || '')).toUpperCase() || name.slice(0, 2).toUpperCase(),
+    avatar_color:    '#0066FF',
+    university:      meta.university || '',
+    exchange_period: period.tag,
+    student_id:      sid,
+    valid_from:      period.from,
+    valid_to:        period.to,
+  });
+}
+
+// ─── ASYNC MUTATIONS ──────────────────────────────────────────────────────────
+async function toggleSave(placeId) {
+  if (!_cache.session) return;
+  const uid = _cache.session.user.id;
+  if (_cache.saved.has(placeId)) {
+    _cache.saved.delete(placeId);
+    await sb.from('saved_places').delete().eq('user_id', uid).eq('place_id', placeId);
+  } else {
+    _cache.saved.add(placeId);
+    await sb.from('saved_places').insert({ user_id: uid, place_id: placeId });
+  }
+}
+
+async function toggleAttend(eventId) {
+  if (!_cache.session) return;
+  const uid = _cache.session.user.id;
+  if (_cache.attending.has(eventId)) {
+    _cache.attending.delete(eventId);
+    await sb.from('attending_events').delete().eq('user_id', uid).eq('event_id', eventId);
+  } else {
+    _cache.attending.add(eventId);
+    await sb.from('attending_events').insert({ user_id: uid, event_id: eventId });
+  }
+}
+
+// ─── GLOBAL LOADER ────────────────────────────────────────────────────────────
+function showGlobalLoader() {
+  let el = document.getElementById('gc-loader');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'gc-loader';
+    el.className = 'gc-loader';
+    el.innerHTML = '<div class="gc-loader-spinner"></div>';
+    document.body.appendChild(el);
+  }
+  el.classList.add('visible');
+}
+function hideGlobalLoader() {
+  const el = document.getElementById('gc-loader');
+  if (el) el.classList.remove('visible');
+}
+
+// ─── APP INIT ─────────────────────────────────────────────────────────────────
+async function initApp() {
+  showGlobalLoader();
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    _cache.session = session;
+    await loadUserData(session.user.id);
+    await loadAppData();
+    navigate('feed');
+  } else {
+    navigate('onboarding');
+  }
+  hideGlobalLoader();
+}
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    _cache.session = session;
+    const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).single();
+    if (!profile) await createProfileFromMetadata(session.user);
+    await loadUserData(session.user.id);
+    await loadAppData();
+    navigate('feed');
+  } else if (event === 'SIGNED_OUT') {
+    Object.assign(_cache, { session: null, profile: null, places: [], events: [],
+      saved: new Set(), attending: new Set() });
+    navigate('onboarding');
+  }
+});
 
 // ─── XP / LEVEL ───────────────────────────────────────────────────────────────
 function calcXP() {
-  return getSaved().length * 1 + getAttending().length * 2;
+  return _cache.saved.size * 1 + _cache.attending.size * 2;
 }
 function calcLevel(xp) {
   if (xp >= 20) return { name: 'Globetrotter', next: null,  progress: 100 };
@@ -187,10 +324,15 @@ function heroSwipeEnd(hero) {
     hero.style.opacity    = '0';
 
     if (right) {
-      // Swipe right = save
+      // Swipe right = save (optimistic cache update, fire-and-forget DB)
       const placeId = parseInt(hero.dataset.place);
-      const saved   = getSaved();
-      if (!saved.includes(placeId)) { saved.push(placeId); setSaved(saved); updateHeader(); }
+      if (!_cache.saved.has(placeId)) {
+        _cache.saved.add(placeId);
+        if (_cache.session) {
+          sb.from('saved_places').insert({ user_id: _cache.session.user.id, place_id: placeId });
+        }
+        updateHeader();
+      }
       launchConfetti(hero.querySelector('.featured-card-save'));
     }
 
@@ -430,7 +572,7 @@ function navigate(view, params) {
   state.currentView = view;
   // Show/hide app chrome for auth views
   const appEl = document.querySelector('.app');
-  const isAuth = ['onboarding', 'signup', 'login'].includes(view);
+  const isAuth = ['onboarding', 'signup', 'login', 'email-verify'].includes(view);
   if (appEl) appEl.classList.toggle('auth-mode', isAuth);
   if (MAIN_VIEWS.includes(view)) {
     document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
@@ -645,7 +787,7 @@ const VIEWS = {
             <div class="auth-value-text"><strong>¡Es gratis!</strong> Registrate y accedé a descuentos exclusivos en ${partnerCount || '10'}+ locales en Roma.</div>
           </div>
           <div class="auth-heading">Creá tu cuenta</div>
-          <div class="auth-subhead">Solo toma un minuto.</div>
+          <div class="auth-subhead">Solo toma un minuto. Necesitás un email universitario autorizado.</div>
           <div class="auth-field">
             <label>Nombre *</label>
             <input type="text" id="f-name" placeholder="Tu nombre" autocomplete="given-name"/>
@@ -664,6 +806,11 @@ const VIEWS = {
             <label>Email *</label>
             <input type="email" id="f-email" placeholder="tu@email.com" autocomplete="email"/>
             <div class="auth-error" id="err-email">Ingresá un email válido</div>
+          </div>
+          <div class="auth-field">
+            <label>Contraseña * <span style="font-size:11px;font-weight:400;color:#94A3B8">Mínimo 8 caracteres</span></label>
+            <input type="password" id="f-password" placeholder="Mínimo 8 caracteres" autocomplete="new-password"/>
+            <div class="auth-error" id="err-password">Mínimo 8 caracteres</div>
           </div>
           <div class="auth-field">
             <label>Período de intercambio</label>
@@ -695,12 +842,36 @@ const VIEWS = {
           <div class="auth-field">
             <label>Email</label>
             <input type="email" id="l-email" placeholder="tu@email.com" autocomplete="email"/>
-            <div class="auth-error" id="err-login">
-              No encontramos esa cuenta. ¿Querés <span class="auth-inline-link" id="err-signup-link">registrarte</span>?
-            </div>
+          </div>
+          <div class="auth-field">
+            <label>Contraseña</label>
+            <input type="password" id="l-password" placeholder="Tu contraseña" autocomplete="current-password"/>
+            <div class="auth-error" id="err-login">Email o contraseña incorrectos.</div>
           </div>
           <button class="auth-submit" id="login-submit">Entrar →</button>
           <div class="auth-alt">¿No tenés cuenta? <span id="go-signup">Registrate gratis</span></div>
+        </div>
+      </div>`;
+  },
+
+  'email-verify'() {
+    return `
+      <div class="auth-view">
+        <div class="auth-topbar">
+          <div class="auth-topbar-logo">
+            <div class="auth-topbar-logo-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <span class="auth-topbar-logo-text">Global Connect</span>
+          </div>
+        </div>
+        <div class="auth-body email-verify-body">
+          <div class="verify-icon">📬</div>
+          <div class="auth-heading">Revisá tu email</div>
+          <div class="auth-subhead">Enviamos un link de verificación a <strong>${_pendingEmail}</strong>. Hacé click en él para activar tu cuenta.</div>
+          <button class="auth-submit" id="resend-verify-btn" style="margin-top:24px">Reenviar email</button>
+          <div class="auth-alt" style="margin-top:16px">¿Ya verificaste? <span id="go-login">Iniciá sesión</span></div>
+          <div class="auth-error" id="err-verify" style="text-align:center;margin-top:8px"></div>
         </div>
       </div>`;
   },
@@ -1291,10 +1462,9 @@ function attachListeners() {
   // ── Logout ────────────────────────────────────────────────────────────────
   const logoutBtn = content.querySelector('#logout-btn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('gc_user');
-      state.onboardingSlide = 0;
-      navigate('onboarding');
+    logoutBtn.addEventListener('click', async () => {
+      await sb.auth.signOut();
+      // onAuthStateChange handles navigate('onboarding')
     });
   }
 
@@ -1321,55 +1491,110 @@ function attachListeners() {
   const goSignup = content.querySelector('#go-signup');
   if (goSignup) goSignup.addEventListener('click', () => navigate('signup'));
 
+  // ── Email verify ──────────────────────────────────────────────────────────
+  const resendVerifyBtn = content.querySelector('#resend-verify-btn');
+  if (resendVerifyBtn) {
+    resendVerifyBtn.addEventListener('click', async () => {
+      resendVerifyBtn.disabled = true;
+      resendVerifyBtn.textContent = 'Enviando...';
+      const { error } = await sb.auth.resend({ type: 'signup', email: _pendingEmail });
+      if (error) {
+        const errEl = document.getElementById('err-verify');
+        if (errEl) { errEl.textContent = error.message; errEl.classList.add('visible'); }
+        resendVerifyBtn.disabled = false;
+        resendVerifyBtn.textContent = 'Reenviar email';
+      } else {
+        resendVerifyBtn.textContent = 'Email reenviado ✓';
+      }
+    });
+  }
+
   // ── Sign up form ───────────────────────────────────────────────────────────
   const signupSubmit = content.querySelector('#signup-submit');
   if (signupSubmit) {
-    signupSubmit.addEventListener('click', () => {
+    signupSubmit.addEventListener('click', async () => {
       const name     = (document.getElementById('f-name')?.value     || '').trim();
       const lastName = (document.getElementById('f-lastname')?.value || '').trim();
       const uni      = (document.getElementById('f-uni')?.value      || '').trim();
       const email    = (document.getElementById('f-email')?.value    || '').trim();
+      const password = (document.getElementById('f-password')?.value || '').trim();
       const period   = document.getElementById('f-period')?.value || 'feb26';
 
       let valid = true;
-      const setErr = (id, show) => document.getElementById(id)?.classList.toggle('visible', show);
-      if (!name)                  { setErr('err-name', true);  valid = false; } else setErr('err-name', false);
-      if (!uni)                   { setErr('err-uni', true);   valid = false; } else setErr('err-uni', false);
-      if (!email || !email.includes('@')) { setErr('err-email', true); valid = false; } else setErr('err-email', false);
+      const setErr = (id, show, msg) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('visible', show);
+        if (msg) el.textContent = msg;
+      };
+      if (!name)                          { setErr('err-name', true);    valid = false; } else setErr('err-name', false);
+      if (!uni)                           { setErr('err-uni', true);     valid = false; } else setErr('err-uni', false);
+      if (!email || !email.includes('@')) { setErr('err-email', true, 'Ingresá un email válido'); valid = false; } else setErr('err-email', false);
+      if (!password || password.length < 8) { setErr('err-password', true, 'Mínimo 8 caracteres'); valid = false; } else setErr('err-password', false);
       if (!valid) return;
 
-      const p  = EXCHANGE_PERIODS[period] || EXCHANGE_PERIODS.feb26;
-      const id = 'GC-' + new Date().getFullYear() + '-' + String(Math.floor(10000 + Math.random() * 90000));
-      setUser({
-        name, lastName,
-        initials: ((name[0] || '') + (lastName[0] || '')).toUpperCase() || name.slice(0, 2).toUpperCase(),
-        avatarColor: '#0066FF',
-        uni,
-        exchange: `${uni} · ${p.tag}`,
-        studentId: id,
-        validFrom: p.from, validTo: p.to,
-        email,
+      // Domain validation
+      const domain = email.split('@')[1];
+      const { data: domainRow } = await sb.from('allowed_domains').select('university_name').eq('domain', domain).single();
+      if (!domainRow) {
+        setErr('err-email', true, 'El dominio de tu email no está autorizado. Contactá al administrador.');
+        return;
+      }
+
+      signupSubmit.disabled = true;
+      signupSubmit.textContent = 'Creando cuenta...';
+
+      const { error } = await sb.auth.signUp({
+        email, password,
+        options: { data: { name, last_name: lastName, university: uni, exchange_period: period } },
       });
-      state.onboardingSlide = 0;
-      navigate('feed');
+
+      signupSubmit.disabled = false;
+      signupSubmit.textContent = 'Crear mi cuenta →';
+
+      if (error) {
+        setErr('err-email', true, error.message);
+        return;
+      }
+
+      _pendingEmail = email;
+      navigate('email-verify');
     });
   }
 
   // ── Log in form ────────────────────────────────────────────────────────────
   const loginSubmit = content.querySelector('#login-submit');
   if (loginSubmit) {
-    loginSubmit.addEventListener('click', () => {
-      const email  = (document.getElementById('l-email')?.value || '').trim();
-      const errEl  = document.getElementById('err-login');
-      const stored = (() => { try { return JSON.parse(localStorage.getItem('gc_user') || 'null'); } catch(e) { return null; } })();
-      if (stored && stored.email === email) {
-        navigate('feed');
-      } else {
+    loginSubmit.addEventListener('click', async () => {
+      const email    = (document.getElementById('l-email')?.value    || '').trim();
+      const password = (document.getElementById('l-password')?.value || '').trim();
+      const errEl    = document.getElementById('err-login');
+
+      if (!email || !email.includes('@') || !password) {
+        if (errEl) { errEl.textContent = 'Ingresá tu email y contraseña.'; errEl.classList.add('visible'); }
+        return;
+      }
+
+      loginSubmit.disabled = true;
+      loginSubmit.textContent = 'Entrando...';
+
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+
+      loginSubmit.disabled = false;
+      loginSubmit.textContent = 'Entrar →';
+
+      if (error) {
         if (errEl) {
+          if (error.message.toLowerCase().includes('email not confirmed')) {
+            _pendingEmail = email;
+            errEl.textContent = 'Verificá tu email primero antes de ingresar.';
+          } else {
+            errEl.textContent = 'Email o contraseña incorrectos.';
+          }
           errEl.classList.add('visible');
-          document.getElementById('err-signup-link')?.addEventListener('click', () => navigate('signup'), { once: true });
         }
       }
+      // On success → onAuthStateChange fires and navigates to 'feed'
     });
   }
 
@@ -1513,12 +1738,9 @@ function attachListeners() {
 
   // Attend / unattend
   content.querySelectorAll('[data-attend]').forEach(el => {
-    el.addEventListener('click', () => {
-      const id   = parseInt(el.dataset.attend);
-      const list = getAttending();
-      const idx  = list.indexOf(id);
-      if (idx >= 0) list.splice(idx, 1); else list.push(id);
-      setAttending(list);
+    el.addEventListener('click', async () => {
+      const id = parseInt(el.dataset.attend);
+      await toggleAttend(id);
       navigate('eventos');
     });
   });
@@ -1635,26 +1857,23 @@ function updateMiniCardSaved(card, isSaved) {
 
 function attachSaveBtns(container) {
   container.querySelectorAll('[data-save]').forEach(el => {
-    el.addEventListener('click', e => {
+    el.addEventListener('click', async e => {
       e.stopPropagation();
       const id     = parseInt(el.dataset.save);
-      const list   = getSaved();
-      const idx    = list.indexOf(id);
-      const adding = idx < 0;
-      if (idx >= 0) list.splice(idx, 1); else list.push(id);
-      setSaved(list);
+      const adding = !_cache.saved.has(id);
+      await toggleSave(id);
       if (adding) launchConfetti(el);
       // Mini cards: update in-place to preserve scroll position
       const miniCard = el.closest('.mini-card');
       if (miniCard) {
-        updateMiniCardSaved(miniCard, list.includes(id));
+        updateMiniCardSaved(miniCard, _cache.saved.has(id));
         updateHeader();
         return;
       }
       if (state.currentView !== 'explorar' || !document.querySelector('#search-input')) {
         navigate(state.currentView);
       } else {
-        el.classList.toggle('saved', list.includes(id));
+        el.classList.toggle('saved', _cache.saved.has(id));
         updateHeader();
       }
     });
@@ -1692,4 +1911,4 @@ document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
 document.getElementById('app-avatar').addEventListener('click', () => navigate('perfil'));
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-navigate(getUser() ? 'feed' : 'onboarding');
+initApp();

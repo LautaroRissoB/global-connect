@@ -1,3 +1,18 @@
+// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://XXXX.supabase.co';  // ← fill in your project URL
+const SUPABASE_ANON_KEY = 'eyJ...';                     // ← fill in your anon key
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── ADMIN CACHE ──────────────────────────────────────────────────────────────
+const _adminCache = {
+  session:      null,
+  profile:      null,
+  places:       [],
+  events:       [],
+  domains:      [],
+  studentCount: 0,
+};
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 const adminState = {
   currentView: 'dashboard',
@@ -23,28 +38,213 @@ const BG_COLORS = [
 
 const DAY_PRESETS = ['Lun–Vie', 'Lun–Sáb', 'Lun–Dom', 'Fin de sem'];
 
-// ─── DATA HELPERS ─────────────────────────────────────────────────────────────
-function getAdminPlaces() {
-  const s = localStorage.getItem('gc_admin_places');
-  if (s) { try { return JSON.parse(s); } catch(e) {} }
-  return window.GC_PLACES.map(p => ({ ...p, active: p.active !== false }));
-}
-function saveAdminPlaces(places) {
-  localStorage.setItem('gc_admin_places', JSON.stringify(places));
-}
-function getAdminEvents() {
-  const s = localStorage.getItem('gc_admin_events');
-  if (s) { try { return JSON.parse(s); } catch(e) {} }
-  return window.GC_EVENTS.map(e => ({ ...e }));
-}
-function saveAdminEvents(events) {
-  localStorage.setItem('gc_admin_events', JSON.stringify(events));
-}
+// ─── DATA HELPERS (sync, from cache) ──────────────────────────────────────────
+function getAdminPlaces() { return _adminCache.places; }
+function getAdminEvents() { return _adminCache.events; }
+
 function calcMRR(places) {
   return places.filter(p => p.active).reduce((sum, p) => sum + (PLAN_PRICES[p.plan] || 0), 0);
 }
-function nextId(arr) {
-  return arr.length === 0 ? 1 : Math.max(...arr.map(x => x.id)) + 1;
+
+// ─── DATA NORMALIZERS ─────────────────────────────────────────────────────────
+function normalizePlace(p) {
+  const data = (p && p.data) ? p.data : {};
+  return { ...data, id: p.id, name: p.name, emoji: p.emoji, category: p.category,
+    plan: p.plan, active: p.active, stats: p.stats || { views: 0, going: 0 } };
+}
+function normalizeEvent(e) {
+  const data = (e && e.data) ? e.data : {};
+  return { ...data, id: e.id, name: e.name, emoji: e.emoji, placeId: e.place_id,
+    plan: e.plan, active: e.active };
+}
+function denormalizePlace(place) {
+  const { id, name, emoji, category, plan, active, stats, created_at, updated_at, ...rest } = place;
+  const record = { name: name || '', emoji: emoji || '📍', category, plan: plan || 'free',
+    active: active !== false,
+    stats: stats || { views: 0, going: 0 },
+    data: rest };
+  if (id) record.id = id;
+  return record;
+}
+function denormalizeEvent(event) {
+  const { id, name, emoji, placeId, plan, active, created_at, ...rest } = event;
+  const record = { name: name || '', emoji: emoji || '🎉', place_id: placeId,
+    plan: plan || 'free', active: active !== false, data: rest };
+  if (id) record.id = id;
+  return record;
+}
+
+// ─── ASYNC DATA LOADERS ───────────────────────────────────────────────────────
+async function loadAdminData() {
+  const [placesRes, eventsRes, domainsRes, studentsRes] = await Promise.all([
+    sb.from('places').select('*').order('id'),
+    sb.from('events').select('*').order('id'),
+    sb.from('allowed_domains').select('*').order('domain'),
+    sb.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+  ]);
+  _adminCache.places       = (placesRes.data  || []).map(normalizePlace);
+  _adminCache.events       = (eventsRes.data  || []).map(normalizeEvent);
+  _adminCache.domains      = domainsRes.data  || [];
+  _adminCache.studentCount = studentsRes.count || 0;
+}
+
+// ─── ASYNC CRUD HELPERS ───────────────────────────────────────────────────────
+async function savePlace(place) {
+  const record = denormalizePlace(place);
+  const isNew  = !record.id;
+  let result;
+  if (isNew) {
+    const { data, error } = await sb.from('places').insert(record).select().single();
+    if (error) { showToast('Error: ' + error.message); return null; }
+    result = data;
+    _adminCache.places.push(normalizePlace(result));
+  } else {
+    const { data, error } = await sb.from('places').update(record).eq('id', record.id).select().single();
+    if (error) { showToast('Error: ' + error.message); return null; }
+    result = data;
+    const idx = _adminCache.places.findIndex(p => p.id === result.id);
+    if (idx >= 0) _adminCache.places[idx] = normalizePlace(result);
+  }
+  return result;
+}
+
+async function deletePlace(id) {
+  const { error } = await sb.from('places').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return false; }
+  _adminCache.places = _adminCache.places.filter(p => p.id !== id);
+  return true;
+}
+
+async function togglePlaceActive(id) {
+  const place = _adminCache.places.find(p => p.id === id);
+  if (!place) return;
+  const newActive = !place.active;
+  const { error } = await sb.from('places').update({ active: newActive }).eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return; }
+  place.active = newActive;
+}
+
+async function savePlacePlan(id, plan) {
+  const { error } = await sb.from('places').update({ plan }).eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return; }
+  const place = _adminCache.places.find(p => p.id === id);
+  if (place) place.plan = plan;
+}
+
+async function saveEvent(event) {
+  const record = denormalizeEvent(event);
+  const isNew  = !record.id;
+  let result;
+  if (isNew) {
+    const { data, error } = await sb.from('events').insert(record).select().single();
+    if (error) { showToast('Error: ' + error.message); return null; }
+    result = data;
+    _adminCache.events.push(normalizeEvent(result));
+  } else {
+    const { data, error } = await sb.from('events').update(record).eq('id', record.id).select().single();
+    if (error) { showToast('Error: ' + error.message); return null; }
+    result = data;
+    const idx = _adminCache.events.findIndex(e => e.id === result.id);
+    if (idx >= 0) _adminCache.events[idx] = normalizeEvent(result);
+  }
+  return result;
+}
+
+async function deleteEvent(id) {
+  const { error } = await sb.from('events').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return false; }
+  _adminCache.events = _adminCache.events.filter(e => e.id !== id);
+  return true;
+}
+
+async function addDomain(domain, universityName) {
+  const { data, error } = await sb.from('allowed_domains').insert({ domain, university_name: universityName }).select().single();
+  if (error) { showToast('Error: ' + error.message); return null; }
+  _adminCache.domains.push(data);
+  return data;
+}
+
+async function deleteDomain(id) {
+  const { error } = await sb.from('allowed_domains').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return false; }
+  _adminCache.domains = _adminCache.domains.filter(d => d.id !== id);
+  return true;
+}
+
+// ─── ADMIN AUTH ───────────────────────────────────────────────────────────────
+function renderAdminLogin() {
+  document.getElementById('admin-content').innerHTML = `
+    <div class="admin-auth-page">
+      <div class="admin-auth-card">
+        <div class="admin-auth-logo">
+          <div class="admin-auth-logo-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <span class="admin-auth-logo-text">Global Connect · Admin</span>
+        </div>
+        <div class="admin-auth-title">Panel de administración</div>
+        <div class="admin-auth-sub">Ingresá con tu cuenta de administrador.</div>
+        <div class="admin-auth-field">
+          <label>Email</label>
+          <input type="email" id="adm-email" placeholder="admin@globalconnect.com" autocomplete="email"/>
+        </div>
+        <div class="admin-auth-field">
+          <label>Contraseña</label>
+          <input type="password" id="adm-password" placeholder="Tu contraseña" autocomplete="current-password"/>
+        </div>
+        <button class="admin-auth-btn" id="adm-login-btn">Ingresar</button>
+        <div class="admin-auth-error" id="adm-login-error"></div>
+      </div>
+    </div>`;
+
+  document.getElementById('adm-login-btn').addEventListener('click', async () => {
+    const email    = document.getElementById('adm-email')?.value.trim();
+    const password = document.getElementById('adm-password')?.value.trim();
+    const errEl    = document.getElementById('adm-login-error');
+    const btn      = document.getElementById('adm-login-btn');
+
+    btn.disabled = true; btn.textContent = 'Verificando...';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false; btn.textContent = 'Ingresar';
+
+    if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; errEl.classList.add('visible'); return; }
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).single();
+    if (!profile || profile.role !== 'admin') {
+      await sb.auth.signOut();
+      errEl.textContent = 'Esta cuenta no tiene permisos de administrador.';
+      errEl.classList.add('visible');
+      return;
+    }
+
+    _adminCache.session = data.session;
+    _adminCache.profile = profile;
+    await loadAdminData();
+    navigate('dashboard');
+  });
+}
+
+function renderAdminUnauthorized() {
+  document.getElementById('admin-content').innerHTML = `
+    <div class="admin-auth-page">
+      <div class="admin-auth-card" style="text-align:center">
+        <div class="admin-unauth-icon">🚫</div>
+        <div class="admin-unauth-title">Sin permisos de acceso</div>
+        <div class="admin-unauth-sub">Tu cuenta no tiene rol de administrador. Pedile al admin principal que te asigne el rol.</div>
+        <button class="admin-unauth-btn" onclick="sb.auth.signOut().then(() => location.reload())">Cerrar sesión</button>
+      </div>
+    </div>`;
+}
+
+async function initAdmin() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { renderAdminLogin(); return; }
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
+  if (!profile || profile.role !== 'admin') { renderAdminUnauthorized(); return; }
+  _adminCache.session = session;
+  _adminCache.profile = profile;
+  await loadAdminData();
+  navigate('dashboard');
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -88,21 +288,27 @@ const ADMIN_VIEWS = {
     const places = getAdminPlaces();
     const events = getAdminEvents();
     const mrr    = calcMRR(places);
-    const partners   = places.filter(p => p.plan !== 'free' && p.active).length;
-    const totalViews = places.reduce((s, p) => s + (p.stats?.views || 0), 0);
-    const totalGoing = events.reduce((s, e) => s + (e.going || 0), 0);
+    const partners     = places.filter(p => p.plan !== 'free' && p.active).length;
+    const totalViews   = places.reduce((s, p) => s + (p.stats?.views || 0), 0);
+    const totalGoing   = events.reduce((s, e) => s + (e.going || 0), 0);
+    const studentCount = _adminCache.studentCount;
 
     return `
       <div class="admin-page">
         <div class="admin-page-header">
           <div>
             <h1>Dashboard</h1>
-            <p>Resumen global de la plataforma · Feb 2026</p>
+            <p>Resumen global de la plataforma</p>
           </div>
           <button class="btn-primary" data-nav="agregar">+ Nuevo local</button>
         </div>
 
         <div class="admin-stats-grid">
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Estudiantes registrados</div>
+            <div class="admin-stat-value" style="color:#0066FF">${studentCount}</div>
+            <div class="admin-stat-sub">cuentas verificadas</div>
+          </div>
           <div class="admin-stat-card">
             <div class="admin-stat-label">Partners activos</div>
             <div class="admin-stat-value" style="color:#1D4ED8">${partners}</div>
@@ -112,11 +318,6 @@ const ADMIN_VIEWS = {
             <div class="admin-stat-label">MRR</div>
             <div class="admin-stat-value" style="color:#22C55E">€${mrr}</div>
             <div class="admin-stat-sub">ingresos mensuales</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="admin-stat-label">Vistas totales</div>
-            <div class="admin-stat-value" style="color:#F59E0B">${totalViews}</div>
-            <div class="admin-stat-sub">este mes</div>
           </div>
           <div class="admin-stat-card">
             <div class="admin-stat-label">Eventos activos</div>
@@ -643,7 +844,63 @@ const ADMIN_VIEWS = {
           </div>
         </div>
       </div>`;
-  }
+  },
+
+  dominios() {
+    const domains = _adminCache.domains;
+    return `
+      <div class="admin-page">
+        <div class="admin-page-header">
+          <div>
+            <h1>Dominios autorizados</h1>
+            <p>Emails con estos dominios pueden registrarse en la app de estudiantes.</p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <span class="admin-card-title">Agregar dominio</span>
+          </div>
+          <div class="admin-card-body" style="padding:20px">
+            <div class="domains-add-form">
+              <div style="flex:1;min-width:160px">
+                <label style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px">Dominio</label>
+                <input type="text" id="dom-domain" class="form-input" placeholder="gmail.com, uba.ar…"/>
+              </div>
+              <div style="flex:1;min-width:160px">
+                <label style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px">Universidad</label>
+                <input type="text" id="dom-uni" class="form-input" placeholder="UBA, Polimi…"/>
+              </div>
+              <button class="btn-primary" id="dom-add-btn" style="align-self:flex-end;white-space:nowrap">+ Agregar</button>
+            </div>
+            <div class="admin-auth-error" id="dom-error"></div>
+          </div>
+        </div>
+
+        <div class="admin-card" style="margin-top:16px">
+          <div class="admin-card-head">
+            <span class="admin-card-title">Dominios activos (${domains.length})</span>
+          </div>
+          <div class="admin-card-body" style="padding:16px 20px">
+            ${domains.length === 0
+              ? `<div style="font-size:13px;color:#94A3B8;padding:12px 0">Sin dominios registrados todavía.</div>`
+              : `<div class="admin-table-wrap">
+                  <table class="admin-table">
+                    <thead><tr><th>Dominio</th><th>Universidad</th><th></th></tr></thead>
+                    <tbody>
+                      ${domains.map(d => `
+                        <tr>
+                          <td style="font-weight:700;color:#1D4ED8">@${d.domain}</td>
+                          <td>${d.university_name}</td>
+                          <td><button class="btn-table-delete" data-del-domain="${d.id}">Eliminar</button></td>
+                        </tr>`).join('')}
+                    </tbody>
+                  </table>
+                </div>`}
+          </div>
+        </div>
+      </div>`;
+  },
 };
 
 // ─── CONTENT-LEVEL LISTENERS (re-attached on every navigate) ──────────────────
@@ -668,24 +925,46 @@ function attachAdminListeners() {
 
   // Delete place
   content.querySelectorAll('[data-delete]').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', async () => {
       const id = parseInt(el.dataset.delete);
       const place = getAdminPlaces().find(p => p.id === id);
       if (!place) return;
       if (!confirm(`¿Eliminar "${place.name}"? Esta acción no se puede deshacer.`)) return;
-      saveAdminPlaces(getAdminPlaces().filter(p => p.id !== id));
-      showToast('Local eliminado');
-      navigate('locales');
+      const ok = await deletePlace(id);
+      if (ok) { showToast('Local eliminado'); navigate('locales'); }
     });
   });
 
   // Toggle active/inactive
   content.querySelectorAll('[data-toggle]').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', async () => {
       const id = parseInt(el.dataset.toggle);
-      const places = getAdminPlaces();
-      const p = places.find(x => x.id === id);
-      if (p) { p.active = !p.active; saveAdminPlaces(places); navigate('locales'); }
+      await togglePlaceActive(id);
+      navigate('locales');
+    });
+  });
+
+  // Domain management
+  const domAddBtn = content.querySelector('#dom-add-btn');
+  if (domAddBtn) {
+    domAddBtn.addEventListener('click', async () => {
+      const domain  = document.getElementById('dom-domain')?.value.trim().toLowerCase().replace(/^@/, '');
+      const uniName = document.getElementById('dom-uni')?.value.trim();
+      const errEl   = document.getElementById('dom-error');
+      if (!domain || !uniName) { errEl.textContent = 'Completá ambos campos.'; errEl.classList.add('visible'); return; }
+      errEl.classList.remove('visible');
+      domAddBtn.disabled = true; domAddBtn.textContent = 'Guardando...';
+      const result = await addDomain(domain, uniName);
+      domAddBtn.disabled = false; domAddBtn.textContent = '+ Agregar';
+      if (result) { showToast('Dominio agregado ✓'); navigate('dominios'); }
+    });
+  }
+  content.querySelectorAll('[data-del-domain]').forEach(el => {
+    el.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar este dominio?')) return;
+      const id = el.dataset.delDomain;
+      const ok = await deleteDomain(id);
+      if (ok) { showToast('Dominio eliminado'); navigate('dominios'); }
     });
   });
 
@@ -852,7 +1131,7 @@ function attachAdminListeners() {
   // ── Save place form ───────────────────────────────────────────────────────────
   const savePlaceBtn = content.querySelector('#save-place-btn');
   if (savePlaceBtn) {
-    savePlaceBtn.addEventListener('click', () => {
+    savePlaceBtn.addEventListener('click', async () => {
       const name         = document.getElementById('f-name')?.value.trim();
       const category     = document.getElementById('f-category')?.value;
       const neighborhood = document.getElementById('f-neighborhood')?.value;
@@ -884,51 +1163,44 @@ function attachAdminListeners() {
       const logoData     = logoFileInp?._data  || existingP?.logoData  || '';
       const menuData     = menuFileInp?._data  || existingP?.menuData  || '';
       const menuType     = menuFileInp?._type  || existingP?.menuType  || '';
-      const offerObj = { text: offerText, badge: offerText ? `🎫 ${offerText}` : '' };
+      const offerObj     = { text: offerText, badge: offerText ? `🎫 ${offerText}` : '' };
 
-      if (adminState.editingPlaceId !== null) {
-        const idx = places.findIndex(p => p.id === adminState.editingPlaceId);
-        if (idx >= 0) {
-          places[idx] = {
-            ...places[idx],
-            name, category, neighborhood, emoji, bgColor,
-            address, phone, hours, website, mapsUrl,
-            description, offer: offerObj, plan, active,
-            priceRange, imageData, logoData, menuData, menuType,
-          };
-        }
-      } else {
-        places.push({
-          id: nextId(places), name, category, neighborhood, emoji,
-          bgColor, address, phone, hours, website, mapsUrl,
-          description, offer: offerObj, plan, active,
-          priceRange, imageData, logoData, menuData, menuType,
-          stats: { views: 0, going: 0, clicks: 0, groups: 0 }
-        });
+      const placeObj = {
+        ...(existingP || {}),
+        name, category, neighborhood, emoji, bgColor,
+        address, phone, hours, website, mapsUrl,
+        description, offer: offerObj, plan, active,
+        priceRange, imageData, logoData, menuData, menuType,
+        stats: existingP?.stats || { views: 0, going: 0 },
+      };
+      if (adminState.editingPlaceId !== null) placeObj.id = adminState.editingPlaceId;
+
+      savePlaceBtn.disabled = true; savePlaceBtn.textContent = 'Guardando...';
+      const result = await savePlace(placeObj);
+      savePlaceBtn.disabled = false; savePlaceBtn.textContent = 'Guardar local';
+
+      if (result) {
+        showToast(adminState.editingPlaceId !== null ? 'Local actualizado ✓' : 'Local agregado ✓');
+        adminState.editingPlaceId = null;
+        navigate('locales');
       }
-
-      saveAdminPlaces(places);
-      showToast(adminState.editingPlaceId !== null ? 'Local actualizado ✓' : 'Local agregado ✓');
-      adminState.editingPlaceId = null;
-      navigate('locales');
     });
   }
 
   // ── Delete event ─────────────────────────────────────────────────────────────
   content.querySelectorAll('[data-delete-event]').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', async () => {
       if (!confirm('¿Eliminar este evento?')) return;
       const id = parseInt(el.dataset.deleteEvent);
-      saveAdminEvents(getAdminEvents().filter(e => e.id !== id));
-      showToast('Evento eliminado');
-      navigate('eventos');
+      const ok = await deleteEvent(id);
+      if (ok) { showToast('Evento eliminado'); navigate('eventos'); }
     });
   });
 
   // ── Save event form ───────────────────────────────────────────────────────────
   const saveEventBtn = content.querySelector('#save-event-btn');
   if (saveEventBtn) {
-    saveEventBtn.addEventListener('click', () => {
+    saveEventBtn.addEventListener('click', async () => {
       const emoji   = document.getElementById('ev-emoji')?.value.trim() || '🎉';
       const name    = document.getElementById('ev-name')?.value.trim();
       const placeId = parseInt(document.getElementById('ev-place')?.value);
@@ -942,33 +1214,32 @@ function attachAdminListeners() {
       if (!date)    { errEl.textContent = 'La fecha es requerida';     errEl.style.display = 'block'; return; }
       errEl.style.display = 'none';
 
-      const events = getAdminEvents();
-      events.push({ id: nextId(events), name, emoji, placeId, displayDate: date, time, price, going: 0, week: 'this' });
-      saveAdminEvents(events);
-      showToast('Evento creado ✓');
-      navigate('eventos');
+      saveEventBtn.disabled = true; saveEventBtn.textContent = 'Guardando...';
+      const result = await saveEvent({ name, emoji, placeId, displayDate: date, time, price, going: 0, week: 'this' });
+      saveEventBtn.disabled = false; saveEventBtn.textContent = 'Crear evento';
+      if (result) { showToast('Evento creado ✓'); navigate('eventos'); }
     });
   }
 
   // ── Plan change selects ───────────────────────────────────────────────────────
   content.querySelectorAll('.plan-change-select').forEach(el => {
-    el.addEventListener('change', () => {
+    el.addEventListener('change', async () => {
       const id = parseInt(el.dataset.placeId);
-      const places = getAdminPlaces();
-      const p = places.find(x => x.id === id);
-      if (p) { p.plan = el.value; saveAdminPlaces(places); navigate('planes'); }
+      await savePlacePlan(id, el.value);
+      navigate('planes');
     });
   });
 
   // ── Clear all data ────────────────────────────────────────────────────────────
   const clearAllBtn = content.querySelector('#clear-all-btn');
   if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
+    clearAllBtn.addEventListener('click', async () => {
       if (!confirm('¿Eliminar TODOS los locales y eventos? Esta acción no se puede deshacer.')) return;
-      localStorage.removeItem('gc_admin_places');
-      localStorage.removeItem('gc_admin_events');
-      localStorage.removeItem('gc_saved_places');
-      localStorage.removeItem('gc_attending_events');
+      // Delete all events, then all places (order matters for FK)
+      for (const e of [..._adminCache.events]) await sb.from('events').delete().eq('id', e.id);
+      for (const p of [..._adminCache.places]) await sb.from('places').delete().eq('id', p.id);
+      _adminCache.places = [];
+      _adminCache.events = [];
       showToast('Datos limpiados ✓');
       navigate('dashboard');
     });
@@ -984,4 +1255,4 @@ document.querySelectorAll('#sidebar [data-nav]').forEach(el => {
 });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-navigate('dashboard');
+initAdmin();
