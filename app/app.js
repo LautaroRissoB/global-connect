@@ -1,4 +1,5 @@
 // ─── STATE ────────────────────────────────────────────────────────────────────
+let _heroAutoTimer = null;
 const state = {
   currentView: 'feed',
   selectedNeighborhood: 'Todos',
@@ -358,44 +359,48 @@ function attachMiniCardListeners(container) {
   container.querySelectorAll('.mini-card').forEach(card => {
     const inner = card.querySelector('.mini-card-inner');
     if (!inner) return;
+    let autoFlipTimer = null;
+    let hoverTimer    = null;
 
-    if (isTouchOnly) {
-      // Mobile: tap → flip; auto-flip back after 5s
-      let autoFlipTimer = null;
-      card.addEventListener('click', e => {
-        if (e.target.closest('[data-save]') || e.target.closest('[data-ir]') || e.target.closest('[data-flip-back]')) return;
-        inner.classList.toggle('is-flipped');
-        if (inner.classList.contains('is-flipped')) {
-          clearTimeout(autoFlipTimer);
-          autoFlipTimer = setTimeout(() => inner.classList.remove('is-flipped'), 5000);
-        }
-      });
-    } else {
-      // Desktop: mouseenter 350ms delay → flip; mouseleave → unflip; click → detail
-      let hoverTimer = null;
+    function flipOpen() {
+      inner.classList.add('is-flipped');
+      clearTimeout(autoFlipTimer);
+      autoFlipTimer = setTimeout(() => inner.classList.remove('is-flipped'), 6000);
+    }
+    function flipClose() {
+      clearTimeout(autoFlipTimer);
+      inner.classList.remove('is-flipped');
+    }
+
+    // ℹ button → flip (mobile & desktop)
+    const flipTrigger = card.querySelector('[data-flip]');
+    if (flipTrigger) {
+      flipTrigger.addEventListener('click', e => { e.stopPropagation(); flipOpen(); });
+    }
+
+    // ✕ close button → unflip
+    const flipBackBtn = card.querySelector('[data-flip-back]');
+    if (flipBackBtn) {
+      flipBackBtn.addEventListener('click', e => { e.stopPropagation(); flipClose(); });
+    }
+
+    if (!isTouchOnly) {
+      // Desktop: hover with 400ms delay → flip; leave → unflip
       card.addEventListener('mouseenter', () => {
-        hoverTimer = setTimeout(() => inner.classList.add('is-flipped'), 350);
+        hoverTimer = setTimeout(() => inner.classList.add('is-flipped'), 400);
       });
       card.addEventListener('mouseleave', () => {
         clearTimeout(hoverTimer);
-        inner.classList.remove('is-flipped');
-      });
-      card.addEventListener('click', e => {
-        if (e.target.closest('[data-save]') || e.target.closest('[data-ir]') || e.target.closest('[data-flip-back]')) return;
-        if (!inner.classList.contains('is-flipped')) {
-          navigate('detalle', { detailPlaceId: parseInt(card.dataset.place), prevView: state.currentView });
-        }
+        flipClose();
       });
     }
 
-    // Flip-back button
-    const flipBackBtn = card.querySelector('[data-flip-back]');
-    if (flipBackBtn) {
-      flipBackBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        inner.classList.remove('is-flipped');
-      });
-    }
+    // Tap/click on card body → navigate to detail (not on any interactive button)
+    card.addEventListener('click', e => {
+      if (e.target.closest('[data-save]') || e.target.closest('[data-ir]') ||
+          e.target.closest('[data-flip]') || e.target.closest('[data-flip-back]')) return;
+      navigate('detalle', { detailPlaceId: parseInt(card.dataset.place), prevView: state.currentView });
+    });
   });
 }
 
@@ -472,58 +477,62 @@ function renderMiniCard(place, saved) {
   const coverSrc = place.imageData || place.imageUrl;
   const catColor = getCatColor(place.category);
   const location = place.address || place.neighborhood;
+  const desc     = (place.description || '').slice(0, 110) + ((place.description || '').length > 110 ? '…' : '');
 
-  let imgHtml;
-  if (coverSrc) {
-    imgHtml = `<img src="${coverSrc}" alt="${place.name}" loading="lazy" onerror="this.style.display='none'"/>`;
-  } else {
-    imgHtml = `<div class="mini-img-wrap-icon" style="background:${place.bgColor || '#F3F4F6'}">${place.emoji || '●'}</div>`;
-  }
+  const imgHtml = coverSrc
+    ? `<img src="${coverSrc}" alt="${place.name}" loading="lazy" onerror="this.style.display='none'"/>`
+    : `<div class="mini-img-wrap-icon" style="background:${place.bgColor || '#F3F4F6'}">${place.emoji || '●'}</div>`;
 
-  const desc = (place.description || '').slice(0, 90) + ((place.description || '').length > 90 ? '…' : '');
+  const offerText = place.offer?.text || '';
 
   return `
     <div class="mini-card" data-place="${place.id}" style="--cat-color:${catColor}">
       <div class="mini-card-inner">
+
+        <!-- FRONT -->
         <div class="mini-card-front">
           <div class="mini-img-wrap">
             ${imgHtml}
-            <div class="mini-title-overlay">
-              <div class="mini-card-name">${place.name}</div>
-              <div class="mini-card-cat">${place.category}</div>
+            <button class="mini-flip-trigger" data-flip title="Ver info rápida">ℹ</button>
+            ${isSaved ? '<div class="mini-saved-badge">❤️</div>' : ''}
+          </div>
+          <div class="mini-info-body">
+            <div class="mini-place-name">${place.name}</div>
+            <div class="mini-place-meta">
+              <span class="mini-cat-chip">${place.category}</span>
+              ${location ? `<span class="mini-place-loc">📍 ${location}</span>` : ''}
             </div>
-            ${isSaved ? '<div class="mini-saved-badge">♥</div>' : ''}
+            ${offerText ? `<div class="mini-offer-chip">🎫 ${offerText}</div>` : going >= 8 ? `<div class="mini-offer-chip" style="color:#F97316">🔥 Se llena rápido</div>` : ''}
           </div>
-          <div class="mini-info">
-            ${location ? `<div class="mini-info-row">📍 ${location}</div>` : ''}
-            <div class="mini-info-row"><span class="mini-cat-dot"></span>${place.category}</div>
-            ${place.priceRange ? `<div class="mini-info-price">${place.priceRange} / persona</div>` : ''}
-            ${going >= 8 ? `<div class="mini-info-urgency">🔥 Se llena rápido</div>` : ''}
-          </div>
-          <div class="mini-cta">
-            <button class="mini-heart-btn${isSaved ? ' saved' : ''}" data-save="${place.id}">♥</button>
-            <button class="mini-ir-btn" data-ir="${place.id}">IR →</button>
+          <div class="mini-actions-bar">
+            <button class="mini-save-pill${isSaved ? ' saved' : ''}" data-save="${place.id}">
+              ${isSaved ? '❤️' : '🤍'} ${isSaved ? 'Guardado' : 'Guardar'}
+            </button>
+            <button class="mini-ir-pill" data-ir="${place.id}">Ver <span class="mini-ir-arr">→</span></button>
           </div>
         </div>
+
+        <!-- BACK -->
         <div class="mini-card-back">
-          <div class="mini-back-body">
-            ${going > 0 ? `
-            <div class="mini-social-row">
-              ${renderAvatarStack(going, place.id)}
-              <span class="mini-social-text">${going} van a esto</span>
-            </div>` : ''}
+          <div class="mini-back-top">
+            <span class="mini-back-title">${place.name}</span>
+            <button class="mini-close-btn" data-flip-back>✕</button>
+          </div>
+          <div class="mini-back-content">
             <div class="mini-back-desc">${desc || place.category + ' en ' + place.neighborhood}</div>
-            <div class="mini-back-info">
-              ${place.hours   ? `<span>🕐 ${place.hours}</span>`      : ''}
-              ${place.address ? `<span>📍 ${place.address}</span>`    : ''}
-              ${place.offer?.text ? `<span>🎫 ${place.offer.text}</span>` : ''}
+            <div class="mini-back-rows">
+              ${place.hours   ? `<div class="mini-back-row">🕐 <span>${place.hours}</span></div>`                    : ''}
+              ${place.address ? `<div class="mini-back-row">📍 <span>${place.address}</span></div>`                  : ''}
+              ${offerText     ? `<div class="mini-back-row offer">🎫 <span>${offerText}</span></div>`                : ''}
+              ${going > 0     ? `<div class="mini-back-row going">👥 <span>${going} estudiantes van</span></div>`   : ''}
             </div>
           </div>
           <div class="mini-back-actions">
-            <button class="mini-flip-back-btn" data-flip-back>← Volver</button>
-            <button class="mini-back-save-btn${isSaved ? ' saved' : ''}" data-save="${place.id}">${isSaved ? 'Guardado' : 'Guardar'}</button>
+            <button class="mini-back-save-pill${isSaved ? ' saved' : ''}" data-save="${place.id}">${isSaved ? '❤️ Guardado' : '🤍 Guardar'}</button>
+            <button class="mini-back-ir-pill" data-ir="${place.id}">Ir al lugar →</button>
           </div>
         </div>
+
       </div>
     </div>`;
 }
@@ -586,7 +595,7 @@ const VIEWS = {
 
         ${featured ? `
         <div class="featured-wrap featured-wrap-compact">
-          <div class="featured-label">⭐ Trending</div>
+          <div class="featured-label">🗺️ Descubrí hoy en Roma</div>
           <div class="hero-card-area">
             ${trending.length > 1 ? `<button class="hero-nav-btn hero-prev" id="hero-prev">&#8249;</button>` : ''}
             <div class="featured-card" data-place="${featured.id}" style="border-top-color:${catColor}">
@@ -601,13 +610,17 @@ const VIEWS = {
                 ${going > 0 ? `
                 <div class="featured-card-social">
                   ${renderAvatarStack(going, featured.id)}
-                  <span class="featured-card-social-text">${going} van a esto</span>
+                  <span class="featured-card-social-text">${going} estudiantes van hoy</span>
                 </div>` : ''}
+                <button class="featured-cta-btn" data-ir="${featured.id}">
+                  ${featured.offer?.text ? `🎫 ${featured.offer.text.slice(0,28)}` : 'Ver descuento →'}
+                </button>
               </div>
               <div class="hero-save-indicator">❤️ Guardar</div>
               <div class="hero-skip-indicator">→ Siguiente</div>
               ${(featured.stats?.going || 0) >= 15 ? '<span class="featured-card-badge">🔥 Popular</span>' : ''}
               <button class="featured-card-save${saved.includes(featured.id) ? ' saved' : ''}" data-save="${featured.id}">♥</button>
+              <div class="featured-xp-badge">⭐ +2 XP al visitar</div>
             </div>
             ${trending.length > 1 ? `<button class="hero-nav-btn hero-next" id="hero-next">&#8250;</button>` : ''}
           </div>
@@ -1154,7 +1167,7 @@ function attachListeners() {
   const featuredCard = content.querySelector('.featured-card[data-place]');
   if (featuredCard) {
     featuredCard.addEventListener('click', e => {
-      if (e.target.closest('[data-save]') || _heroIsDragging || _heroDidDrag) return;
+      if (e.target.closest('[data-save]') || e.target.closest('[data-ir]') || _heroIsDragging || _heroDidDrag) return;
       navigate('detalle', { detailPlaceId: parseInt(featuredCard.dataset.place), prevView: state.currentView });
     });
   }
@@ -1265,6 +1278,22 @@ function attachListeners() {
   initSmartChips();
   initInfiniteScroll();
   initHeroParallax();
+  initHeroAutoAdvance();
+}
+
+function initHeroAutoAdvance() {
+  clearTimeout(_heroAutoTimer);
+  const heroArea = document.querySelector('.hero-card-area');
+  if (!heroArea) return;
+  const trending = [...getPlaces().filter(p => p.active !== false)]
+    .sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
+  if (trending.length <= 1) return;
+  _heroAutoTimer = setTimeout(() => {
+    state.featuredIndex = (state.featuredIndex + 1) % trending.length;
+    navigate('feed');
+  }, 5000);
+  heroArea.addEventListener('mouseenter', () => clearTimeout(_heroAutoTimer), { once: true });
+  heroArea.addEventListener('touchstart', () => clearTimeout(_heroAutoTimer), { once: true, passive: true });
 }
 
 function attachPlaceCardListeners(container) {
