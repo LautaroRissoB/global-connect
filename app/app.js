@@ -1221,11 +1221,82 @@ const VIEWS = {
         <div class="descuento-footer">Mostrá esta pantalla al personal del local</div>
       </div>`;
   },
+
+  perfil() {
+    const user  = getUser();
+    const xp    = calcXP();
+    const level = calcLevel(xp);
+    const saved = getSaved().length;
+    const att   = getAttending().length;
+    return `
+      <div class="view perfil-view">
+        <div class="perfil-hero" style="background:${user.avatarColor || '#0066FF'}">
+          <div class="perfil-avatar-lg">${user.initials}</div>
+          <div class="perfil-name">${user.name} ${user.lastName}</div>
+          <div class="perfil-uni">${user.uni} · ${user.exchange}</div>
+        </div>
+
+        <div class="perfil-id-strip">
+          <span class="perfil-id-label">Student ID</span>
+          <span class="perfil-id-value">${user.studentId}</span>
+        </div>
+
+        <div class="perfil-stats-row">
+          <div class="perfil-stat">
+            <div class="perfil-stat-val">${saved}</div>
+            <div class="perfil-stat-lbl">Guardados</div>
+          </div>
+          <div class="perfil-stat-divider"></div>
+          <div class="perfil-stat">
+            <div class="perfil-stat-val">${att}</div>
+            <div class="perfil-stat-lbl">Eventos</div>
+          </div>
+          <div class="perfil-stat-divider"></div>
+          <div class="perfil-stat">
+            <div class="perfil-stat-val">${xp}</div>
+            <div class="perfil-stat-lbl">XP</div>
+          </div>
+        </div>
+
+        <div class="perfil-level-box">
+          <div class="perfil-level-row">
+            <span class="perfil-level-name">⭐ ${level.name}</span>
+            <span class="perfil-level-xp">${xp} XP${level.next ? ' · próximo: ' + level.next + ' XP' : ' · Máximo nivel'}</span>
+          </div>
+          <div class="xp-bar-track"><div class="xp-bar-fill" style="width:${level.progress}%"></div></div>
+        </div>
+
+        <div class="perfil-section">
+          <div class="perfil-info-row">
+            <span class="perfil-info-icon">✉️</span>
+            <span class="perfil-info-text">${user.email || 'Sin email registrado'}</span>
+          </div>
+          <div class="perfil-info-row">
+            <span class="perfil-info-icon">📅</span>
+            <span class="perfil-info-text">Válido ${user.validFrom} – ${user.validTo}</span>
+          </div>
+        </div>
+
+        <div class="perfil-actions">
+          <button class="btn-logout" id="logout-btn">Cerrar sesión</button>
+        </div>
+      </div>`;
+  },
 };
 
 // ─── LISTENERS ────────────────────────────────────────────────────────────────
 function attachListeners() {
   const content = document.getElementById('app-content');
+
+  // ── Logout ────────────────────────────────────────────────────────────────
+  const logoutBtn = content.querySelector('#logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('gc_user');
+      state.onboardingSlide = 0;
+      navigate('onboarding');
+    });
+  }
 
   // ── Onboarding navigation ──────────────────────────────────────────────────
   const onbNext = content.querySelector('#onb-next');
@@ -1614,10 +1685,11 @@ function attachIrBtns(container) {
   });
 }
 
-// ─── BOTTOM NAV (attached once) ───────────────────────────────────────────────
+// ─── BOTTOM NAV + AVATAR (attached once) ──────────────────────────────────────
 document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
   el.addEventListener('click', () => navigate(el.dataset.view));
 });
+document.getElementById('app-avatar').addEventListener('click', () => navigate('perfil'));
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 navigate(getUser() ? 'feed' : 'onboarding');
