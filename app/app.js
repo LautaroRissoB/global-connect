@@ -32,6 +32,20 @@ function getEvents() {
   return window.GC_EVENTS;
 }
 
+// ─── USER PROFILE ─────────────────────────────────────────────────────────────
+const _USER_DEFAULT = {
+  name: 'Lautaro', lastName: 'García', initials: 'LG', avatarColor: '#0066FF',
+  uni: 'UBA', exchange: 'Erasmus Roma 2026',
+  studentId: 'GC-2026-00847',
+  validFrom: 'Feb', validTo: 'Jul 2026',
+  email: '',
+};
+function getUser() {
+  try { const u = JSON.parse(localStorage.getItem('gc_user') || 'null'); if (u?.name) return u; } catch(e) {}
+  return { ..._USER_DEFAULT };
+}
+function setUser(u) { localStorage.setItem('gc_user', JSON.stringify(u)); }
+
 // ─── XP / LEVEL ───────────────────────────────────────────────────────────────
 function calcXP() {
   return getSaved().length * 1 + getAttending().length * 2;
@@ -44,9 +58,11 @@ function calcLevel(xp) {
 }
 
 function updateHeader() {
-  const level = calcLevel(calcXP());
-  const badge = document.getElementById('level-badge');
+  const level  = calcLevel(calcXP());
+  const badge  = document.getElementById('level-badge');
   if (badge) badge.textContent = level.name;
+  const avatar = document.getElementById('app-avatar');
+  if (avatar) avatar.textContent = getUser().initials;
 }
 
 // ─── CATEGORY COLORS ──────────────────────────────────────────────────────────
@@ -408,6 +424,7 @@ function attachMiniCardListeners(container) {
 const MAIN_VIEWS = ['feed', 'explorar', 'eventos', 'guardados', 'pass'];
 
 function navigate(view, params) {
+  clearTimeout(_heroAutoTimer);
   if (params) Object.assign(state, params);
   state.currentView = view;
   if (MAIN_VIEWS.includes(view)) {
@@ -582,7 +599,7 @@ const VIEWS = {
     return `
       <div class="view">
         <div class="feed-greeting">
-          <div class="feed-greeting-name">Buongiorno, Lautaro!</div>
+          <div class="feed-greeting-name">Buongiorno, ${getUser().name}!</div>
           <div class="feed-greeting-sub">Roma te espera — ${places.length} lugares disponibles</div>
           <div class="xp-row">
             <span class="xp-label">${level.name}</span>
@@ -779,6 +796,7 @@ const VIEWS = {
 
   pass() {
     const places = getPlaces().filter(p => p.plan !== 'free' && p.active !== false);
+    const user   = getUser();
     return `
       <div class="view">
         <div class="pass-card">
@@ -786,14 +804,14 @@ const VIEWS = {
             <span class="pass-brand">Global Connect</span>
             <span class="pass-type">Student Pass</span>
           </div>
-          <div class="pass-name">Lautaro García</div>
-          <div class="pass-uni">UBA · Erasmus Roma 2026</div>
+          <div class="pass-name">${user.name} ${user.lastName}</div>
+          <div class="pass-uni">${user.uni} · ${user.exchange}</div>
           <div class="pass-id-box">
             <div class="pass-id-label">ID Estudiante</div>
-            <div class="pass-id">GC-2026-00847</div>
+            <div class="pass-id">${user.studentId}</div>
           </div>
           <div class="pass-footer">
-            <span>Válido: Feb – Jul 2026</span>
+            <span>Válido: ${user.validFrom} – ${user.validTo}</span>
             <span>Partner Premium</span>
           </div>
         </div>
@@ -1012,7 +1030,8 @@ const VIEWS = {
     const place = getPlaces().find(p => p.id === state.detailPlaceId);
     if (!place) return `<div class="empty-state"><div class="empty-state-title">Local no encontrado</div></div>`;
 
-    const studentId = 'GC-2026-00847';
+    const user      = getUser();
+    const studentId = user.studentId;
     const code      = genVerifyCode(studentId, place.id);
     const coverSrc  = place.imageData || place.imageUrl;
     const logoSrc   = place.logoData;
@@ -1045,11 +1064,11 @@ const VIEWS = {
         </div>
 
         <div class="descuento-student">
-          <div class="descuento-avatar">LG</div>
+          <div class="descuento-avatar">${user.initials}</div>
           <div>
-            <div class="descuento-student-name">Lautaro García</div>
+            <div class="descuento-student-name">${user.name} ${user.lastName}</div>
             <div class="descuento-student-id">${studentId}</div>
-            <div class="descuento-student-uni">UBA · Erasmus Roma · Feb–Jul 2026</div>
+            <div class="descuento-student-uni">${user.uni} · ${user.exchange}</div>
           </div>
         </div>
 
@@ -1238,10 +1257,11 @@ function attachListeners() {
   const shareBtn = content.querySelector('#share-btn');
   if (shareBtn) {
     shareBtn.addEventListener('click', () => {
+      const u = getUser();
       if (navigator.share) {
-        navigator.share({ title: 'Mi GCPass', text: 'GC-2026-00847 · Lautaro García · Global Connect', url: location.href });
+        navigator.share({ title: 'Mi GCPass', text: `${u.studentId} · ${u.name} ${u.lastName} · Global Connect`, url: location.href });
       } else {
-        navigator.clipboard.writeText('GC-2026-00847').then(() => {
+        navigator.clipboard.writeText(u.studentId).then(() => {
           shareBtn.textContent = 'ID copiado ✓';
           setTimeout(() => { shareBtn.textContent = 'Compartir mi GCPass'; }, 2200);
         });
@@ -1305,17 +1325,50 @@ function attachPlaceCardListeners(container) {
   });
 }
 
+// Update mini card save state in-place (no full re-render, preserves scroll)
+function updateMiniCardSaved(card, isSaved) {
+  const savePill = card.querySelector('.mini-save-pill');
+  if (savePill) {
+    savePill.classList.toggle('saved', isSaved);
+    savePill.innerHTML = `${isSaved ? '❤️' : '🤍'} ${isSaved ? 'Guardado' : 'Guardar'}`;
+  }
+  const backSavePill = card.querySelector('.mini-back-save-pill');
+  if (backSavePill) {
+    backSavePill.classList.toggle('saved', isSaved);
+    backSavePill.textContent = isSaved ? '❤️ Guardado' : '🤍 Guardar';
+  }
+  const imgWrap = card.querySelector('.mini-img-wrap');
+  if (imgWrap) {
+    let badge = imgWrap.querySelector('.mini-saved-badge');
+    if (isSaved && !badge) {
+      badge = document.createElement('div');
+      badge.className = 'mini-saved-badge';
+      badge.textContent = '❤️';
+      imgWrap.appendChild(badge);
+    } else if (!isSaved && badge) {
+      badge.remove();
+    }
+  }
+}
+
 function attachSaveBtns(container) {
   container.querySelectorAll('[data-save]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
-      const id      = parseInt(el.dataset.save);
-      const list    = getSaved();
-      const idx     = list.indexOf(id);
-      const adding  = idx < 0;
+      const id     = parseInt(el.dataset.save);
+      const list   = getSaved();
+      const idx    = list.indexOf(id);
+      const adding = idx < 0;
       if (idx >= 0) list.splice(idx, 1); else list.push(id);
       setSaved(list);
       if (adding) launchConfetti(el);
+      // Mini cards: update in-place to preserve scroll position
+      const miniCard = el.closest('.mini-card');
+      if (miniCard) {
+        updateMiniCardSaved(miniCard, list.includes(id));
+        updateHeader();
+        return;
+      }
       if (state.currentView !== 'explorar' || !document.querySelector('#search-input')) {
         navigate(state.currentView);
       } else {

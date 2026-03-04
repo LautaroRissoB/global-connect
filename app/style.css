@@ -416,37 +416,13 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#1F2937;background:#F
 .mini-card-inner.is-flipped{transform:rotateY(180deg)}
 .mini-card-front,.mini-card-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-top:3px solid var(--cat-color,#0066FF);display:flex;flex-direction:column}
 .mini-card-back{transform:rotateY(180deg)}
-@media(hover:hover){.mini-card:hover{transform:scale(1.03);z-index:1}.mini-card:hover .mini-card-front{box-shadow:0 8px 20px rgba(0,102,255,.15)}.mini-card:hover .mini-img-wrap img{transform:translateY(-3%)}.mini-card:hover .mini-heart-btn{opacity:1}}
+@media(hover:hover){.mini-card:hover{transform:scale(1.03);z-index:1}.mini-card:hover .mini-card-front{box-shadow:0 8px 20px rgba(0,102,255,.15)}.mini-card:hover .mini-img-wrap img{transform:translateY(-3%)}}
 .mini-img-wrap{height:112px;overflow:hidden;position:relative;flex-shrink:0}
 .mini-img-wrap img{width:100%;height:106%;object-fit:cover;display:block;transition:transform 300ms ease}
 .mini-img-wrap-icon{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:36px}
-.mini-title-overlay{position:absolute;bottom:0;left:0;right:0;padding:8px 8px 6px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%)}
-.mini-card-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;margin:0}
-.mini-card-cat{font-size:12px;color:rgba(255,255,255,.8);line-height:1.2;margin:0}
 .mini-saved-badge{position:absolute;top:5px;right:5px;width:22px;height:22px;background:rgba(255,255,255,.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#EC4899;line-height:1}
-.mini-cat-dot{width:6px;height:6px;border-radius:50%;background:var(--cat-color,#0066FF);display:inline-block;flex-shrink:0;margin-right:2px;vertical-align:middle}
-.mini-info{flex:1;padding:8px 10px 4px;display:flex;flex-direction:column;gap:2px;overflow:hidden;min-height:0}
-.mini-info-row{font-size:11px;color:#6B7280;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mini-info-price{font-size:13px;font-weight:700;color:#0066FF;line-height:1.4}
-.mini-info-urgency{font-size:11px;color:#F97316;font-style:italic;line-height:1.4}
-.mini-cta{height:32px;border-top:1px solid #D1D5DB;display:flex;align-items:center;justify-content:space-between;padding:0 10px;flex-shrink:0}
-.mini-heart-btn{width:24px;height:24px;background:transparent;border:none;cursor:pointer;font-size:16px;color:#D1D5DB;opacity:.6;transition:opacity .2s,color .2s;display:flex;align-items:center;justify-content:center;padding:0}
-.mini-heart-btn.saved{color:#EC4899;opacity:1}
-.mini-ir-btn{font-size:12px;font-weight:700;padding:5px 14px;border-radius:8px;border:none;cursor:pointer;background:#0066FF;color:#fff;transition:background .2s}
-.mini-ir-btn:hover{background:#003D99}
 @media(max-width:640px){.mini-card{height:190px}.mini-img-wrap{height:96px}}
 
-/* ── Mini card back ── */
-.mini-back-body{height:152px;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:5px}
-.mini-social-row{display:flex;align-items:center;gap:4px}
-.mini-social-text{font-size:10px;color:#6B7280}
-.mini-back-desc{font-size:10px;color:#6B7280;line-height:1.45;overflow:hidden;flex:1}
-.mini-back-info{font-size:9px;color:#9CA3AF;display:flex;flex-direction:column;gap:2px}
-.mini-back-info span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mini-back-actions{height:46px;padding:6px 8px;border-top:1px solid #F3F4F6;display:flex;align-items:center;gap:6px}
-.mini-flip-back-btn{font-size:10px;color:#9CA3AF;background:none;border:none;cursor:pointer;flex:1;text-align:left;padding:0}
-.mini-back-save-btn{font-size:10px;font-weight:700;padding:6px 12px;border-radius:6px;border:none;cursor:pointer;background:#0066FF;color:#fff;transition:background .15s}
-.mini-back-save-btn.saved{background:#FDF2F8;color:#EC4899;border:1px solid #FBCFE8}
 
 /* ── Infinite scroll ── */
 .feed-sentinel{height:10px}
@@ -465,14 +441,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:#1F2937;background:#F
 .featured-cta-btn:active{transform:scale(.97)}
 
 /* ── Hero XP badge ── */
-.featured-xp-badge{position:absolute;top:12px;right:52px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.35);color:#fff;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.2px;animation:xp-glow 2.5s ease-in-out infinite}
+.featured-xp-badge{position:absolute;top:12px;left:54px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.35);color:#fff;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.2px;animation:xp-glow 2.5s ease-in-out infinite}
 @keyframes xp-glow{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,255,255,.3)}50%{opacity:.8;box-shadow:0 0 8px 2px rgba(255,255,255,.15)}}
 
 /* ── Mini card front: info body ── */
 .mini-info-body{flex:1;padding:8px 10px 2px;display:flex;flex-direction:column;gap:3px;overflow:hidden;min-height:0}
 .mini-place-name{font-size:14px;font-weight:700;color:#1F2937;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
 .mini-place-meta{display:flex;align-items:center;gap:5px;overflow:hidden}
-.mini-cat-chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(0,0,0,.06);color:var(--cat-color,#0066FF);white-space:nowrap;flex-shrink:0;border:1px solid transparent;border-color:color-mix(in srgb,var(--cat-color,#0066FF) 30%,transparent)}
+.mini-cat-chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(0,0,0,.06);color:var(--cat-color,#0066FF);white-space:nowrap;flex-shrink:0;border:1px solid rgba(0,0,0,.1)}
 .mini-place-loc{font-size:11px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-offer-chip{font-size:11px;font-weight:600;color:#059669;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
