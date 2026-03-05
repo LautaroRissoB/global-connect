@@ -199,6 +199,16 @@ function hideGlobalLoader() {
 const withTimeout = (promise, ms) =>
   Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
 
+async function _refreshSession(session) {
+  if (!session?.refresh_token) return null;
+  try {
+    const data = await authPost('/token?grant_type=refresh_token', { refresh_token: session.refresh_token });
+    if (!data.access_token) return null;
+    _saveSession(data);
+    return data;
+  } catch { return null; }
+}
+
 async function _handleVerifyHash() {
   // Handle Supabase email-verify redirect: /app#access_token=...&type=signup
   const hash = window.location.hash.slice(1);
@@ -237,9 +247,12 @@ async function initApp() {
     // 2. Check for email-verify hash callback
     const fromVerify = await _handleVerifyHash();
     if (fromVerify) { navigate('feed'); return; }
-    // 3. Check stored session
-    const stored = _loadSession();
+    // 3. Check stored session (refresh if expiring within 10 min)
+    let stored = _loadSession();
     if (stored) {
+      if (stored.expires_at - Date.now() < 10 * 60 * 1000) {
+        stored = await _refreshSession(stored) || stored;
+      }
       _cache.session = stored;
       await withTimeout(loadUserData(stored.user.id, stored.access_token), 6000).catch(() => {});
       navigate('feed');
@@ -255,6 +268,12 @@ async function initApp() {
     hideGlobalLoader();
   }
 }
+
+// Refresh session every 50 min while app is open
+setInterval(async () => {
+  const s = _loadSession();
+  if (s) { const fresh = await _refreshSession(s); if (fresh) _cache.session = fresh; }
+}, 50 * 60 * 1000);
 
 // ─── XP / LEVEL ───────────────────────────────────────────────────────────────
 function calcXP() {

@@ -321,9 +321,22 @@ function updateTopbarName() {
   if (p) el.textContent = '● ' + (p.name || p.email || 'Admin');
 }
 
+async function _admRefreshSession(session) {
+  if (!session?.refresh_token) return null;
+  try {
+    const data = await admAuthPost('/token?grant_type=refresh_token', { refresh_token: session.refresh_token });
+    if (!data.access_token) return null;
+    _admSaveSession(data);
+    return data;
+  } catch { return null; }
+}
+
 async function initAdmin() {
-  const stored = _admLoadSession();
+  let stored = _admLoadSession();
   if (!stored) { renderAdminLogin(); return; }
+  if (stored.expires_at - Date.now() < 10 * 60 * 1000) {
+    stored = await _admRefreshSession(stored) || stored;
+  }
   _adminCache.session = stored;
   const profileArr = await admGet('profiles', `id=eq.${stored.user.id}&select=*`);
   const profile = Array.isArray(profileArr) ? profileArr[0] : null;
@@ -333,6 +346,12 @@ async function initAdmin() {
   await loadAdminData();
   navigate('dashboard');
 }
+
+// Refresh admin session every 50 min
+setInterval(async () => {
+  const s = _admLoadSession();
+  if (s) { const fresh = await _admRefreshSession(s); if (fresh) _adminCache.session = fresh; }
+}, 50 * 60 * 1000);
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function navigate(view, params) {
