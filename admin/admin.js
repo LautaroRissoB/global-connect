@@ -1,7 +1,45 @@
-// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
+// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
 const SUPABASE_URL      = 'https://hiokmuvqwosipgzvkqoo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4SNcRuP6ig9jFYVe4u8bpQ_BseeKIvq';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function _admH(token) {
+  return { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' };
+}
+function _tok() { return _adminCache.session?.access_token; }
+async function admGet(table, qs) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs || ''}`, { headers: _admH(_tok()) });
+  return r.json();
+}
+async function admPost(table, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST', headers: { ..._admH(_tok()), 'Prefer': 'return=representation' }, body: JSON.stringify(body),
+  });
+  const j = await r.json(); return Array.isArray(j) ? j[0] : j;
+}
+async function admPatch(table, qs, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs}`, {
+    method: 'PATCH', headers: { ..._admH(_tok()), 'Prefer': 'return=representation' }, body: JSON.stringify(body),
+  });
+  const j = await r.json(); return Array.isArray(j) ? j[0] : j;
+}
+async function admDelete(table, qs) {
+  await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs}`, { method: 'DELETE', headers: _admH(_tok()) });
+}
+async function admAuthPost(path, body) {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1${path}`, {
+    method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  return r.json();
+}
+const ADM_SESSION_KEY = 'gc_admin_session';
+function _admSaveSession(d) {
+  try { localStorage.setItem(ADM_SESSION_KEY, JSON.stringify({ access_token: d.access_token, refresh_token: d.refresh_token, user: d.user, expires_at: Date.now() + (d.expires_in || 3600) * 1000 })); } catch {}
+}
+function _admLoadSession() {
+  try { const s = JSON.parse(localStorage.getItem(ADM_SESSION_KEY) || 'null'); if (!s || s.expires_at < Date.now()) { localStorage.removeItem(ADM_SESSION_KEY); return null; } return s; } catch { return null; }
+}
+function _admClearSession() { localStorage.removeItem(ADM_SESSION_KEY); }
+function _admLogout() { _admClearSession(); _adminCache.session = null; _adminCache.profile = null; const el = document.getElementById('topbar-admin-name'); if (el) el.textContent = '●'; renderAdminLogin(); }
 
 // ─── ADMIN CACHE ──────────────────────────────────────────────────────────────
 const _adminCache = {
@@ -82,26 +120,26 @@ async function loadAdminData() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const prevStart  = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
 
-  const [placesRes, eventsRes, domainsRes, studentsRes, viewsRes, savesRes, attendRes] = await Promise.all([
-    sb.from('places').select('*').order('id'),
-    sb.from('events').select('*').order('id'),
-    sb.from('allowed_domains').select('*').order('domain'),
-    sb.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false }),
-    sb.from('place_views').select('place_id, viewed_at').gte('viewed_at', prevStart),
-    sb.from('saved_places').select('place_id, created_at').gte('created_at', prevStart),
-    sb.from('attending_events').select('event_id, created_at').gte('created_at', prevStart),
+  const [placesArr, eventsArr, domainsArr, studentsArr, viewsArr, savesArr, attendArr] = await Promise.all([
+    admGet('places', 'order=id'),
+    admGet('events', 'order=id'),
+    admGet('allowed_domains', 'order=domain'),
+    admGet('profiles', 'role=eq.student&order=created_at.desc'),
+    admGet('place_views', `select=place_id,viewed_at&viewed_at=gte.${prevStart}`),
+    admGet('saved_places', `select=place_id,created_at&created_at=gte.${prevStart}`),
+    admGet('attending_events', `select=event_id,created_at&created_at=gte.${prevStart}`),
   ]);
 
-  _adminCache.places       = (placesRes.data  || []).map(normalizePlace);
-  _adminCache.events       = (eventsRes.data  || []).map(normalizeEvent);
-  _adminCache.domains      = domainsRes.data  || [];
-  _adminCache.students     = studentsRes.data  || [];
+  _adminCache.places       = (Array.isArray(placesArr)   ? placesArr   : []).map(normalizePlace);
+  _adminCache.events       = (Array.isArray(eventsArr)   ? eventsArr   : []).map(normalizeEvent);
+  _adminCache.domains      = Array.isArray(domainsArr)   ? domainsArr  : [];
+  _adminCache.students     = Array.isArray(studentsArr)  ? studentsArr : [];
   _adminCache.studentCount = _adminCache.students.length;
 
   // Build per-place analytics for current and previous month
-  const views   = viewsRes.data  || [];
-  const saves   = savesRes.data  || [];
-  const attends = attendRes.data || [];
+  const views   = Array.isArray(viewsArr)   ? viewsArr   : [];
+  const saves   = Array.isArray(savesArr)   ? savesArr   : [];
+  const attends = Array.isArray(attendArr)  ? attendArr  : [];
 
   // Map event_id → place_id
   const eventPlaceMap = {};
@@ -134,14 +172,14 @@ async function savePlace(place) {
   const isNew  = !record.id;
   let result;
   if (isNew) {
-    const { data, error } = await sb.from('places').insert(record).select().single();
-    if (error) { showToast('Error: ' + error.message); return null; }
-    result = data;
+    const { id: _id, ...insertRecord } = record;
+    result = await admPost('places', insertRecord);
+    if (!result || result.code) { showToast('Error al guardar local'); return null; }
     _adminCache.places.push(normalizePlace(result));
   } else {
-    const { data, error } = await sb.from('places').update(record).eq('id', record.id).select().single();
-    if (error) { showToast('Error: ' + error.message); return null; }
-    result = data;
+    const { id, ...updateRecord } = record;
+    result = await admPatch('places', `id=eq.${id}`, updateRecord);
+    if (!result || result.code) { showToast('Error al guardar local'); return null; }
     const idx = _adminCache.places.findIndex(p => p.id === result.id);
     if (idx >= 0) _adminCache.places[idx] = normalizePlace(result);
   }
@@ -149,8 +187,7 @@ async function savePlace(place) {
 }
 
 async function deletePlace(id) {
-  const { error } = await sb.from('places').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message); return false; }
+  await admDelete('places', `id=eq.${id}`);
   _adminCache.places = _adminCache.places.filter(p => p.id !== id);
   return true;
 }
@@ -159,14 +196,12 @@ async function togglePlaceActive(id) {
   const place = _adminCache.places.find(p => p.id === id);
   if (!place) return;
   const newActive = !place.active;
-  const { error } = await sb.from('places').update({ active: newActive }).eq('id', id);
-  if (error) { showToast('Error: ' + error.message); return; }
+  await admPatch('places', `id=eq.${id}`, { active: newActive });
   place.active = newActive;
 }
 
 async function savePlacePlan(id, plan) {
-  const { error } = await sb.from('places').update({ plan }).eq('id', id);
-  if (error) { showToast('Error: ' + error.message); return; }
+  await admPatch('places', `id=eq.${id}`, { plan });
   const place = _adminCache.places.find(p => p.id === id);
   if (place) place.plan = plan;
 }
@@ -176,14 +211,14 @@ async function saveEvent(event) {
   const isNew  = !record.id;
   let result;
   if (isNew) {
-    const { data, error } = await sb.from('events').insert(record).select().single();
-    if (error) { showToast('Error: ' + error.message); return null; }
-    result = data;
+    const { id: _id, ...insertRecord } = record;
+    result = await admPost('events', insertRecord);
+    if (!result || result.code) { showToast('Error al guardar evento'); return null; }
     _adminCache.events.push(normalizeEvent(result));
   } else {
-    const { data, error } = await sb.from('events').update(record).eq('id', record.id).select().single();
-    if (error) { showToast('Error: ' + error.message); return null; }
-    result = data;
+    const { id, ...updateRecord } = record;
+    result = await admPatch('events', `id=eq.${id}`, updateRecord);
+    if (!result || result.code) { showToast('Error al guardar evento'); return null; }
     const idx = _adminCache.events.findIndex(e => e.id === result.id);
     if (idx >= 0) _adminCache.events[idx] = normalizeEvent(result);
   }
@@ -191,22 +226,20 @@ async function saveEvent(event) {
 }
 
 async function deleteEvent(id) {
-  const { error } = await sb.from('events').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message); return false; }
+  await admDelete('events', `id=eq.${id}`);
   _adminCache.events = _adminCache.events.filter(e => e.id !== id);
   return true;
 }
 
 async function addDomain(domain, universityName) {
-  const { data, error } = await sb.from('allowed_domains').insert({ domain, university_name: universityName }).select().single();
-  if (error) { showToast('Error: ' + error.message); return null; }
-  _adminCache.domains.push(data);
-  return data;
+  const result = await admPost('allowed_domains', { domain, university_name: universityName });
+  if (!result || result.code) { showToast('Error al agregar dominio'); return null; }
+  _adminCache.domains.push(result);
+  return result;
 }
 
 async function deleteDomain(id) {
-  const { error } = await sb.from('allowed_domains').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message); return false; }
+  await admDelete('allowed_domains', `id=eq.${id}`);
   _adminCache.domains = _adminCache.domains.filter(d => d.id !== id);
   return true;
 }
@@ -244,20 +277,23 @@ function renderAdminLogin() {
     const btn      = document.getElementById('adm-login-btn');
 
     btn.disabled = true; btn.textContent = 'Verificando...';
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    const loginRes = await admAuthPost('/token?grant_type=password', { email, password });
     btn.disabled = false; btn.textContent = 'Ingresar';
 
-    if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; errEl.classList.add('visible'); return; }
+    if (loginRes.error || loginRes.error_description) {
+      errEl.textContent = 'Email o contraseña incorrectos.'; errEl.classList.add('visible'); return;
+    }
 
-    const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).single();
+    const profileArr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${loginRes.user.id}&select=*`, { headers: _admH(loginRes.access_token) }).then(r => r.json());
+    const profile = Array.isArray(profileArr) ? profileArr[0] : null;
     if (!profile || profile.role !== 'admin') {
-      await sb.auth.signOut();
       errEl.textContent = 'Esta cuenta no tiene permisos de administrador.';
       errEl.classList.add('visible');
       return;
     }
 
-    _adminCache.session = data.session;
+    _admSaveSession(loginRes);
+    _adminCache.session = loginRes;
     _adminCache.profile = profile;
     updateTopbarName();
     await loadAdminData();
@@ -272,7 +308,7 @@ function renderAdminUnauthorized() {
         <div class="admin-unauth-icon">🚫</div>
         <div class="admin-unauth-title">Sin permisos de acceso</div>
         <div class="admin-unauth-sub">Tu cuenta no tiene rol de administrador. Pedile al admin principal que te asigne el rol.</div>
-        <button class="admin-unauth-btn" onclick="sb.auth.signOut().then(() => location.reload())">Cerrar sesión</button>
+        <button class="admin-unauth-btn" onclick="_admLogout()">Cerrar sesión</button>
       </div>
     </div>`;
 }
@@ -285,11 +321,12 @@ function updateTopbarName() {
 }
 
 async function initAdmin() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { renderAdminLogin(); return; }
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  const stored = _admLoadSession();
+  if (!stored) { renderAdminLogin(); return; }
+  _adminCache.session = stored;
+  const profileArr = await admGet('profiles', `id=eq.${stored.user.id}&select=*`);
+  const profile = Array.isArray(profileArr) ? profileArr[0] : null;
   if (!profile || profile.role !== 'admin') { renderAdminUnauthorized(); return; }
-  _adminCache.session = session;
   _adminCache.profile = profile;
   updateTopbarName();
   await loadAdminData();
@@ -1687,8 +1724,8 @@ function attachAdminListeners() {
     clearAllBtn.addEventListener('click', async () => {
       if (!confirm('¿Eliminar TODOS los locales y eventos? Esta acción no se puede deshacer.')) return;
       // Delete all events, then all places (order matters for FK)
-      for (const e of [..._adminCache.events]) await sb.from('events').delete().eq('id', e.id);
-      for (const p of [..._adminCache.places]) await sb.from('places').delete().eq('id', p.id);
+      for (const e of [..._adminCache.events]) await admDelete('events', `id=eq.${e.id}`);
+      for (const p of [..._adminCache.places]) await admDelete('places', `id=eq.${p.id}`);
       _adminCache.places = [];
       _adminCache.events = [];
       showToast('Datos limpiados ✓');
@@ -1707,12 +1744,8 @@ document.querySelectorAll('#sidebar [data-nav]').forEach(el => {
 
 document.getElementById('sidebar-logout')?.addEventListener('click', async () => {
   if (!confirm('¿Cerrar sesión?')) return;
-  await sb.auth.signOut();
-  _adminCache.session = null;
-  _adminCache.profile = null;
-  const el = document.getElementById('topbar-admin-name');
-  if (el) el.textContent = '●';
-  renderAdminLogin();
+  if (_tok()) fetch(`${SUPABASE_URL}/auth/v1/logout`, { method: 'POST', headers: _admH(_tok()) }).catch(() => {});
+  _admLogout();
 });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
