@@ -235,6 +235,73 @@ body{font-family:'Inter',sans-serif;background:#F8FAFC;color:#0F172A;min-height:
 .domain-chip-del{background:none;border:none;cursor:pointer;color:#93C5FD;font-size:15px;line-height:1;padding:0 0 0 2px;transition:color .15s}
 .domain-chip-del:hover{color:#DC2626}
 
+/* ── Wizard ── */
+.wizard-steps{display:flex;align-items:center;padding:20px 24px 0;gap:0;margin-bottom:20px}
+.wizard-step{display:flex;align-items:center;gap:8px;cursor:pointer;opacity:.45;transition:opacity .2s}
+.wizard-step.active{opacity:1}
+.wizard-step.done{opacity:.7;cursor:pointer}
+.wizard-step-num{width:28px;height:28px;border-radius:50%;background:#E2E8F0;color:#64748B;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.wizard-step.active .wizard-step-num{background:#1D4ED8;color:#fff;box-shadow:0 0 0 3px rgba(29,78,216,.2)}
+.wizard-step.done .wizard-step-num{background:#22C55E;color:#fff}
+.wizard-step-label{font-size:13px;font-weight:600;color:#334155;white-space:nowrap}
+.wizard-step-line{flex:1;height:2px;background:#E2E8F0;margin:0 8px;border-radius:1px;min-width:16px;transition:background .3s}
+.wizard-step-line.done{background:#22C55E}
+
+.wizard-panel{display:none}
+.wizard-panel.active{display:block;animation:panel-in .2s ease}
+@keyframes panel-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.wizard-panel-footer{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-top:1px solid #F1F5F9}
+
+/* ── Upload zones ── */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.upload-zone{border:2px dashed #E2E8F0;border-radius:12px;overflow:hidden;cursor:pointer;aspect-ratio:16/10;transition:border-color .15s}
+.upload-zone:hover{border-color:#1D4ED8;background:#F8FAFC}
+.upload-zone label{display:flex;width:100%;height:100%;cursor:pointer}
+.upload-zone-sm{aspect-ratio:1}
+.upload-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;gap:4px;padding:12px}
+.upload-icon{font-size:24px}
+.upload-label{font-size:12px;font-weight:600;color:#374151}
+.upload-hint{font-size:10px;color:#9CA3AF}
+.upload-preview-img{width:100%;height:100%;object-fit:cover}
+
+/* ── Plan cards grid ── */
+.plan-cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.plan-card-option{border:2px solid #E2E8F0;border-radius:12px;overflow:hidden;cursor:pointer;transition:all .15s}
+.plan-card-option:hover{border-color:#93C5FD;transform:translateY(-2px)}
+.plan-card-option.selected{border-color:#1D4ED8;box-shadow:0 0 0 3px rgba(29,78,216,.1)}
+.plan-card-header{padding:8px 12px;font-size:11px;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:.4px;color:#fff}
+.plan-card-free{background:#64748B}
+.plan-card-partner{background:#1D4ED8}
+.plan-card-premium{background:linear-gradient(135deg,#D97706,#F59E0B)}
+.plan-card-price{font-size:22px;font-weight:900;color:#0F172A;padding:10px 12px 4px;letter-spacing:-1px}
+.plan-card-price span{font-size:12px;font-weight:500;color:#94A3B8}
+.plan-card-features{list-style:none;padding:0 12px 12px;margin:0;font-size:11px;color:#475569;line-height:1.8}
+
+/* ── Preview stats box ── */
+.preview-stats-box{background:#F8FAFC;border:1px solid #EAECEF;border-radius:10px;overflow:hidden}
+.preview-stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #F1F5F9;font-size:12px;color:#64748B}
+.preview-stat-row:last-child{border-bottom:none}
+.preview-stat-row span:last-child{font-weight:700;color:#0F172A}
+
+/* ── Card preview panel ── */
+.card-preview-label{font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.card-preview{border:1px solid #EAECEF;border-radius:14px;overflow:hidden;background:#fff}
+.card-preview-media{height:140px;background:#F1F5F9;overflow:hidden}
+.card-preview-body{padding:12px 14px}
+.card-preview-name{font-size:14px;font-weight:800;color:#0F172A}
+.card-preview-sub{font-size:12px;color:#94A3B8;margin-top:2px}
+.card-preview-offer{font-size:11px;color:#1D4ED8;font-weight:600;margin-top:6px;background:#EFF6FF;padding:3px 7px;border-radius:4px;display:inline-block}
+
+/* ── Form hint ── */
+.form-hint{font-size:11px;color:#94A3B8;margin-top:5px}
+.form-input-lg{font-size:15px;padding:12px 14px}
+
+@media(max-width:600px){
+  .wizard-step-label{display:none}
+  .plan-cards-grid{grid-template-columns:1fr}
+  .upload-grid{grid-template-columns:1fr}
+}
+
 /* ── Analytics / plan chips ── */
 .plan-chip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
 .plan-chip-free{background:#F1F5F9;color:#64748B}

@@ -192,13 +192,31 @@ sb.auth.onAuthStateChange(async (event, session) => {
 
 // ─── XP / LEVEL ───────────────────────────────────────────────────────────────
 function calcXP() {
-  return _cache.saved.size * 1 + _cache.attending.size * 2;
+  return _cache.saved.size * 5 + _cache.attending.size * 15;
 }
 function calcLevel(xp) {
-  if (xp >= 20) return { name: 'Globetrotter', next: null,  progress: 100 };
-  if (xp >= 10) return { name: 'Adventurer',   next: 20,    progress: (xp - 10) / 10 * 100 };
-  if (xp >= 5)  return { name: 'Explorer',     next: 10,    progress: (xp - 5) / 5 * 100 };
-  return              { name: 'Rookie',        next: 5,     progress: xp / 5 * 100 };
+  const levels = [
+    { min: 0,   max: 49,  name: 'Turista',    icon: '🗺️',  color: '#94A3B8' },
+    { min: 50,  max: 149, name: 'Explorador', icon: '🚶',  color: '#22C55E' },
+    { min: 150, max: 299, name: 'Vecino',     icon: '🏘️',  color: '#3B82F6' },
+    { min: 300, max: 499, name: 'Insider',    icon: '⭐',  color: '#F59E0B' },
+    { min: 500, max: Infinity, name: 'Leyenda', icon: '👑', color: '#EC4899' },
+  ];
+  const l = levels.find(l => xp >= l.min && xp <= l.max) || levels[0];
+  const isMax = l.min === 500;
+  const progress = isMax ? 100 : ((xp - l.min) / (l.max + 1 - l.min)) * 100;
+  return { ...l, next: isMax ? null : l.max + 1, progress: Math.min(100, Math.round(progress)) };
+}
+function getBadges() {
+  const saved = _cache.saved.size;
+  const att   = _cache.attending.size;
+  const badges = [];
+  if (saved >= 1)  badges.push({ icon: '💾', label: 'Primera guardia', desc: 'Guardaste tu 1er lugar' });
+  if (saved >= 5)  badges.push({ icon: '❤️', label: 'Coleccionista', desc: '5 lugares guardados' });
+  if (saved >= 10) badges.push({ icon: '🗂️', label: 'Curador', desc: '10 lugares guardados' });
+  if (att >= 1)    badges.push({ icon: '🎉', label: 'Social', desc: 'Primer evento confirmado' });
+  if (att >= 3)    badges.push({ icon: '🎊', label: 'Animador', desc: '3 eventos confirmados' });
+  return badges;
 }
 
 function updateHeader() {
@@ -885,17 +903,31 @@ const VIEWS = {
 
   feed() {
     state.feedPage = 0;
-    const places = getPlaces().filter(p => p.active !== false);
+    const allPlaces = getPlaces().filter(p => p.active !== false);
     const saved  = getSaved();
-    const neighborhoods = ['Todos', ...new Set(places.map(p => p.neighborhood))];
-    const filtered = state.selectedNeighborhood === 'Todos'
-      ? places
-      : places.filter(p => p.neighborhood === state.selectedNeighborhood);
+    const attending = getAttending();
+
+    // Category filter
+    const cats = ['Todos', ...new Set(allPlaces.map(p => p.category).filter(Boolean))];
+    const catFilter = state.selectedCategory || 'Todos';
+    const nbFilter  = state.selectedNeighborhood || 'Todos';
+
+    let filtered = allPlaces;
+    if (catFilter !== 'Todos') filtered = filtered.filter(p => p.category === catFilter);
+    if (nbFilter  !== 'Todos') filtered = filtered.filter(p => p.neighborhood === nbFilter);
 
     const xp    = calcXP();
     const level = calcLevel(xp);
+    const user  = getUser();
 
-    const trending = [...places].sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
+    // Upcoming events (next 30 days)
+    const today = new Date().toISOString().slice(0,10);
+    const upcomingEvents = getEvents()
+      .filter(e => e.active !== false && e.date >= today)
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .slice(0, 8);
+
+    const trending = [...allPlaces].sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
     state.featuredIndex = Math.min(state.featuredIndex, Math.max(trending.length - 1, 0));
     const featured      = trending[state.featuredIndex] || null;
     const featuredCover = featured ? (featured.imageData || featured.imageUrl) : null;
@@ -910,64 +942,98 @@ const VIEWS = {
     const firstPage = filtered.slice(0, FEED_PAGE_SIZE);
     const hasMore   = filtered.length > FEED_PAGE_SIZE;
 
+    // Get hours of day for greeting
+    const h = new Date().getHours();
+    const greeting = h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
+
     return `
       <div class="view">
+
+        <!-- GREETING + XP -->
         <div class="feed-greeting">
-          <div class="feed-greeting-name">Buongiorno, ${getUser().name}!</div>
-          <div class="feed-greeting-sub">Roma te espera — ${places.length} lugares disponibles</div>
-          <div class="xp-row">
-            <span class="xp-label">${level.name}</span>
-            <span class="xp-points">${xp} XP${level.next ? ' · próximo: ' + level.next + ' XP' : ' · Máximo nivel'}</span>
+          <div class="feed-greeting-top">
+            <div>
+              <div class="feed-greeting-name">${greeting}, ${user.name || 'estudiante'}!</div>
+              <div class="feed-greeting-sub">${level.icon} ${level.name} · ${xp} XP</div>
+            </div>
+            <div class="feed-level-badge" style="background:${level.color}20;border-color:${level.color}40;color:${level.color}">${level.icon} ${level.name}</div>
           </div>
           <div class="xp-bar-track">
-            <div class="xp-bar-fill" style="width:${level.progress}%"></div>
+            <div class="xp-bar-fill" style="width:${level.progress}%;background:${level.color}"></div>
           </div>
+          ${level.next ? `<div class="xp-next-label">${level.next - xp} XP para ${calcLevel(level.next).name}</div>` : `<div class="xp-next-label">👑 Nivel máximo</div>`}
         </div>
 
+        <!-- EVENTS STRIP (Instagram stories style) -->
+        ${upcomingEvents.length > 0 ? `
+        <div class="events-strip-wrap">
+          <div class="events-strip-header">
+            <span class="events-strip-title">Próximos eventos</span>
+            <span class="events-strip-see-all" data-view="eventos">Ver todos →</span>
+          </div>
+          <div class="events-strip" id="events-strip">
+            ${upcomingEvents.map(ev => {
+              const isAtt = attending.includes(ev.id);
+              const evDate = ev.date ? new Date(ev.date + 'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'}) : '';
+              const place  = allPlaces.find(p => p.id === ev.placeId);
+              return `
+              <div class="event-story" data-attend-story="${ev.id}">
+                <div class="event-story-bubble${isAtt ? ' attending' : ''}" style="background:${place ? place.bgColor || '#EFF6FF' : '#EFF6FF'}">
+                  <span class="event-story-emoji">${ev.emoji || place?.emoji || '🎉'}</span>
+                  ${isAtt ? '<div class="event-story-check">✓</div>' : ''}
+                </div>
+                <div class="event-story-name">${ev.name.slice(0,14)}</div>
+                <div class="event-story-date">${evDate}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- FEATURED HERO CARD -->
         ${featured ? `
-        <div class="featured-wrap featured-wrap-compact">
-          <div class="featured-label">🗺️ Descubrí hoy en Roma</div>
+        <div class="featured-wrap">
           <div class="hero-card-area">
             ${trending.length > 1 ? `<button class="hero-nav-btn hero-prev" id="hero-prev">&#8249;</button>` : ''}
-            <div class="featured-card" data-place="${featured.id}" style="border-top-color:${catColor}">
+            <div class="featured-card" data-place="${featured.id}" style="--cat-color:${catColor}">
               ${featuredCover
                 ? `<img class="featured-card-img" src="${featuredCover}" alt="${featured.name}" onerror="this.style.display='none'"/>`
                 : `<div class="featured-card-icon-bg" style="background:${featured.bgColor || '#DBEAFE'}">${featured.emoji || '🏠'}</div>`
               }
               <div class="featured-card-overlay"></div>
               <div class="featured-card-info">
+                <div class="featured-card-chips">
+                  <span class="featured-chip">${featured.neighborhood}</span>
+                  ${featured.plan === 'premium' ? '<span class="featured-chip chip-premium">★ Premium</span>' : ''}
+                </div>
                 <div class="featured-card-name">${featured.name}</div>
-                <div class="featured-card-sub">${featured.category} · ${featured.neighborhood}</div>
+                <div class="featured-card-sub">${featured.category}</div>
                 ${going > 0 ? `
                 <div class="featured-card-social">
                   ${renderAvatarStack(going, featured.id)}
-                  <span class="featured-card-social-text">${going} estudiantes van hoy</span>
+                  <span class="featured-card-social-text">${going} van hoy</span>
                 </div>` : ''}
                 <button class="featured-cta-btn" data-ir="${featured.id}">
-                  ${featured.offer?.text ? `🎫 ${featured.offer.text.slice(0,28)}` : 'Ver descuento →'}
+                  ${featured.offer?.text ? `🎫 ${featured.offer.text.slice(0,28)}` : 'Explorar →'}
                 </button>
               </div>
-              <div class="hero-save-indicator">❤️ Guardar</div>
-              <div class="hero-skip-indicator">→ Siguiente</div>
-              ${(featured.stats?.going || 0) >= 15 ? '<span class="featured-card-badge">🔥 Popular</span>' : ''}
-              <button class="featured-card-save${saved.includes(featured.id) ? ' saved' : ''}" data-save="${featured.id}">♥</button>
-              <div class="featured-xp-badge">⭐ +2 XP al visitar</div>
+              ${(featured.stats?.going || 0) >= 5 ? '<span class="featured-card-badge">🔥 Popular</span>' : ''}
+              <button class="featured-card-save${saved.includes(featured.id) ? ' saved' : ''}" data-save="${featured.id}">
+                ${saved.includes(featured.id) ? '♥' : '♡'}
+              </button>
             </div>
             ${trending.length > 1 ? `<button class="hero-nav-btn hero-next" id="hero-next">&#8250;</button>` : ''}
           </div>
           ${dotsHtml}
         </div>` : ''}
 
-        <div class="section-head">
-          <span class="section-head-title">Lugares en Roma${state.selectedNeighborhood !== 'Todos' ? ' · ' + state.selectedNeighborhood : ''}</span>
-          <span class="section-head-sub">${places.length} registrado${places.length !== 1 ? 's' : ''}</span>
-        </div>
-
+        <!-- CATEGORY FILTER CHIPS -->
         <div class="chips-smart-wrap">
           <div class="chips-row">
-            ${neighborhoods.map(n => `
-              <div class="chip${n === state.selectedNeighborhood ? ' active' : ''}" data-neighborhood="${n}">${n}</div>
-            `).join('')}
+            ${cats.map(c => {
+              const isActive = c === catFilter;
+              const color = c === 'Todos' ? '#0F172A' : getCatColor(c);
+              return `<div class="chip${isActive ? ' active' : ''}" data-category="${c}" style="${isActive ? `--chip-color:${color}` : ''}">${c === 'Todos' ? '✦ Todos' : c}</div>`;
+            }).join('')}
           </div>
         </div>
 
@@ -1109,48 +1175,113 @@ const VIEWS = {
   },
 
   pass() {
-    const places = getPlaces().filter(p => p.plan !== 'free' && p.active !== false);
+    const benefitPlaces = getPlaces().filter(p => p.plan !== 'free' && p.active !== false);
     const user   = getUser();
+    const xp     = calcXP();
+    const level  = calcLevel(xp);
+    const badges = getBadges();
+
     return `
       <div class="view">
-        <div class="pass-card">
+
+        <!-- PASS CARD -->
+        <div class="pass-card" style="--pass-level-color:${level.color}">
+          <div class="pass-card-shine"></div>
           <div class="pass-header">
-            <span class="pass-brand">Global Connect</span>
-            <span class="pass-type">Student Pass</span>
+            <div class="pass-header-left">
+              <div class="pass-gc-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:rgba(255,255,255,.9);width:16px;height:16px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </div>
+              <span class="pass-brand">Global Connect</span>
+            </div>
+            <span class="pass-level-chip">${level.icon} ${level.name}</span>
           </div>
-          <div class="pass-name">${user.name} ${user.lastName}</div>
-          <div class="pass-uni">${user.uni} · ${user.exchange}</div>
-          <div class="pass-id-box">
-            <div class="pass-id-label">ID Estudiante</div>
-            <div class="pass-id">${user.studentId}</div>
+
+          <div class="pass-avatar-row">
+            <div class="pass-avatar" style="background:${user.avatarColor || '#0066FF'}">${user.initials || '?'}</div>
+            <div class="pass-avatar-info">
+              <div class="pass-name">${user.name} ${user.lastName}</div>
+              <div class="pass-uni">${user.uni}${user.exchange ? ' · ' + user.exchange : ''}</div>
+            </div>
           </div>
-          <div class="pass-footer">
-            <span>Válido: ${user.validFrom} – ${user.validTo}</span>
-            <span>Partner Premium</span>
+
+          <div class="pass-xp-section">
+            <div class="pass-xp-row">
+              <span class="pass-xp-label">${xp} XP</span>
+              <span class="pass-xp-next">${level.next ? level.next + ' XP →' : '👑 Máximo'}</span>
+            </div>
+            <div class="pass-xp-track">
+              <div class="pass-xp-fill" style="width:${level.progress}%"></div>
+            </div>
+          </div>
+
+          <div class="pass-id-row">
+            <div class="pass-id-block">
+              <div class="pass-id-label">Student ID</div>
+              <div class="pass-id">${user.studentId}</div>
+            </div>
+            <div class="pass-id-block" style="text-align:right">
+              <div class="pass-id-label">Válido hasta</div>
+              <div class="pass-id">${user.validTo || '—'}</div>
+            </div>
           </div>
         </div>
 
-        ${places.length > 0 ? `
-        <div class="section-head" style="margin-top:4px">
-          <span class="section-head-title">Beneficios activos</span>
-          <span class="section-head-sub">${places.length} lugar${places.length !== 1 ? 'es' : ''}</span>
+        <!-- BADGES -->
+        ${badges.length > 0 ? `
+        <div class="section-head">
+          <span class="section-head-title">Logros</span>
+          <span class="section-head-sub">${badges.length} desbloqueado${badges.length !== 1 ? 's' : ''}</span>
         </div>
-        <div style="background:#fff;margin:0 16px 16px;border:1px solid #EAECEF;border-radius:14px;overflow:hidden">
-          ${places.map(p => `
-            <div class="benefit-item" data-place="${p.id}">
-              <div class="benefit-icon" style="background:${p.bgColor || '#F8FAFC'}">${p.emoji || '●'}</div>
+        <div class="badges-scroll">
+          ${badges.map(b => `
+            <div class="badge-pill">
+              <span class="badge-pill-icon">${b.icon}</span>
               <div>
-                <div class="benefit-name">${p.name}</div>
-                ${p.offer?.text ? `<div class="benefit-offer">${p.offer.text}</div>` : ''}
+                <div class="badge-pill-name">${b.label}</div>
+                <div class="badge-pill-desc">${b.desc}</div>
               </div>
             </div>`).join('')}
+          <div class="badge-pill badge-pill-locked">
+            <span class="badge-pill-icon" style="filter:grayscale(1)">🗂️</span>
+            <div>
+              <div class="badge-pill-name" style="color:#94A3B8">Curador</div>
+              <div class="badge-pill-desc">Guardá 10 lugares</div>
+            </div>
+          </div>
         </div>` : `
-        <div class="empty-state">
-          <div class="empty-state-title">Sin beneficios activos</div>
-          <div class="empty-state-desc">Los locales partner aparecerán aquí</div>
+        <div class="badges-empty">
+          <div class="badges-empty-icon">🏅</div>
+          <div class="badges-empty-title">Empezá a ganar logros</div>
+          <div class="badges-empty-desc">Guardá lugares y confirmá eventos para desbloquear badges</div>
         </div>`}
 
-        <div style="padding:0 16px 8px">
+        <!-- XP SOURCE INFO -->
+        <div class="xp-how-works">
+          <div class="xp-how-title">¿Cómo ganar XP?</div>
+          <div class="xp-how-row"><span>💾</span><span>Guardar un lugar</span><span class="xp-how-pts">+5 XP</span></div>
+          <div class="xp-how-row"><span>✅</span><span>Confirmar asistencia a un evento</span><span class="xp-how-pts">+15 XP</span></div>
+        </div>
+
+        <!-- BENEFITS -->
+        ${benefitPlaces.length > 0 ? `
+        <div class="section-head">
+          <span class="section-head-title">Beneficios GCPass</span>
+          <span class="section-head-sub">${benefitPlaces.length} lugar${benefitPlaces.length !== 1 ? 'es' : ''}</span>
+        </div>
+        <div class="benefits-list">
+          ${benefitPlaces.map(p => `
+            <div class="benefit-item" data-place="${p.id}">
+              <div class="benefit-icon" style="background:${p.bgColor || '#F8FAFC'}">${p.emoji || '●'}</div>
+              <div class="benefit-body">
+                <div class="benefit-name">${p.name}</div>
+                ${p.offer?.text ? `<div class="benefit-offer">🎫 ${p.offer.text}</div>` : ''}
+              </div>
+              <div class="benefit-arrow">›</div>
+            </div>`).join('')}
+        </div>` : ''}
+
+        <div style="padding:0 16px 24px">
           <button class="btn-primary-full" id="share-btn">Compartir mi GCPass</button>
         </div>
       </div>`;
@@ -1749,6 +1880,15 @@ function attachListeners() {
       const id = parseInt(el.dataset.attend);
       await toggleAttend(id);
       navigate('eventos');
+    });
+  });
+
+  // Events story strip — tap to attend/unattend from feed
+  content.querySelectorAll('[data-attend-story]').forEach(el => {
+    el.addEventListener('click', async () => {
+      const id = parseInt(el.dataset.attendStory);
+      await toggleAttend(id);
+      navigate('feed');
     });
   });
 

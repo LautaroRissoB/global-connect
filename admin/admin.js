@@ -502,10 +502,11 @@ const ADMIN_VIEWS = {
   },
 
   agregar() {
-    const isEditing = adminState.editingPlaceId !== null;
-    const places = getAdminPlaces();
-    const p = isEditing ? places.find(x => x.id === adminState.editingPlaceId) : null;
+    const isEditing   = adminState.editingPlaceId !== null;
+    const places      = getAdminPlaces();
+    const p           = isEditing ? places.find(x => x.id === adminState.editingPlaceId) : null;
     const currentColor = p?.bgColor || '#FEF3C7';
+    const step         = adminState.wizardStep || 1;
 
     // Parse existing hours string (e.g. "Lun–Dom 12:00–22:00")
     const hoursStr   = p?.hours || '';
@@ -530,18 +531,281 @@ const ADMIN_VIEWS = {
       previewImgHtml = `<div class="card-preview-icon-bg" style="background:${currentColor}">${p?.emoji || '🏠'}</div>`;
     }
 
+    const stepLabels = ['Identidad visual', 'Información', 'Oferta & Plan'];
+
     return `
       <div class="admin-page">
         <div class="admin-page-header">
-          <div>
+          <div style="display:flex;align-items:center;gap:12px">
             <button class="btn-ghost back-btn" data-nav="locales">← Volver</button>
-            <h1 style="margin-top:8px">${isEditing ? 'Editar local' : 'Agregar local'}</h1>
+            <h1>${isEditing ? 'Editar local' : 'Nuevo local'}</h1>
           </div>
+        </div>
+
+        <!-- WIZARD STEPS -->
+        <div class="wizard-steps">
+          ${stepLabels.map((label, i) => `
+            <div class="wizard-step${step === i+1 ? ' active' : step > i+1 ? ' done' : ''}" data-goto-step="${i+1}">
+              <div class="wizard-step-num">${step > i+1 ? '✓' : i+1}</div>
+              <div class="wizard-step-label">${label}</div>
+            </div>
+            ${i < 2 ? '<div class="wizard-step-line' + (step > i+1 ? ' done' : '') + '"></div>' : ''}`).join('')}
         </div>
 
         <div class="agregar-layout">
 
-          <div class="admin-card agregar-form-col">
+          <div class="agregar-form-col">
+
+          <!-- ── STEP 1: IDENTIDAD VISUAL ── -->
+          <div class="wizard-panel${step === 1 ? ' active' : ''}" id="wizard-panel-1">
+            <div class="admin-card">
+              <div class="admin-card-head"><span class="admin-card-title">1 · Identidad visual</span></div>
+              <div class="admin-card-body">
+
+                <div class="upload-grid">
+                  <div class="upload-zone" id="cover-upload-zone">
+                    <label for="f-imageFile">
+                      ${p?.imageData || p?.imageUrl
+                        ? `<img id="img-preview" class="upload-preview-img" src="${p.imageData || p.imageUrl}" alt=""/>`
+                        : `<div class="upload-placeholder"><span class="upload-icon">🖼</span><span class="upload-label">Foto de portada</span><span class="upload-hint">JPG, PNG · máx 2 MB</span></div>`
+                      }
+                    </label>
+                    <input type="file" id="f-imageFile" accept="image/*" style="display:none"/>
+                    ${p?.imageData || p?.imageUrl ? '' : `<img id="img-preview" class="upload-preview-img" src="" style="display:none" alt=""/>`}
+                  </div>
+                  <div class="upload-zone upload-zone-sm" id="logo-upload-zone">
+                    <label for="f-logoFile">
+                      ${p?.logoData
+                        ? `<img id="logo-preview" class="upload-preview-img" src="${p.logoData}" alt=""/>`
+                        : `<div class="upload-placeholder"><span class="upload-icon">🏷</span><span class="upload-label">Logo</span><span class="upload-hint">máx 500 KB</span></div>`
+                      }
+                    </label>
+                    <input type="file" id="f-logoFile" accept="image/*" style="display:none"/>
+                    ${p?.logoData ? '' : `<img id="logo-preview" class="upload-preview-img" src="" style="display:none" alt=""/>`}
+                  </div>
+                </div>
+
+                <div class="form-row" style="margin-top:16px">
+                  <div class="form-group">
+                    <label>Nombre del local *</label>
+                    <input type="text" id="f-name" class="form-input" placeholder="Osteria dell'Angelo" value="${p?.name || ''}"/>
+                  </div>
+                  <div class="form-group">
+                    <label>Categoría *</label>
+                    <select id="f-category" class="form-input">
+                      <option value="">Seleccionar...</option>
+                      ${['Trattoria','Aperitivo bar','Bar histórico','Craft beer bar','Pizza al taglio','Cucina ebraica','Restaurante','Café','Club','Otro'].map(c => `<option value="${c}"${p?.category === c ? ' selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Barrio *</label>
+                    <select id="f-neighborhood" class="form-input">
+                      <option value="">Seleccionar...</option>
+                      ${['Trastevere','Prati','Testaccio','Monti','Pigneto','Ghetto','Esquilino','Ostiense','Parioli','EUR','Tiburtino','Garbatella'].map(n => `<option value="${n}"${p?.neighborhood === n ? ' selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Precio promedio</label>
+                    <select id="f-priceRange" class="form-input">
+                      <option value="">Sin especificar</option>
+                      <option value="< €10"  ${p?.priceRange === '< €10'  ? 'selected' : ''}>Económico · &lt;€10</option>
+                      <option value="€10–20" ${p?.priceRange === '€10–20' ? 'selected' : ''}>Moderado · €10–20</option>
+                      <option value="€20–40" ${p?.priceRange === '€20–40' ? 'selected' : ''}>Medio-alto · €20–40</option>
+                      <option value="> €40"  ${p?.priceRange === '> €40'  ? 'selected' : ''}>Premium · &gt;€40</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group" style="flex:0 0 auto">
+                    <label>Emoji</label>
+                    <input type="text" id="f-emoji" class="form-input" placeholder="🍝" value="${p?.emoji || ''}" maxlength="2" style="width:72px;text-align:center;font-size:22px"/>
+                  </div>
+                  <div class="form-group">
+                    <label>Color de fondo</label>
+                    <div class="color-swatches">
+                      ${BG_COLORS.map(c => `<button type="button" class="color-swatch${currentColor === c.value ? ' selected' : ''}" data-color="${c.value}" style="background:${c.value}" title="${c.label}"></button>`).join('')}
+                    </div>
+                    <input type="hidden" id="f-bgColor" value="${currentColor}"/>
+                  </div>
+                </div>
+
+              </div>
+              <div class="wizard-panel-footer">
+                <div></div>
+                <button class="btn-primary" id="step1-next">Siguiente: Información →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── STEP 2: INFORMACIÓN ── -->
+          <div class="wizard-panel${step === 2 ? ' active' : ''}" id="wizard-panel-2">
+            <div class="admin-card">
+              <div class="admin-card-head"><span class="admin-card-title">2 · Información y contacto</span></div>
+              <div class="admin-card-body">
+
+                <div class="form-group">
+                  <label>Descripción</label>
+                  <textarea id="f-description" class="form-input form-textarea" placeholder="Describí el local para los estudiantes..." rows="3">${p?.description || ''}</textarea>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" id="f-address" class="form-input" placeholder="Via della Lungaretta 28, Trastevere" value="${p?.address || ''}"/>
+                  </div>
+                  <div class="form-group">
+                    <label>Link Google Maps</label>
+                    <input type="url" id="f-maps" class="form-input" placeholder="https://maps.google.com/..." value="${p?.mapsUrl || ''}"/>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="tel" id="f-phone" class="form-input" placeholder="+39 06 581 3798" value="${p?.phone || ''}"/>
+                  </div>
+                  <div class="form-group">
+                    <label>Sitio web</label>
+                    <input type="url" id="f-website" class="form-input" placeholder="https://..." value="${p?.website || ''}"/>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Horario</label>
+                  <div class="hours-presets">
+                    ${DAY_PRESETS.map(d => `<button type="button" class="hours-preset-btn${(p?.hours||'').startsWith(d) ? ' active' : ''}" data-days="${d}">${d}</button>`).join('')}
+                  </div>
+                  <div class="hours-time-row">
+                    <input type="time" id="f-hours-open"  class="form-input" style="width:130px" value="${p?.hours?.match(/(\d{2}:\d{2})–/)?.[1] || '12:00'}"/>
+                    <span class="hours-sep">–</span>
+                    <input type="time" id="f-hours-close" class="form-input" style="width:130px" value="${p?.hours?.match(/–(\d{2}:\d{2})$/)?.[1] || '22:00'}"/>
+                  </div>
+                  <div class="hours-preview-text" id="hours-preview">${p?.hours || 'Sin horario definido'}</div>
+                  <input type="hidden" id="f-hours" value="${p?.hours || ''}"/>
+                </div>
+
+              </div>
+              <div class="wizard-panel-footer">
+                <button class="btn-ghost" id="step2-prev">← Anterior</button>
+                <button class="btn-primary" id="step2-next">Siguiente: Oferta & Plan →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── STEP 3: OFERTA & PLAN ── -->
+          <div class="wizard-panel${step === 3 ? ' active' : ''}" id="wizard-panel-3">
+            <div class="admin-card">
+              <div class="admin-card-head"><span class="admin-card-title">3 · Oferta & Plan</span></div>
+              <div class="admin-card-body">
+
+                <div class="form-group">
+                  <label>Oferta para estudiantes GC</label>
+                  <input type="text" id="f-offer" class="form-input form-input-lg" placeholder="Ej: 10% de descuento en almuerzo y cena" value="${p?.offer?.text || ''}"/>
+                  <div class="form-hint">Los estudiantes la ven en su GCPass. Sé específico y atractivo.</div>
+                </div>
+
+                <div class="form-group">
+                  <label>Menú / Carta</label>
+                  <label class="file-upload-btn file-upload-btn-secondary" for="f-menuFile">
+                    📄 ${p?.menuData ? 'Cambiar menú' : 'Subir menú (PDF o imagen)'}
+                  </label>
+                  <input type="file" id="f-menuFile" accept=".pdf,image/*" style="display:none"/>
+                  <div id="menu-upload-status" style="font-size:12px;color:#22C55E;margin-top:6px;display:${p?.menuData ? 'block' : 'none'}">✓ Menú cargado</div>
+                </div>
+
+                <div class="form-group">
+                  <label>Plan</label>
+                  <div class="plan-cards-grid">
+                    <label class="plan-card-option${(!p || p.plan === 'free') ? ' selected' : ''}">
+                      <input type="radio" name="plan" value="free" ${(!p || p.plan === 'free') ? 'checked' : ''} style="display:none"/>
+                      <div class="plan-card-header plan-card-free">Free</div>
+                      <div class="plan-card-price">€0<span>/mes</span></div>
+                      <ul class="plan-card-features">
+                        <li>✓ Perfil básico</li>
+                        <li>✓ Aparece en el mapa</li>
+                        <li style="color:#94A3B8">✗ Oferta destacada</li>
+                      </ul>
+                    </label>
+                    <label class="plan-card-option${p?.plan === 'partner' ? ' selected' : ''}">
+                      <input type="radio" name="plan" value="partner" ${p?.plan === 'partner' ? 'checked' : ''} style="display:none"/>
+                      <div class="plan-card-header plan-card-partner">Partner ★</div>
+                      <div class="plan-card-price">€99<span>/mes</span></div>
+                      <ul class="plan-card-features">
+                        <li>✓ Todo lo de Free</li>
+                        <li>✓ Oferta exclusiva GC</li>
+                        <li>✓ Métricas en tiempo real</li>
+                      </ul>
+                    </label>
+                    <label class="plan-card-option${p?.plan === 'premium' ? ' selected' : ''}">
+                      <input type="radio" name="plan" value="premium" ${p?.plan === 'premium' ? 'checked' : ''} style="display:none"/>
+                      <div class="plan-card-header plan-card-premium">Premium 👑</div>
+                      <div class="plan-card-price">€199<span>/mes</span></div>
+                      <ul class="plan-card-features">
+                        <li>✓ Todo lo de Partner</li>
+                        <li>✓ Posición top en feed</li>
+                        <li>✓ Exclusividad por zona</li>
+                      </ul>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Estado</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="f-active" ${!p || p.active ? 'checked' : ''}/>
+                    <span class="toggle-slider"></span>
+                    <span id="toggle-label">${!p || p.active ? 'Activo' : 'Inactivo'}</span>
+                  </label>
+                </div>
+
+                <div id="form-error" class="form-error" style="display:none"></div>
+
+              </div>
+              <div class="wizard-panel-footer">
+                <button class="btn-ghost" id="step3-prev">← Anterior</button>
+                <button class="btn-primary" id="save-place-btn">${isEditing ? '💾 Guardar cambios' : '✓ Publicar local'}</button>
+              </div>
+            </div>
+          </div>
+
+          </div><!-- /agregar-form-col -->
+
+          <!-- LIVE PREVIEW -->
+          <div class="card-preview-panel">
+            <div class="card-preview-label">Vista previa en tiempo real</div>
+            <div class="card-preview" id="card-preview">
+              <div class="card-preview-media" id="preview-media">
+                ${p?.imageData || p?.imageUrl
+                  ? `<img src="${p.imageData || p.imageUrl}" alt="" style="width:100%;height:100%;object-fit:cover"/>`
+                  : `<div style="width:100%;height:100%;background:${currentColor};display:flex;align-items:center;justify-content:center;font-size:40px">${p?.emoji || '🏠'}</div>`
+                }
+              </div>
+              <div class="card-preview-body">
+                <div class="card-preview-name" id="preview-name">${p?.name || 'Nombre del local'}</div>
+                <div class="card-preview-sub" id="preview-sub">${p?.category || 'Categoría'} · ${p?.neighborhood || 'Barrio'}</div>
+                ${p?.offer?.text ? `<div class="card-preview-offer" id="preview-offer">🎫 ${p.offer.text}</div>` : `<div class="card-preview-offer" id="preview-offer" style="display:none"></div>`}
+              </div>
+            </div>
+
+            <div class="preview-stats-box" style="margin-top:16px">
+              <div class="preview-stat-row">
+                <span>Plan seleccionado</span>
+                <span id="preview-plan-chip">${p?.plan || 'free'}</span>
+              </div>
+              <div class="preview-stat-row">
+                <span>Estado</span>
+                <span id="preview-status-chip">${!p || p.active ? '🟢 Activo' : '🔴 Inactivo'}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>`;
+  },
             <div class="admin-card-body">
 
               <div class="form-section-title">Identidad visual</div>
@@ -1262,12 +1526,63 @@ function attachAdminListeners() {
   const fa = content.querySelector('#filter-active');
   if (fa) fa.addEventListener('change', () => { adminState.filterActive = fa.value; navigate('locales'); });
 
+  // ── Wizard step navigation ───────────────────────────────────────────────────
+  function goToStep(n) {
+    adminState.wizardStep = n;
+    document.querySelectorAll('.wizard-panel').forEach((el, i) => {
+      el.classList.toggle('active', i + 1 === n);
+    });
+    document.querySelectorAll('.wizard-step').forEach((el, i) => {
+      el.classList.toggle('active', i + 1 === n);
+      el.classList.toggle('done', i + 1 < n);
+    });
+    document.querySelectorAll('.wizard-step-line').forEach((el, i) => {
+      el.classList.toggle('done', i + 1 < n);
+    });
+  }
+  const s1Next = content.querySelector('#step1-next');
+  const s2Prev = content.querySelector('#step2-prev');
+  const s2Next = content.querySelector('#step2-next');
+  const s3Prev = content.querySelector('#step3-prev');
+  if (s1Next) s1Next.addEventListener('click', () => {
+    const name = document.getElementById('f-name')?.value.trim();
+    const cat  = document.getElementById('f-category')?.value;
+    const nb   = document.getElementById('f-neighborhood')?.value;
+    if (!name) { document.getElementById('f-name')?.focus(); return; }
+    if (!cat)  { document.getElementById('f-category')?.focus(); return; }
+    if (!nb)   { document.getElementById('f-neighborhood')?.focus(); return; }
+    goToStep(2);
+    document.getElementById('admin-content').scrollTop = 0;
+  });
+  if (s2Prev) s2Prev.addEventListener('click', () => { goToStep(1); document.getElementById('admin-content').scrollTop = 0; });
+  if (s2Next) s2Next.addEventListener('click', () => { goToStep(3); document.getElementById('admin-content').scrollTop = 0; });
+  if (s3Prev) s3Prev.addEventListener('click', () => { goToStep(2); document.getElementById('admin-content').scrollTop = 0; });
+
+  // Wizard step header click
+  content.querySelectorAll('[data-goto-step]').forEach(el => {
+    el.addEventListener('click', () => {
+      const n = parseInt(el.dataset.gotoStep);
+      if (n < (adminState.wizardStep || 1)) goToStep(n);
+    });
+  });
+
+  // Plan cards click
+  content.querySelectorAll('.plan-card-option').forEach(el => {
+    el.addEventListener('click', () => {
+      content.querySelectorAll('.plan-card-option').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      const radio = el.querySelector('input[type=radio]');
+      if (radio) radio.checked = true;
+      const previewChip = document.getElementById('preview-plan-chip');
+      if (previewChip) previewChip.textContent = radio?.value || '';
+    });
+  });
+
   // ── Agregar/Editar form ──────────────────────────────────────────────────────
   const emojiInput = content.querySelector('#f-emoji');
   if (emojiInput) {
     emojiInput.addEventListener('input', () => {
-      const box = document.getElementById('emoji-preview-box');
-      if (box) box.textContent = emojiInput.value || '🏠';
+      updateCardPreview();
     });
   }
 
@@ -1288,6 +1603,8 @@ function attachAdminListeners() {
     activeToggle.addEventListener('change', () => {
       const lbl = document.getElementById('toggle-label');
       if (lbl) lbl.textContent = activeToggle.checked ? 'Activo' : 'Inactivo';
+      const chip = document.getElementById('preview-status-chip');
+      if (chip) chip.textContent = activeToggle.checked ? '🟢 Activo' : '🔴 Inactivo';
     });
   }
 
@@ -1319,8 +1636,6 @@ function attachAdminListeners() {
 
   // ── Live card preview ─────────────────────────────────────────────────────────
   function updateCardPreview() {
-    const preview = document.getElementById('card-preview');
-    if (!preview) return;
     const name         = document.getElementById('f-name')?.value.trim()    || 'Nombre del local';
     const category     = document.getElementById('f-category')?.value        || 'Categoría';
     const neighborhood = document.getElementById('f-neighborhood')?.value    || 'Barrio';
@@ -1332,21 +1647,22 @@ function attachAdminListeners() {
     const imageSrc     = imageFileInp?._data || '';
     const logoSrc      = logoFileInp?._data  || '';
 
-    let imgHtml;
-    if (imageSrc) {
-      imgHtml = `<img class="card-preview-img" src="${imageSrc}" alt=""/>`;
-    } else if (logoSrc) {
-      imgHtml = `<div class="card-preview-icon-bg" style="background:${bgColor}"><img class="card-preview-logo" src="${logoSrc}" alt=""/></div>`;
-    } else {
-      imgHtml = `<div class="card-preview-icon-bg" style="background:${bgColor}">${emoji}</div>`;
+    const mediEl = document.getElementById('preview-media');
+    if (mediEl) {
+      if (imageSrc) {
+        mediEl.innerHTML = `<img src="${imageSrc}" alt="" style="width:100%;height:100%;object-fit:cover"/>`;
+      } else if (logoSrc) {
+        mediEl.innerHTML = `<div style="width:100%;height:100%;background:${bgColor};display:flex;align-items:center;justify-content:center"><img src="${logoSrc}" alt="" style="max-height:60%;max-width:70%"/></div>`;
+      } else {
+        mediEl.innerHTML = `<div style="width:100%;height:100%;background:${bgColor};display:flex;align-items:center;justify-content:center;font-size:40px">${emoji}</div>`;
+      }
     }
-    preview.innerHTML = `
-      ${imgHtml}
-      <div class="card-preview-body">
-        <div class="card-preview-name">${name}</div>
-        <div class="card-preview-sub">${category} · ${neighborhood}</div>
-        ${offerText ? `<div class="card-preview-offer">${offerText}</div>` : ''}
-      </div>`;
+    const nameEl  = document.getElementById('preview-name');
+    const subEl   = document.getElementById('preview-sub');
+    const offerEl = document.getElementById('preview-offer');
+    if (nameEl)  nameEl.textContent  = name;
+    if (subEl)   subEl.textContent   = `${category} · ${neighborhood}`;
+    if (offerEl) { offerEl.textContent = offerText ? '🎫 ' + offerText : ''; offerEl.style.display = offerText ? '' : 'none'; }
   }
 
   // Connect preview-triggering inputs
@@ -1537,7 +1853,7 @@ function attachAdminListeners() {
 // ─── SIDEBAR NAV (attached once) ─────────────────────────────────────────────
 document.querySelectorAll('#sidebar [data-nav]').forEach(el => {
   el.addEventListener('click', () => {
-    if (el.dataset.nav === 'agregar') adminState.editingPlaceId = null;
+    if (el.dataset.nav === 'agregar') { adminState.editingPlaceId = null; adminState.wizardStep = 1; }
     navigate(el.dataset.nav);
   });
 });
