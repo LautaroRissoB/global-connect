@@ -163,26 +163,38 @@ function hideGlobalLoader() {
 // ─── APP INIT ─────────────────────────────────────────────────────────────────
 async function initApp() {
   showGlobalLoader();
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    _cache.session = session;
-    await loadUserData(session.user.id);
-    await loadAppData();
-    navigate('feed');
-  } else {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      _cache.session = session;
+      await loadUserData(session.user.id);
+      await loadAppData();
+      navigate('feed');
+    } else {
+      navigate('onboarding');
+    }
+  } catch (e) {
+    console.error('initApp error:', e);
     navigate('onboarding');
+  } finally {
+    hideGlobalLoader();
   }
-  hideGlobalLoader();
 }
 
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN' && session) {
-    _cache.session = session;
-    const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).single();
-    if (!profile) await createProfileFromMetadata(session.user);
-    await loadUserData(session.user.id);
-    await loadAppData();
-    navigate('feed');
+    try {
+      _cache.session = session;
+      const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).single();
+      if (!profile) await createProfileFromMetadata(session.user);
+      await loadUserData(session.user.id);
+      await loadAppData();
+      navigate('feed');
+    } catch (e) {
+      console.error('onAuthStateChange error:', e);
+    } finally {
+      hideGlobalLoader();
+    }
   } else if (event === 'SIGNED_OUT') {
     Object.assign(_cache, { session: null, profile: null, places: [], events: [],
       saved: new Set(), attending: new Set() });
