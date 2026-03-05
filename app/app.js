@@ -1787,6 +1787,21 @@ function attachListeners() {
         return;
       }
 
+      // If email confirmation is disabled, Supabase returns a session immediately
+      if (signUpRes.access_token) {
+        _saveSession(signUpRes);
+        _cache.session = signUpRes;
+        showGlobalLoader();
+        try {
+          await Promise.all([
+            withTimeout(loadUserData(signUpRes.user.id, signUpRes.access_token), 6000),
+            withTimeout(loadAppData(), 6000),
+          ]);
+        } catch {}
+        hideGlobalLoader();
+        navigate('feed');
+        return;
+      }
       _pendingEmail = email;
       navigate('email-verify');
     });
