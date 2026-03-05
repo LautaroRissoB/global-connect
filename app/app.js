@@ -1688,25 +1688,48 @@ function attachListeners() {
 
       // Domain validation
       const domain = email.split('@')[1];
-      const { data: domainRow } = await sb.from('allowed_domains').select('university_name').eq('domain', domain).single();
+      signupSubmit.disabled = true;
+      signupSubmit.textContent = 'Verificando...';
+      let domainRow;
+      try {
+        const { data } = await withTimeout(
+          sb.from('allowed_domains').select('university_name').eq('domain', domain).single(), 8000
+        );
+        domainRow = data;
+      } catch(e) {
+        signupSubmit.disabled = false;
+        signupSubmit.textContent = 'Crear mi cuenta →';
+        setErr('err-email', true, 'Error al conectar. Verificá tu conexión e intentá de nuevo.');
+        return;
+      }
       if (!domainRow) {
+        signupSubmit.disabled = false;
+        signupSubmit.textContent = 'Crear mi cuenta →';
         setErr('err-email', true, 'El dominio de tu email no está autorizado. Contactá al administrador.');
         return;
       }
 
-      signupSubmit.disabled = true;
       signupSubmit.textContent = 'Creando cuenta...';
 
-      const { error } = await sb.auth.signUp({
-        email, password,
-        options: { data: { name, last_name: lastName, university: uni, exchange_period: period } },
-      });
+      let signUpError;
+      try {
+        const { error } = await withTimeout(
+          sb.auth.signUp({ email, password, options: { data: { name, last_name: lastName, university: uni, exchange_period: period } } }),
+          10000
+        );
+        signUpError = error;
+      } catch(e) {
+        signupSubmit.disabled = false;
+        signupSubmit.textContent = 'Crear mi cuenta →';
+        setErr('err-email', true, 'Error al crear la cuenta. Intentá de nuevo.');
+        return;
+      }
 
       signupSubmit.disabled = false;
       signupSubmit.textContent = 'Crear mi cuenta →';
 
-      if (error) {
-        setErr('err-email', true, error.message);
+      if (signUpError) {
+        setErr('err-email', true, signUpError.message);
         return;
       }
 
