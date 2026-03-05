@@ -1,7 +1,51 @@
-// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
+// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
 const SUPABASE_URL     = 'https://hiokmuvqwosipgzvkqoo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4SNcRuP6ig9jFYVe4u8bpQ_BseeKIvq';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Raw fetch helpers — bypass SDK (sb_publishable key doesn't work with SDK in browser)
+function _gcHeaders(token) {
+  return {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+}
+async function gcGet(table, qs, token) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs || ''}`, { headers: _gcHeaders(token) });
+  return r.json();
+}
+async function gcPost(table, body, token) {
+  await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { ..._gcHeaders(token), 'Prefer': 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+}
+async function gcDelete(table, qs, token) {
+  await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs}`, { method: 'DELETE', headers: _gcHeaders(token) });
+}
+async function authPost(path, body) {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
+// ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
+const _SESSION_KEY = 'gc_session_v2';
+function _saveSession(d) {
+  try { localStorage.setItem(_SESSION_KEY, JSON.stringify({ access_token: d.access_token, refresh_token: d.refresh_token, user: d.user, expires_at: Date.now() + (d.expires_in || 3600) * 1000 })); } catch {}
+}
+function _loadSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(_SESSION_KEY) || 'null');
+    if (!s || s.expires_at < Date.now()) { localStorage.removeItem(_SESSION_KEY); return null; }
+    return s;
+  } catch { return null; }
+}
+function _clearSession() { localStorage.removeItem(_SESSION_KEY); }
 
 // ─── IN-MEMORY CACHE ──────────────────────────────────────────────────────────
 const _cache = {
@@ -60,86 +104,76 @@ function normalizeEvent(e) {
 }
 
 // ─── ASYNC DATA LOADERS ───────────────────────────────────────────────────────
-async function loadUserData(userId) {
-  const [profileRes, savedRes, attendingRes] = await Promise.all([
-    sb.from('profiles').select('*').eq('id', userId).single(),
-    sb.from('saved_places').select('place_id').eq('user_id', userId),
-    sb.from('attending_events').select('event_id').eq('user_id', userId),
+async function loadUserData(userId, token) {
+  const [profileArr, savedArr, attendingArr] = await Promise.all([
+    gcGet('profiles', `id=eq.${userId}&select=*`, token),
+    gcGet('saved_places', `user_id=eq.${userId}&select=place_id`, token),
+    gcGet('attending_events', `user_id=eq.${userId}&select=event_id`, token),
   ]);
-  if (profileRes.data) {
-    const p = profileRes.data;
-    _cache.profile = {
-      ...p,
-      lastName:    p.last_name,
-      avatarColor: p.avatar_color || '#0066FF',
-      studentId:   p.student_id,
-      validFrom:   p.valid_from,
-      validTo:     p.valid_to,
-      uni:         p.university,
-      exchange:    p.exchange_period,
-    };
+  const p = Array.isArray(profileArr) ? profileArr[0] : null;
+  if (p) {
+    _cache.profile = { ...p, lastName: p.last_name, avatarColor: p.avatar_color || '#0066FF',
+      studentId: p.student_id, validFrom: p.valid_from, validTo: p.valid_to,
+      uni: p.university, exchange: p.exchange_period };
   }
-  _cache.saved     = new Set((savedRes.data     || []).map(r => r.place_id));
-  _cache.attending = new Set((attendingRes.data || []).map(r => r.event_id));
+  _cache.saved     = new Set((Array.isArray(savedArr)     ? savedArr     : []).map(r => r.place_id));
+  _cache.attending = new Set((Array.isArray(attendingArr) ? attendingArr : []).map(r => r.event_id));
 }
 
 async function loadAppData() {
-  const [placesRes, eventsRes] = await Promise.all([
-    sb.from('places').select('*').eq('active', true).order('id'),
-    sb.from('events').select('*').eq('active', true).order('id'),
+  const [placesArr, eventsArr] = await Promise.all([
+    gcGet('places', 'active=eq.true&order=id'),
+    gcGet('events', 'active=eq.true&order=id'),
   ]);
-  _cache.places = (placesRes.data || []).map(normalizePlace);
-  _cache.events = (eventsRes.data || []).map(normalizeEvent);
+  const places = Array.isArray(placesArr) ? placesArr.map(normalizePlace) : [];
+  const events = Array.isArray(eventsArr) ? eventsArr.map(normalizeEvent) : [];
+  _cache.places = places.length > 0 ? places : (window.GC_PLACES || []);
+  _cache.events = events.length > 0 ? events : (window.GC_EVENTS || []);
 }
 
-async function createProfileFromMetadata(user) {
+async function createProfileFromMetadata(user, token) {
   const meta   = user.user_metadata || {};
   const name   = meta.name     || '';
   const lname  = meta.last_name || '';
   const period = EXCHANGE_PERIODS[meta.exchange_period] || EXCHANGE_PERIODS.feb26;
   const sid    = 'GC-' + new Date().getFullYear() + '-' + String(Math.floor(10000 + Math.random() * 90000));
-  await sb.from('profiles').insert({
-    id:              user.id,
-    email:           user.email || '',
-    name,
-    last_name:       lname,
-    initials:        ((name[0] || '') + (lname[0] || '')).toUpperCase() || name.slice(0, 2).toUpperCase(),
-    avatar_color:    '#0066FF',
-    university:      meta.university || '',
-    exchange_period: period.tag,
-    student_id:      sid,
-    valid_from:      period.from,
-    valid_to:        period.to,
-  });
+  await gcPost('profiles', {
+    id: user.id, email: user.email || '', name, last_name: lname,
+    initials: ((name[0] || '') + (lname[0] || '')).toUpperCase() || name.slice(0, 2).toUpperCase(),
+    avatar_color: '#0066FF', university: meta.university || '',
+    exchange_period: period.tag, student_id: sid, valid_from: period.from, valid_to: period.to,
+  }, token);
 }
 
 // ─── ASYNC MUTATIONS ──────────────────────────────────────────────────────────
-async function trackPlaceView(placeId) {
+function trackPlaceView(placeId) {
   if (!_cache.session) return;
-  await sb.from('place_views').insert({ user_id: _cache.session.user.id, place_id: placeId });
+  gcPost('place_views', { user_id: _cache.session.user.id, place_id: placeId }, _cache.session.access_token).catch(() => {});
 }
 
 async function toggleSave(placeId) {
   if (!_cache.session) return;
   const uid = _cache.session.user.id;
+  const tok = _cache.session.access_token;
   if (_cache.saved.has(placeId)) {
     _cache.saved.delete(placeId);
-    await sb.from('saved_places').delete().eq('user_id', uid).eq('place_id', placeId);
+    gcDelete('saved_places', `user_id=eq.${uid}&place_id=eq.${placeId}`, tok).catch(() => {});
   } else {
     _cache.saved.add(placeId);
-    await sb.from('saved_places').insert({ user_id: uid, place_id: placeId });
+    gcPost('saved_places', { user_id: uid, place_id: placeId }, tok).catch(() => {});
   }
 }
 
 async function toggleAttend(eventId) {
   if (!_cache.session) return;
   const uid = _cache.session.user.id;
+  const tok = _cache.session.access_token;
   if (_cache.attending.has(eventId)) {
     _cache.attending.delete(eventId);
-    await sb.from('attending_events').delete().eq('user_id', uid).eq('event_id', eventId);
+    gcDelete('attending_events', `user_id=eq.${uid}&event_id=eq.${eventId}`, tok).catch(() => {});
   } else {
     _cache.attending.add(eventId);
-    await sb.from('attending_events').insert({ user_id: uid, event_id: eventId });
+    gcPost('attending_events', { user_id: uid, event_id: eventId }, tok).catch(() => {});
   }
 }
 
@@ -164,46 +198,62 @@ function hideGlobalLoader() {
 const withTimeout = (promise, ms) =>
   Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
 
+async function _handleVerifyHash() {
+  // Handle Supabase email-verify redirect: /app#access_token=...&type=signup
+  const hash = window.location.hash.slice(1);
+  if (!hash) return false;
+  const params = new URLSearchParams(hash);
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const type = params.get('type');
+  if (!accessToken || type !== 'signup') return false;
+  try {
+    const user = await withTimeout(
+      fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: _gcHeaders(accessToken) }).then(r => r.json()), 6000
+    );
+    if (!user.id) return false;
+    const profileArr = await gcGet('profiles', `id=eq.${user.id}&select=id`, accessToken).catch(() => []);
+    if (!Array.isArray(profileArr) || profileArr.length === 0) {
+      await createProfileFromMetadata(user, accessToken).catch(() => {});
+    }
+    const sessionData = { access_token: accessToken, refresh_token: refreshToken, user, expires_in: 3600 };
+    _saveSession(sessionData);
+    _cache.session = sessionData;
+    window.history.replaceState(null, null, window.location.pathname);
+    await Promise.all([loadUserData(user.id, accessToken), loadAppData()]).catch(() => {});
+    return true;
+  } catch { return false; }
+}
+
 async function initApp() {
   showGlobalLoader();
   try {
-    const { data: { session } } = await withTimeout(sb.auth.getSession(), 6000);
-    if (session) {
-      _cache.session = session;
-      await withTimeout(loadUserData(session.user.id), 6000);
-      await withTimeout(loadAppData(), 6000);
+    // 1. Load places/events first (with local fallback)
+    await withTimeout(loadAppData(), 6000).catch(() => {
+      _cache.places = window.GC_PLACES || [];
+      _cache.events = window.GC_EVENTS || [];
+    });
+    // 2. Check for email-verify hash callback
+    const fromVerify = await _handleVerifyHash();
+    if (fromVerify) { navigate('feed'); return; }
+    // 3. Check stored session
+    const stored = _loadSession();
+    if (stored) {
+      _cache.session = stored;
+      await withTimeout(loadUserData(stored.user.id, stored.access_token), 6000).catch(() => {});
       navigate('feed');
     } else {
       navigate('onboarding');
     }
   } catch (e) {
     console.error('initApp error:', e);
+    _cache.places = window.GC_PLACES || [];
+    _cache.events = window.GC_EVENTS || [];
     navigate('onboarding');
   } finally {
     hideGlobalLoader();
   }
 }
-
-sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' && session) {
-    try {
-      _cache.session = session;
-      const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).single();
-      if (!profile) await createProfileFromMetadata(session.user);
-      await loadUserData(session.user.id);
-      await loadAppData();
-      navigate('feed');
-    } catch (e) {
-      console.error('onAuthStateChange error:', e);
-    } finally {
-      hideGlobalLoader();
-    }
-  } else if (event === 'SIGNED_OUT') {
-    Object.assign(_cache, { session: null, profile: null, places: [], events: [],
-      saved: new Set(), attending: new Set() });
-    navigate('onboarding');
-  }
-});
 
 // ─── XP / LEVEL ───────────────────────────────────────────────────────────────
 function calcXP() {
@@ -368,7 +418,7 @@ function heroSwipeEnd(hero) {
       if (!_cache.saved.has(placeId)) {
         _cache.saved.add(placeId);
         if (_cache.session) {
-          sb.from('saved_places').insert({ user_id: _cache.session.user.id, place_id: placeId });
+          gcPost('saved_places', { user_id: _cache.session.user.id, place_id: placeId }, _cache.session.access_token).catch(() => {});
         }
         updateHeader();
       }
@@ -1615,9 +1665,14 @@ function attachListeners() {
   // ── Logout ────────────────────────────────────────────────────────────────
   const logoutBtn = content.querySelector('#logout-btn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      await sb.auth.signOut();
-      // onAuthStateChange handles navigate('onboarding')
+    logoutBtn.addEventListener('click', () => {
+      const tok = _cache.session?.access_token;
+      if (tok) fetch(`${SUPABASE_URL}/auth/v1/logout`, { method: 'POST', headers: _gcHeaders(tok) }).catch(() => {});
+      _clearSession();
+      Object.assign(_cache, { session: null, profile: null, places: [], events: [], saved: new Set(), attending: new Set() });
+      _cache.places = window.GC_PLACES || [];
+      _cache.events = window.GC_EVENTS || [];
+      navigate('onboarding');
     });
   }
 
@@ -1650,10 +1705,10 @@ function attachListeners() {
     resendVerifyBtn.addEventListener('click', async () => {
       resendVerifyBtn.disabled = true;
       resendVerifyBtn.textContent = 'Enviando...';
-      const { error } = await sb.auth.resend({ type: 'signup', email: _pendingEmail });
-      if (error) {
+      const res = await authPost('/resend', { type: 'signup', email: _pendingEmail }).catch(() => ({ error: { message: 'Error de conexión' } }));
+      if (res.error) {
         const errEl = document.getElementById('err-verify');
-        if (errEl) { errEl.textContent = error.message; errEl.classList.add('visible'); }
+        if (errEl) { errEl.textContent = res.error.message; errEl.classList.add('visible'); }
         resendVerifyBtn.disabled = false;
         resendVerifyBtn.textContent = 'Reenviar email';
       } else {
@@ -1692,10 +1747,10 @@ function attachListeners() {
       signupSubmit.textContent = 'Verificando...';
       let domainRow;
       try {
-        const { data } = await withTimeout(
-          sb.from('allowed_domains').select('university_name').eq('domain', domain).single(), 8000
+        const arr = await withTimeout(
+          gcGet('allowed_domains', `domain=eq.${encodeURIComponent(domain)}&select=university_name`), 8000
         );
-        domainRow = data;
+        domainRow = Array.isArray(arr) ? arr[0] : null;
       } catch(e) {
         signupSubmit.disabled = false;
         signupSubmit.textContent = 'Crear mi cuenta →';
@@ -1711,13 +1766,12 @@ function attachListeners() {
 
       signupSubmit.textContent = 'Creando cuenta...';
 
-      let signUpError;
+      let signUpRes;
       try {
-        const { error } = await withTimeout(
-          sb.auth.signUp({ email, password, options: { data: { name, last_name: lastName, university: uni, exchange_period: period } } }),
+        signUpRes = await withTimeout(
+          authPost('/signup', { email, password, data: { name, last_name: lastName, university: uni, exchange_period: period } }),
           10000
         );
-        signUpError = error;
       } catch(e) {
         signupSubmit.disabled = false;
         signupSubmit.textContent = 'Crear mi cuenta →';
@@ -1728,8 +1782,8 @@ function attachListeners() {
       signupSubmit.disabled = false;
       signupSubmit.textContent = 'Crear mi cuenta →';
 
-      if (signUpError) {
-        setErr('err-email', true, signUpError.message);
+      if (signUpRes.error || signUpRes.msg) {
+        setErr('err-email', true, signUpRes.error?.message || signUpRes.msg || 'Error al registrarse.');
         return;
       }
 
@@ -1754,14 +1808,26 @@ function attachListeners() {
       loginSubmit.disabled = true;
       loginSubmit.textContent = 'Entrando...';
 
-      const { error } = await sb.auth.signInWithPassword({ email, password });
+      let loginRes;
+      try {
+        loginRes = await withTimeout(
+          authPost('/token?grant_type=password', { email, password }),
+          10000
+        );
+      } catch(e) {
+        loginSubmit.disabled = false;
+        loginSubmit.textContent = 'Entrar →';
+        if (errEl) { errEl.textContent = 'Error de conexión. Intentá de nuevo.'; errEl.classList.add('visible'); }
+        return;
+      }
 
       loginSubmit.disabled = false;
       loginSubmit.textContent = 'Entrar →';
 
-      if (error) {
+      if (loginRes.error || loginRes.error_description) {
         if (errEl) {
-          if (error.message.toLowerCase().includes('email not confirmed')) {
+          const msg = loginRes.error_description || loginRes.error || '';
+          if (msg.toLowerCase().includes('email not confirmed')) {
             _pendingEmail = email;
             errEl.textContent = 'Verificá tu email primero antes de ingresar.';
           } else {
@@ -1769,8 +1835,21 @@ function attachListeners() {
           }
           errEl.classList.add('visible');
         }
+        return;
       }
-      // On success → onAuthStateChange fires and navigates to 'feed'
+
+      // Success — store session and navigate
+      _saveSession(loginRes);
+      _cache.session = loginRes;
+      showGlobalLoader();
+      try {
+        await Promise.all([
+          withTimeout(loadUserData(loginRes.user.id, loginRes.access_token), 6000),
+          withTimeout(loadAppData(), 6000),
+        ]);
+      } catch {}
+      hideGlobalLoader();
+      navigate('feed');
     });
   }
 
