@@ -33,10 +33,11 @@ async function admAuthPost(path, body) {
 }
 const ADM_SESSION_KEY = 'gc_admin_session';
 function _admSaveSession(d) {
+  if (!d?.access_token || !d?.user) return;
   try { localStorage.setItem(ADM_SESSION_KEY, JSON.stringify({ access_token: d.access_token, refresh_token: d.refresh_token, user: d.user, expires_at: Date.now() + (d.expires_in || 3600) * 1000 })); } catch {}
 }
 function _admLoadSession() {
-  try { const s = JSON.parse(localStorage.getItem(ADM_SESSION_KEY) || 'null'); if (!s || s.expires_at < Date.now()) { localStorage.removeItem(ADM_SESSION_KEY); return null; } return s; } catch { return null; }
+  try { const s = JSON.parse(localStorage.getItem(ADM_SESSION_KEY) || 'null'); if (!s || !s.access_token || !s.user || s.expires_at < Date.now()) { localStorage.removeItem(ADM_SESSION_KEY); return null; } return s; } catch { return null; }
 }
 function _admClearSession() { localStorage.removeItem(ADM_SESSION_KEY); }
 function _admLogout() { _admClearSession(); _adminCache.session = null; _adminCache.profile = null; const el = document.getElementById('topbar-admin-name'); if (el) el.textContent = '●'; renderAdminLogin(); }
@@ -280,8 +281,8 @@ function renderAdminLogin() {
     const loginRes = await admAuthPost('/token?grant_type=password', { email, password });
     btn.disabled = false; btn.textContent = 'Ingresar';
 
-    if (loginRes.error || loginRes.error_description) {
-      errEl.textContent = 'Email o contraseña incorrectos.'; errEl.classList.add('visible'); return;
+    if (!loginRes.access_token) {
+      errEl.textContent = loginRes.msg || 'Email o contraseña incorrectos.'; errEl.classList.add('visible'); return;
     }
 
     const profileArr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${loginRes.user.id}&select=*`, { headers: _admH(loginRes.access_token) }).then(r => r.json());

@@ -36,12 +36,13 @@ async function authPost(path, body) {
 // ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
 const _SESSION_KEY = 'gc_session_v2';
 function _saveSession(d) {
+  if (!d?.access_token || !d?.user) return; // never save invalid sessions
   try { localStorage.setItem(_SESSION_KEY, JSON.stringify({ access_token: d.access_token, refresh_token: d.refresh_token, user: d.user, expires_at: Date.now() + (d.expires_in || 3600) * 1000 })); } catch {}
 }
 function _loadSession() {
   try {
     const s = JSON.parse(localStorage.getItem(_SESSION_KEY) || 'null');
-    if (!s || s.expires_at < Date.now()) { localStorage.removeItem(_SESSION_KEY); return null; }
+    if (!s || !s.access_token || !s.user || s.expires_at < Date.now()) { localStorage.removeItem(_SESSION_KEY); return null; }
     return s;
   } catch { return null; }
 }
@@ -1782,8 +1783,8 @@ function attachListeners() {
       signupSubmit.disabled = false;
       signupSubmit.textContent = 'Crear mi cuenta →';
 
-      if (signUpRes.error || signUpRes.msg) {
-        setErr('err-email', true, signUpRes.error?.message || signUpRes.msg || 'Error al registrarse.');
+      if (signUpRes.code >= 400 || signUpRes.error) {
+        setErr('err-email', true, signUpRes.msg || signUpRes.error?.message || 'Error al registrarse.');
         return;
       }
 
@@ -1839,10 +1840,10 @@ function attachListeners() {
       loginSubmit.disabled = false;
       loginSubmit.textContent = 'Entrar →';
 
-      if (loginRes.error || loginRes.error_description) {
+      if (!loginRes.access_token) {
         if (errEl) {
-          const msg = loginRes.error_description || loginRes.error || '';
-          if (msg.toLowerCase().includes('email not confirmed')) {
+          const msg = loginRes.msg || loginRes.error_description || loginRes.error || '';
+          if (msg.toLowerCase().includes('email not confirmed') || loginRes.error_code === 'email_not_confirmed') {
             _pendingEmail = email;
             errEl.textContent = 'Verificá tu email primero antes de ingresar.';
           } else {
