@@ -161,14 +161,17 @@ function hideGlobalLoader() {
 }
 
 // ─── APP INIT ─────────────────────────────────────────────────────────────────
+const withTimeout = (promise, ms) =>
+  Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+
 async function initApp() {
   showGlobalLoader();
   try {
-    const { data: { session } } = await sb.auth.getSession();
+    const { data: { session } } = await withTimeout(sb.auth.getSession(), 6000);
     if (session) {
       _cache.session = session;
-      await loadUserData(session.user.id);
-      await loadAppData();
+      await withTimeout(loadUserData(session.user.id), 6000);
+      await withTimeout(loadAppData(), 6000);
       navigate('feed');
     } else {
       navigate('onboarding');
