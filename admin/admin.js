@@ -636,7 +636,10 @@ const ADMIN_VIEWS = {
               </div>
               <div class="wizard-panel-footer">
                 <div></div>
-                <button class="btn-primary" id="step1-next">Siguiente: Información →</button>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                  <div id="step1-error" class="form-error" style="display:none"></div>
+                  <button class="btn-primary" id="step1-next">Siguiente: Información →</button>
+                </div>
               </div>
             </div>
           </div>
@@ -781,7 +784,9 @@ const ADMIN_VIEWS = {
               <div class="card-preview-media" id="preview-media">
                 ${p?.imageData || p?.imageUrl
                   ? `<img src="${p.imageData || p.imageUrl}" alt="" style="width:100%;height:100%;object-fit:cover"/>`
-                  : `<div style="width:100%;height:100%;background:${currentColor};display:flex;align-items:center;justify-content:center;font-size:40px">${p?.emoji || '🏠'}</div>`
+                  : p?.logoData
+                    ? `<div style="width:100%;height:100%;background:${currentColor};display:flex;align-items:center;justify-content:center"><img src="${p.logoData}" alt="" style="max-height:60%;max-width:70%"/></div>`
+                    : `<div style="width:100%;height:100%;background:${currentColor};display:flex;align-items:center;justify-content:center;font-size:40px">${p?.emoji || '🏠'}</div>`
                 }
               </div>
               <div class="card-preview-body">
@@ -794,7 +799,7 @@ const ADMIN_VIEWS = {
             <div class="preview-stats-box" style="margin-top:16px">
               <div class="preview-stat-row">
                 <span>Plan seleccionado</span>
-                <span id="preview-plan-chip">${p?.plan || 'free'}</span>
+                <span id="preview-plan-chip" class="plan-chip plan-chip-${p?.plan || 'free'}">${(p?.plan || 'free').toUpperCase()}</span>
               </div>
               <div class="preview-stat-row">
                 <span>Estado</span>
@@ -1363,9 +1368,23 @@ function attachAdminListeners() {
     const name = document.getElementById('f-name')?.value.trim();
     const cat  = document.getElementById('f-category')?.value;
     const nb   = document.getElementById('f-neighborhood')?.value;
-    if (!name) { document.getElementById('f-name')?.focus(); return; }
-    if (!cat)  { document.getElementById('f-category')?.focus(); return; }
-    if (!nb)   { document.getElementById('f-neighborhood')?.focus(); return; }
+    const step1Error = document.getElementById('step1-error');
+    if (!name) {
+      document.getElementById('f-name')?.focus();
+      if (step1Error) { step1Error.textContent = 'El nombre es requerido'; step1Error.style.display = 'block'; }
+      return;
+    }
+    if (!cat) {
+      document.getElementById('f-category')?.focus();
+      if (step1Error) { step1Error.textContent = 'La categoría es requerida'; step1Error.style.display = 'block'; }
+      return;
+    }
+    if (!nb) {
+      document.getElementById('f-neighborhood')?.focus();
+      if (step1Error) { step1Error.textContent = 'El barrio es requerido'; step1Error.style.display = 'block'; }
+      return;
+    }
+    if (step1Error) step1Error.style.display = 'none';
     goToStep(2);
     document.getElementById('admin-content').scrollTop = 0;
   });
@@ -1389,7 +1408,10 @@ function attachAdminListeners() {
       const radio = el.querySelector('input[type=radio]');
       if (radio) radio.checked = true;
       const previewChip = document.getElementById('preview-plan-chip');
-      if (previewChip) previewChip.textContent = radio?.value || '';
+      if (previewChip) {
+        previewChip.textContent = (radio?.value || '').toUpperCase();
+        previewChip.className = `plan-chip plan-chip-${radio?.value || 'free'}`;
+      }
     });
   });
 
@@ -1595,8 +1617,18 @@ function attachAdminListeners() {
       if (adminState.editingPlaceId !== null) placeObj.id = adminState.editingPlaceId;
 
       savePlaceBtn.disabled = true; savePlaceBtn.textContent = 'Guardando...';
-      const result = await savePlace(placeObj);
-      savePlaceBtn.disabled = false; savePlaceBtn.textContent = 'Guardar local';
+      let result;
+      try {
+        result = await savePlace(placeObj);
+      } catch(e) {
+        savePlaceBtn.disabled = false;
+        savePlaceBtn.textContent = adminState.editingPlaceId !== null ? '💾 Guardar cambios' : '✓ Publicar local';
+        const errorEl = document.getElementById('form-error');
+        if (errorEl) { errorEl.textContent = 'Error al guardar. Intentá de nuevo.'; errorEl.style.display = 'block'; }
+        return;
+      }
+      savePlaceBtn.disabled = false;
+      savePlaceBtn.textContent = adminState.editingPlaceId !== null ? '💾 Guardar cambios' : '✓ Publicar local';
 
       if (result) {
         showToast(adminState.editingPlaceId !== null ? 'Local actualizado ✓' : 'Local agregado ✓');
