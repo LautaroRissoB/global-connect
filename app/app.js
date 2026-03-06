@@ -767,7 +767,9 @@ function renderMiniCard(place, saved) {
         <div class="mini-card-front">
           <div class="mini-img-wrap">
             ${imgHtml}
-            <button class="mini-flip-trigger" data-flip title="Ver info rápida">ℹ</button>
+            <button class="mini-flip-trigger" data-flip title="Ver más info">
+              <svg width="14" height="4" viewBox="0 0 14 4" fill="currentColor"><circle cx="2" cy="2" r="2"/><circle cx="7" cy="2" r="2"/><circle cx="12" cy="2" r="2"/></svg>
+            </button>
             ${isSaved ? '<div class="mini-saved-badge">❤️</div>' : ''}
           </div>
           <div class="mini-info-body">
@@ -1015,7 +1017,8 @@ const VIEWS = {
     const trending = [...allPlaces].sort((a, b) => (b.stats?.going || 0) - (a.stats?.going || 0));
     state.featuredIndex = Math.min(state.featuredIndex, Math.max(trending.length - 1, 0));
     const featured      = trending[state.featuredIndex] || null;
-    const featuredCover = featured ? (featured.imageData || featured.imageUrl) : null;
+    const featuredCover   = featured ? featured.imageUrl : null;
+    const featuredLogoSrc = featured ? featured.imageData : null;
     const catColor      = featured ? getCatColor(featured.category) : '#0066FF';
     const going         = featured?.stats?.going || 0;
 
@@ -1079,10 +1082,14 @@ const VIEWS = {
         <div class="featured-wrap">
           <div class="hero-card-area">
             ${trending.length > 1 ? `<button class="hero-nav-btn hero-prev" id="hero-prev">&#8249;</button>` : ''}
-            <div class="featured-card" data-place="${featured.id}" style="--cat-color:${catColor}">
+            <div class="featured-card${!featuredCover ? ' featured-no-cover' : ''}" data-place="${featured.id}" style="--cat-color:${catColor};background:${featured.bgColor || '#EFF6FF'}">
               ${featuredCover
                 ? `<img class="featured-card-img" src="${featuredCover}" alt="${featured.name}" onerror="this.style.display='none'"/>`
-                : `<div class="featured-card-icon-bg" style="background:${featured.bgColor || '#DBEAFE'}">${featured.emoji || '🏠'}</div>`
+                : `<div class="featured-card-icon-bg" style="background:${featured.bgColor || '#EFF6FF'}">
+                    ${featuredLogoSrc
+                      ? `<img class="featured-card-logo-sm" src="${featuredLogoSrc}" alt="${featured.name}" onerror="this.style.display='none'"/>`
+                      : (featured.emoji || '🏠')}
+                   </div>`
               }
               <div class="featured-card-overlay"></div>
               <div class="featured-card-info">
