@@ -1,18 +1,7 @@
 // =============================================================
 // Global Connect — Database Types
-// Corresponden 1:1 con las tablas de Supabase
+// Formato exacto que espera @supabase/supabase-js v2.40+
 // =============================================================
-
-export interface Profile {
-  id: string
-  full_name: string
-  university: string
-  home_country: string
-  exchange_country: string
-  exchange_city: string
-  avatar_url: string | null
-  created_at: string
-}
 
 export type EstablishmentCategory =
   | 'restaurant'
@@ -24,94 +13,217 @@ export type EstablishmentCategory =
   | 'cultural'
   | 'other'
 
-export interface Establishment {
-  id: string
-  name: string
-  description: string | null
-  category: EstablishmentCategory
-  address: string
-  city: string
-  country: string
-  latitude: number | null
-  longitude: number | null
-  image_url: string | null
-  gallery_urls: string[]
-  phone: string | null
-  website: string | null
-  opening_hours: Record<string, string> | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface Promotion {
-  id: string
-  establishment_id: string
-  title: string
-  description: string | null
-  original_price: number | null
-  discounted_price: number | null
-  discount_percentage: number | null
-  valid_from: string | null
-  valid_until: string | null
-  terms_conditions: string | null
-  is_active: boolean
-  created_at: string
-}
-
-export interface Category {
-  id: string
-  name: string
-  slug: string
-  icon: string | null
-  display_order: number
-}
-
 export type AdminRole = 'admin' | 'super_admin'
 
-export interface AdminUser {
-  id: string
-  role: AdminRole
-  created_at: string
-}
+// ------------------------------------------------------------------
+// Tipos de fila (Row) — para usar como props en componentes
+// ------------------------------------------------------------------
+export type Profile = Database['public']['Tables']['profiles']['Row']
+export type Establishment = Database['public']['Tables']['establishments']['Row']
+export type Promotion = Database['public']['Tables']['promotions']['Row']
+export type Category = Database['public']['Tables']['categories']['Row']
+export type AdminUser = Database['public']['Tables']['admin_users']['Row']
 
-// =============================================================
-// Tipo Database para usar con el cliente de Supabase tipado
-// =============================================================
-export interface Database {
+// ------------------------------------------------------------------
+// Tipo Database — formato requerido por @supabase/supabase-js v2.40+
+// ------------------------------------------------------------------
+export type Database = {
   public: {
     Tables: {
       profiles: {
-        Row: Profile
-        Insert: Omit<Profile, 'created_at'>
-        Update: Partial<Omit<Profile, 'id' | 'created_at'>>
+        Row: {
+          id: string
+          full_name: string
+          university: string
+          home_country: string
+          exchange_country: string
+          exchange_city: string
+          avatar_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id: string
+          full_name: string
+          university: string
+          home_country: string
+          exchange_country: string
+          exchange_city: string
+          avatar_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          full_name?: string
+          university?: string
+          home_country?: string
+          exchange_country?: string
+          exchange_city?: string
+          avatar_url?: string | null
+          created_at?: string
+        }
+        Relationships: []
       }
       establishments: {
-        Row: Establishment
-        Insert: Omit<Establishment, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<Establishment, 'id' | 'created_at' | 'updated_at'>>
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          category: EstablishmentCategory
+          address: string
+          city: string
+          country: string
+          latitude: number | null
+          longitude: number | null
+          image_url: string | null
+          gallery_urls: string[]
+          phone: string | null
+          website: string | null
+          opening_hours: Record<string, string> | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          category: EstablishmentCategory
+          address: string
+          city: string
+          country: string
+          latitude?: number | null
+          longitude?: number | null
+          image_url?: string | null
+          gallery_urls?: string[]
+          phone?: string | null
+          website?: string | null
+          opening_hours?: Record<string, string> | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          category?: EstablishmentCategory
+          address?: string
+          city?: string
+          country?: string
+          latitude?: number | null
+          longitude?: number | null
+          image_url?: string | null
+          gallery_urls?: string[]
+          phone?: string | null
+          website?: string | null
+          opening_hours?: Record<string, string> | null
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       promotions: {
-        Row: Promotion
-        Insert: Omit<Promotion, 'id' | 'created_at'>
-        Update: Partial<Omit<Promotion, 'id' | 'created_at'>>
+        Row: {
+          id: string
+          establishment_id: string
+          title: string
+          description: string | null
+          original_price: number | null
+          discounted_price: number | null
+          discount_percentage: number | null
+          valid_from: string | null
+          valid_until: string | null
+          terms_conditions: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          establishment_id: string
+          title: string
+          description?: string | null
+          original_price?: number | null
+          discounted_price?: number | null
+          discount_percentage?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          terms_conditions?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          establishment_id?: string
+          title?: string
+          description?: string | null
+          original_price?: number | null
+          discounted_price?: number | null
+          discount_percentage?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          terms_conditions?: string | null
+          is_active?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'promotions_establishment_id_fkey'
+            columns: ['establishment_id']
+            referencedRelation: 'establishments'
+            referencedColumns: ['id']
+          }
+        ]
       }
       categories: {
-        Row: Category
-        Insert: Omit<Category, 'id'>
-        Update: Partial<Omit<Category, 'id'>>
+        Row: {
+          id: string
+          name: string
+          slug: string
+          icon: string | null
+          display_order: number
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          icon?: string | null
+          display_order?: number
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          icon?: string | null
+          display_order?: number
+        }
+        Relationships: []
       }
       admin_users: {
-        Row: AdminUser
-        Insert: Omit<AdminUser, 'created_at'>
-        Update: Partial<Pick<AdminUser, 'role'>>
+        Row: {
+          id: string
+          role: AdminRole
+          created_at: string
+        }
+        Insert: {
+          id: string
+          role?: AdminRole
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          role?: AdminRole
+          created_at?: string
+        }
+        Relationships: []
       }
     }
+    Views: Record<string, never>
     Functions: {
       is_admin: {
-        Args: Record<string, never>
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
     }
+    Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
