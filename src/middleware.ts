@@ -17,10 +17,9 @@ function isUserProtectedPath(pathname: string) {
   )
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Crear cliente de Supabase para el middleware
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -42,7 +41,6 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Obtener sesión actual
   const { data: { user } } = await supabase.auth.getUser()
 
   // --- Rutas de usuario protegidas ---
@@ -62,7 +60,6 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // Verificar que el usuario esté en admin_users
     const { data: adminUser } = await supabase
       .from('admin_users')
       .select('id')
@@ -70,7 +67,7 @@ export async function proxy(request: NextRequest) {
       .single()
 
     if (!adminUser) {
-      return NextResponse.redirect(new URL('/explore', request.url))
+      return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
@@ -79,7 +76,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Excluir archivos estáticos y rutas internas de Next.js
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

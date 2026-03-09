@@ -78,6 +78,13 @@ export default async function PromotionsPage() {
                   </td>
                   <td>
                     <div className="action-btns">
+                      <Link
+                        href={`/promotions/${p.id}`}
+                        className="action-btn"
+                        title="Editar"
+                      >
+                        <Pencil size={14} />
+                      </Link>
                       <form action={togglePromotion.bind(null, p.id, p.is_active)}>
                         <button
                           type="submit"
