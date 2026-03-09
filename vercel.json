@@ -1,7 +1,0 @@
-{
-  "version": 2,
-  "redirects": [
-    { "source": "/app",   "destination": "/app/",   "permanent": false },
-    { "source": "/admin", "destination": "/admin/", "permanent": false }
-  ]
-}
