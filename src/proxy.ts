@@ -17,7 +17,7 @@ function isUserProtectedPath(pathname: string) {
   )
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Crear cliente de Supabase para el middleware
