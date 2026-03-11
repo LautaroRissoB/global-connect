@@ -8,7 +8,7 @@ async function getEstablishments() {
   const { data } = await supabase
     .from('establishments')
     .select(`
-      id, name, category, city, country, image_url,
+      id, name, category, city, country, image_url, price_range,
       promotions ( discounted_price, original_price, discount_percentage, is_active )
     `)
     .eq('is_active', true)

@@ -78,6 +78,9 @@ export type Database = {
           gallery_urls: string[]
           phone: string | null
           website: string | null
+          instagram: string | null
+          price_range: '$' | '$$' | '$$$' | '$$$$' | null
+          menu_pdf_url: string | null
           opening_hours: Record<string, string> | null
           is_active: boolean
           created_at: string
@@ -97,6 +100,9 @@ export type Database = {
           gallery_urls?: string[]
           phone?: string | null
           website?: string | null
+          instagram?: string | null
+          price_range?: '$' | '$$' | '$$$' | '$$$$' | null
+          menu_pdf_url?: string | null
           opening_hours?: Record<string, string> | null
           is_active?: boolean
           created_at?: string
@@ -116,6 +122,9 @@ export type Database = {
           gallery_urls?: string[]
           phone?: string | null
           website?: string | null
+          instagram?: string | null
+          price_range?: '$' | '$$' | '$$$' | '$$$$' | null
+          menu_pdf_url?: string | null
           opening_hours?: Record<string, string> | null
           is_active?: boolean
           updated_at?: string

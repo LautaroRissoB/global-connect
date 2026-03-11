@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, X, Upload } from 'lucide-react'
+import { Plus, X, Upload, Instagram, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { EstablishmentCategory } from '@/types/database'
 
@@ -18,18 +18,26 @@ const CATEGORIES: { value: EstablishmentCategory; label: string }[] = [
   { value: 'other',      label: 'Otro' },
 ]
 
+const PRICE_RANGES = [
+  { value: '$',    label: '$',    hint: 'Económico' },
+  { value: '$$',   label: '$$',   hint: 'Moderado' },
+  { value: '$$$',  label: '$$$',  hint: 'Caro' },
+  { value: '$$$$', label: '$$$$', hint: 'Premium' },
+]
+
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
-interface HourRow { day: string; hours: string }
+interface HourRow { day: string; closed: boolean; from: string; to: string }
 
 export default function NewEstablishmentPage() {
   const router = useRouter()
-  const [loading,      setLoading]      = useState(false)
-  const [error,        setError]        = useState('')
-  const [imageFile,    setImageFile]    = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [uploading,    setUploading]    = useState(false)
-  const [hourRows,     setHourRows]     = useState<HourRow[]>([])
+  const [loading,       setLoading]       = useState(false)
+  const [error,         setError]         = useState('')
+  const [imageFile,     setImageFile]     = useState<File | null>(null)
+  const [imagePreview,  setImagePreview]  = useState<string | null>(null)
+  const [pdfFile,       setPdfFile]       = useState<File | null>(null)
+  const [uploading,     setUploading]     = useState(false)
+  const [hourRows,      setHourRows]      = useState<HourRow[]>([])
 
   const [form, setForm] = useState({
     name:        '',
@@ -40,6 +48,8 @@ export default function NewEstablishmentPage() {
     country:     'Argentina',
     phone:       '',
     website:     '',
+    instagram:   '',
+    price_range: '' as '$' | '$$' | '$$$' | '$$$$' | '',
   })
 
   function set(field: keyof typeof form) {
@@ -54,61 +64,64 @@ export default function NewEstablishmentPage() {
     setImagePreview(URL.createObjectURL(file))
   }
 
+  function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPdfFile(file)
+  }
+
   function addHourRow() {
     const usedDays = hourRows.map((r) => r.day)
     const next = DAYS.find((d) => !usedDays.includes(d))
     if (!next) return
-    setHourRows((prev) => [...prev, { day: next, hours: '' }])
+    setHourRows((prev) => [...prev, { day: next, closed: false, from: '10:00', to: '22:00' }])
   }
 
-  function removeHourRow(index: number) {
-    setHourRows((prev) => prev.filter((_, i) => i !== index))
+  function removeHourRow(i: number) {
+    setHourRows((prev) => prev.filter((_, idx) => idx !== i))
   }
 
-  function updateHourRow(index: number, field: 'day' | 'hours', value: string) {
-    setHourRows((prev) => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  function updateHourRow(i: number, field: keyof HourRow, value: string | boolean) {
+    setHourRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
   }
 
-  async function uploadImage(supabase: ReturnType<typeof createClient>): Promise<string | null> {
-    if (!imageFile) return null
-    setUploading(true)
-
-    const ext = imageFile.name.split('.').pop()
-    const filename = `${Date.now()}.${ext}`
-
+  async function uploadFile(
+    supabase: ReturnType<typeof createClient>,
+    file: File,
+    path: string
+  ): Promise<string | null> {
     const { error: uploadError } = await supabase.storage
       .from('establishments')
-      .upload(filename, imageFile, { cacheControl: '3600', upsert: false })
-
-    if (uploadError) {
-      setError(`Error subiendo imagen: ${uploadError.message}`)
-      setUploading(false)
-      return null
-    }
-
-    const { data } = supabase.storage.from('establishments').getPublicUrl(filename)
-    setUploading(false)
-    return data.publicUrl
+      .upload(path, file, { cacheControl: '3600', upsert: false })
+    if (uploadError) { setError(`Error al subir archivo: ${uploadError.message}`); return null }
+    return supabase.storage.from('establishments').getPublicUrl(path).data.publicUrl
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-
     if (!form.name || !form.address || !form.city || !form.country) {
       setError('Completá los campos obligatorios: nombre, dirección, ciudad y país.')
       return
     }
 
     setLoading(true)
+    setUploading(true)
     const supabase = createClient()
+    const ts = Date.now()
 
-    const image_url = await uploadImage(supabase)
+    const image_url    = imageFile ? await uploadFile(supabase, imageFile, `img_${ts}.${imageFile.name.split('.').pop()}`) : null
+    const menu_pdf_url = pdfFile   ? await uploadFile(supabase, pdfFile,   `pdf_${ts}.pdf`)                               : null
+
+    setUploading(false)
     if (error) { setLoading(false); return }
 
     const opening_hours = hourRows
-      .filter((r) => r.day && r.hours)
-      .reduce<Record<string, string>>((acc, r) => ({ ...acc, [r.day]: r.hours }), {})
+      .filter((r) => r.day)
+      .reduce<Record<string, string>>((acc, r) => ({
+        ...acc,
+        [r.day]: r.closed ? 'Cerrado' : `${r.from} - ${r.to}`
+      }), {})
 
     const { error: dbError } = await supabase.from('establishments').insert({
       name:          form.name,
@@ -119,16 +132,14 @@ export default function NewEstablishmentPage() {
       country:       form.country,
       phone:         form.phone        || null,
       website:       form.website      || null,
-      image_url:     image_url         ?? null,
+      instagram:     form.instagram    || null,
+      price_range:   (form.price_range || null) as '$' | '$$' | '$$$' | '$$$$' | null,
+      image_url,
+      menu_pdf_url,
       opening_hours: Object.keys(opening_hours).length > 0 ? opening_hours : null,
     })
 
-    if (dbError) {
-      setError(dbError.message)
-      setLoading(false)
-      return
-    }
-
+    if (dbError) { setError(dbError.message); setLoading(false); return }
     router.push('/establishments')
     router.refresh()
   }
@@ -147,14 +158,12 @@ export default function NewEstablishmentPage() {
           <div className="form-row-2">
             <div className="form-group">
               <label className="form-label">Nombre *</label>
-              <input className="form-input" value={form.name} onChange={set('name')} required />
+              <input className="form-input" value={form.name} onChange={set('name')} placeholder="Ej: La Birra Bar" required />
             </div>
             <div className="form-group">
               <label className="form-label">Categoría *</label>
               <select className="form-select" value={form.category} onChange={set('category')}>
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
+                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
           </div>
@@ -187,11 +196,55 @@ export default function NewEstablishmentPage() {
           <div className="form-row-2">
             <div className="form-group">
               <label className="form-label">Teléfono</label>
-              <input className="form-input" type="tel" value={form.phone} onChange={set('phone')} placeholder="Ej: +54 11 1234-5678" />
+              <input className="form-input" type="tel" value={form.phone} onChange={set('phone')} placeholder="+54 11 1234-5678" />
             </div>
             <div className="form-group">
               <label className="form-label">Website</label>
               <input className="form-input" type="url" value={form.website} onChange={set('website')} placeholder="https://..." />
+            </div>
+          </div>
+
+          {/* Instagram + Precio */}
+          <div className="form-row-2">
+            <div className="form-group">
+              <label className="form-label">Instagram</label>
+              <div style={{ position: 'relative' }}>
+                <Instagram size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                <input
+                  className="form-input"
+                  value={form.instagram}
+                  onChange={set('instagram')}
+                  placeholder="@usuario"
+                  style={{ paddingLeft: 34 }}
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Rango de precios</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {PRICE_RANGES.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, price_range: f.price_range === p.value ? '' : p.value as typeof f.price_range }))}
+                    title={p.hint}
+                    style={{
+                      flex: 1,
+                      padding: '9px 4px',
+                      borderRadius: 'var(--radius-md)',
+                      border: `1px solid ${form.price_range === p.value ? 'var(--primary)' : 'var(--card-border)'}`,
+                      background: form.price_range === p.value ? 'rgba(108,92,231,0.15)' : 'rgba(255,255,255,0.04)',
+                      color: form.price_range === p.value ? 'var(--primary-light)' : 'var(--text-muted)',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -201,28 +254,43 @@ export default function NewEstablishmentPage() {
             {imagePreview ? (
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  style={{ width: '100%', maxWidth: 400, height: 200, objectFit: 'cover', borderRadius: 'var(--radius-md)', display: 'block' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => { setImageFile(null); setImagePreview(null) }}
-                  style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}
-                >
+                <img src={imagePreview} alt="Preview" style={{ width: '100%', maxWidth: 400, height: 200, objectFit: 'cover', borderRadius: 'var(--radius-md)', display: 'block' }} />
+                <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
+                  style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
                   <X size={14} />
                 </button>
               </div>
             ) : (
               <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '2rem', border: '2px dashed var(--card-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--text-muted)', transition: 'border-color 0.2s' }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--card-border)')}
-              >
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
                 <Upload size={22} />
                 <span style={{ fontSize: '0.875rem' }}>Hacé clic para subir una foto</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>JPG, PNG o WebP · máx. 5 MB</span>
                 <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} style={{ display: 'none' }} />
+              </label>
+            )}
+          </div>
+
+          {/* PDF Menú */}
+          <div className="form-group">
+            <label className="form-label">Menú (PDF) <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-faint)' }}>(opcional)</span></label>
+            {pdfFile ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(0,206,201,0.08)', border: '1px solid rgba(0,206,201,0.2)', borderRadius: 'var(--radius-md)' }}>
+                <FileText size={18} style={{ color: 'var(--secondary)', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.875rem', color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdfFile.name}</span>
+                <button type="button" onClick={() => setPdfFile(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}>
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '1px dashed var(--card-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--text-muted)', transition: 'border-color 0.2s', fontSize: '0.875rem' }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--secondary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
+                <FileText size={18} />
+                <span>Subir carta/menú en PDF</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-faint)' }}>máx. 10 MB</span>
+                <input type="file" accept="application/pdf" onChange={handlePdfChange} style={{ display: 'none' }} />
               </label>
             )}
           </div>
@@ -237,37 +305,35 @@ export default function NewEstablishmentPage() {
                 </button>
               )}
             </div>
-
             {hourRows.length === 0 ? (
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-faint)' }}>
-                No cargado todavía. Podés agregarlo ahora o después al editar.
-              </p>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-faint)' }}>Sin horarios. Podés agregarlos ahora o después.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {hourRows.map((row, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 32px', gap: 8, alignItems: 'center' }}>
-                    <select
-                      className="form-select"
-                      value={row.day}
-                      onChange={(e) => updateHourRow(i, 'day', e.target.value)}
-                    >
-                      {DAYS.map((d) => (
-                        <option key={d} value={d} disabled={hourRows.some((r, ri) => ri !== i && r.day === d)}>
-                          {d}
-                        </option>
-                      ))}
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 32px', gap: 8, alignItems: 'center' }}>
+                    <select className="form-select" value={row.day} onChange={(e) => updateHourRow(i, 'day', e.target.value)}>
+                      {DAYS.map((d) => <option key={d} value={d} disabled={hourRows.some((r, ri) => ri !== i && r.day === d)}>{d}</option>)}
                     </select>
-                    <input
-                      className="form-input"
-                      value={row.hours}
-                      onChange={(e) => updateHourRow(i, 'hours', e.target.value)}
-                      placeholder="Ej: 10:00 - 22:00  o  Cerrado"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeHourRow(i)}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}
-                    >
+
+                    {row.closed ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ padding: '9px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--card-border)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--text-muted)', flex: 1 }}>Cerrado</span>
+                        <button type="button" onClick={() => updateHourRow(i, 'closed', false)} style={{ fontSize: '0.72rem', background: 'none', border: '1px solid var(--card-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          Cambiar
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input type="time" className="form-input" value={row.from} onChange={(e) => updateHourRow(i, 'from', e.target.value)} style={{ flex: 1 }} />
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', flexShrink: 0 }}>a</span>
+                        <input type="time" className="form-input" value={row.to} onChange={(e) => updateHourRow(i, 'to', e.target.value)} style={{ flex: 1 }} />
+                        <button type="button" onClick={() => updateHourRow(i, 'closed', true)} style={{ fontSize: '0.72rem', background: 'none', border: '1px solid var(--card-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          Cerrado
+                        </button>
+                      </div>
+                    )}
+
+                    <button type="button" onClick={() => removeHourRow(i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}>
                       <X size={14} />
                     </button>
                   </div>
@@ -277,10 +343,8 @@ export default function NewEstablishmentPage() {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary btn-md" disabled={loading || uploading}>
-              {loading || uploading
-                ? <><span className="btn-spinner" /> {uploading ? 'Subiendo imagen...' : 'Guardando...'}</>
-                : 'Guardar establecimiento'}
+            <button type="submit" className="btn btn-primary btn-md" disabled={loading}>
+              {loading ? <><span className="btn-spinner" /> {uploading ? 'Subiendo archivos...' : 'Guardando...'}</> : 'Guardar establecimiento'}
             </button>
             <Link href="/establishments" className="btn btn-ghost btn-md">Cancelar</Link>
           </div>

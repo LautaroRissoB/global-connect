@@ -3,6 +3,7 @@ interface CardProps {
   title: string
   category: string
   location: string
+  priceRange?: string | null
   originalPrice?: number
   discountedPrice?: number
   discountPercentage?: number
@@ -25,6 +26,7 @@ export default function Card({
   title,
   category,
   location,
+  priceRange,
   originalPrice,
   discountedPrice,
   discountPercentage,
@@ -57,6 +59,11 @@ export default function Card({
             </div>
           ) : (
             <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>Ver promociones</span>
+          )}
+          {priceRange && (
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+              {priceRange}
+            </span>
           )}
         </div>
       </div>

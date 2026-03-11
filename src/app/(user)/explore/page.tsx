@@ -25,6 +25,7 @@ interface Establishment {
   city: string
   country: string
   image_url: string | null
+  price_range: string | null
   promotions: { discounted_price: number | null; original_price: number | null; discount_percentage: number | null }[]
 }
 
@@ -40,7 +41,7 @@ export default function ExplorePage() {
       const { data } = await supabase
         .from('establishments')
         .select(`
-          id, name, category, city, country, image_url,
+          id, name, category, city, country, image_url, price_range,
           promotions ( discounted_price, original_price, discount_percentage )
         `)
         .eq('is_active', true)
@@ -130,6 +131,7 @@ export default function ExplorePage() {
                       title={e.name}
                       category={e.category}
                       location={`${e.city}, ${e.country}`}
+                      priceRange={e.price_range}
                       originalPrice={promo?.original_price ?? undefined}
                       discountedPrice={promo?.discounted_price ?? undefined}
                       discountPercentage={promo?.discount_percentage ?? undefined}

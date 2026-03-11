@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { MapPin, Phone, Globe, ArrowLeft, Tag } from 'lucide-react'
+import { MapPin, Phone, Globe, ArrowLeft, Tag, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/ui/Navbar'
 
@@ -27,7 +27,7 @@ export default async function EstablishmentDetailPage({ params }: Props) {
     .from('establishments')
     .select(`
       id, name, description, category, address, city, country,
-      phone, website, image_url, opening_hours, is_active,
+      phone, website, instagram, price_range, image_url, menu_pdf_url, opening_hours, is_active,
       promotions ( id, title, description, original_price, discounted_price, discount_percentage, valid_until, terms_conditions, is_active )
     `)
     .eq('id', id)
@@ -73,9 +73,26 @@ export default async function EstablishmentDetailPage({ params }: Props) {
 
         {/* Header */}
         <div style={{ marginBottom: '1.25rem' }}>
-          <span style={{ display: 'inline-block', background: 'var(--primary)', color: '#fff', borderRadius: 'var(--radius-full)', padding: '0.2rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-            {CATEGORY_LABELS[establishment.category] ?? establishment.category}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            <span style={{ display: 'inline-block', background: 'var(--primary)', color: '#fff', borderRadius: 'var(--radius-full)', padding: '0.2rem 0.75rem', fontSize: '0.75rem', fontWeight: 600 }}>
+              {CATEGORY_LABELS[establishment.category] ?? establishment.category}
+            </span>
+            {establishment.price_range && (
+              <span style={{ display: 'inline-block', background: 'rgba(108,92,231,0.15)', color: 'var(--primary-light)', borderRadius: 'var(--radius-full)', padding: '0.2rem 0.75rem', fontSize: '0.8rem', fontWeight: 700, border: '1px solid rgba(108,92,231,0.25)' }}>
+                {establishment.price_range}
+              </span>
+            )}
+            {establishment.menu_pdf_url && (
+              <a
+                href={establishment.menu_pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,206,201,0.12)', color: 'var(--secondary)', borderRadius: 'var(--radius-full)', padding: '0.2rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, border: '1px solid rgba(0,206,201,0.25)', textDecoration: 'none' }}
+              >
+                <FileText size={12} /> Ver menú
+              </a>
+            )}
+          </div>
           <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
             {establishment.name}
           </h1>
@@ -90,17 +107,23 @@ export default async function EstablishmentDetailPage({ params }: Props) {
 
         {/* Info grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '2rem' }}>
-          <div className="glass" style={{ padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)' }}>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${establishment.address}, ${establishment.city}, ${establishment.country}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="glass"
+            style={{ padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)', display: 'block', textDecoration: 'none' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', marginBottom: 4, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               <MapPin size={13} /> Dirección
             </div>
             <p style={{ color: 'var(--text)', margin: 0, fontWeight: 500, fontSize: '0.9rem' }}>
               {establishment.address}
             </p>
-            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.8rem' }}>
-              {establishment.city}, {establishment.country}
+            <p style={{ color: 'var(--primary-light)', margin: '2px 0 0', fontSize: '0.78rem' }}>
+              {establishment.city}, {establishment.country} · Ver en mapa →
             </p>
-          </div>
+          </a>
 
           {establishment.phone && (
             <div className="glass" style={{ padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)' }}>
@@ -120,6 +143,22 @@ export default async function EstablishmentDetailPage({ params }: Props) {
               </div>
               <a href={establishment.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-light)', fontWeight: 500, fontSize: '0.9rem' }}>
                 Visitar sitio web
+              </a>
+            </div>
+          )}
+
+          {establishment.instagram && (
+            <div className="glass" style={{ padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', marginBottom: 4, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Instagram
+              </div>
+              <a
+                href={`https://instagram.com/${establishment.instagram.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--primary-light)', fontWeight: 500, fontSize: '0.9rem' }}
+              >
+                {establishment.instagram.startsWith('@') ? establishment.instagram : `@${establishment.instagram}`}
               </a>
             </div>
           )}

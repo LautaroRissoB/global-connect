@@ -30,6 +30,7 @@ interface Establishment {
   city: string
   country: string
   image_url: string | null
+  price_range: string | null
   promotions: Promo[]
 }
 
@@ -119,6 +120,7 @@ export default function HomeFeed({ establishments }: Props) {
                       title={e.name}
                       category={e.category}
                       location={`${e.city}, ${e.country}`}
+                      priceRange={e.price_range}
                       originalPrice={promo?.original_price ?? undefined}
                       discountedPrice={promo?.discounted_price ?? undefined}
                       discountPercentage={promo?.discount_percentage ?? undefined}
