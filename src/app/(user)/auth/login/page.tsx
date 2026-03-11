@@ -55,7 +55,7 @@ function LoginForm() {
         <form className="auth-form" onSubmit={handleSubmit}>
           <Input
             id="email"
-            label="Email universitario"
+            label="Email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
