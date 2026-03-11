@@ -8,14 +8,16 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function Navbar() {
   const router = useRouter()
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [mobileOpen,  setMobileOpen]  = useState(false)
+  const [userEmail,   setUserEmail]   = useState<string | null>(null)
+  const [authLoaded,  setAuthLoaded]  = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
 
     supabase.auth.getUser().then(({ data }) => {
       setUserEmail(data.user?.email ?? null)
+      setAuthLoaded(true)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
@@ -48,8 +50,8 @@ export default function Navbar() {
         </div>
 
         {/* Desktop actions */}
-        <div className="navbar-actions">
-          {userEmail ? (
+        <div className="navbar-actions" style={{ minWidth: 140 }}>
+          {!authLoaded ? null : userEmail ? (
             <button onClick={handleLogout} className="btn btn-outline btn-sm">
               <LogOut size={14} />
               Salir
