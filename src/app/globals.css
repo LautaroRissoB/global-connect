@@ -308,6 +308,27 @@ h1, h2, h3, h4, h5, h6 {
   color: white;
 }
 
+.card-featured-badge {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  padding: 3px var(--space-3);
+  background: linear-gradient(135deg, #f9a825, #f57f17);
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.02em;
+}
+
+.card-featured {
+  border-color: rgba(249, 168, 37, 0.35);
+}
+.card-featured:hover {
+  border-color: rgba(249, 168, 37, 0.55);
+  box-shadow: 0 24px 64px rgba(249, 168, 37, 0.12);
+}
+
 .card-body {
   padding: var(--space-4) var(--space-5) var(--space-5);
 }

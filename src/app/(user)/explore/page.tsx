@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Tag } from 'lucide-react'
 import Link from 'next/link'
 import Navbar from '@/components/ui/Navbar'
 import Card from '@/components/ui/Card'
@@ -18,6 +18,14 @@ const CATEGORIES = [
   { slug: 'other',      name: 'Otros',            emoji: '🌟' },
 ]
 
+const PRICE_FILTERS = [
+  { value: 'all', label: 'Cualquier precio' },
+  { value: '$',   label: '$' },
+  { value: '$$',  label: '$$' },
+  { value: '$$$', label: '$$$' },
+  { value: '$$$$',label: '$$$$' },
+]
+
 interface Establishment {
   id: string
   name: string
@@ -26,14 +34,17 @@ interface Establishment {
   country: string
   image_url: string | null
   price_range: string | null
+  plan: string
   promotions: { discounted_price: number | null; original_price: number | null; discount_percentage: number | null }[]
 }
 
 export default function ExplorePage() {
-  const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('all')
-  const [establishments, setEstablishments] = useState<Establishment[]>([])
-  const [loading, setLoading] = useState(true)
+  const [search,          setSearch]          = useState('')
+  const [activeCategory,  setActiveCategory]  = useState('all')
+  const [activePrice,     setActivePrice]     = useState('all')
+  const [onlyDiscounts,   setOnlyDiscounts]   = useState(false)
+  const [establishments,  setEstablishments]  = useState<Establishment[]>([])
+  const [loading,         setLoading]         = useState(true)
 
   useEffect(() => {
     async function load() {
@@ -41,7 +52,7 @@ export default function ExplorePage() {
       const { data } = await supabase
         .from('establishments')
         .select(`
-          id, name, category, city, country, image_url, price_range,
+          id, name, category, city, country, image_url, price_range, plan,
           promotions ( discounted_price, original_price, discount_percentage )
         `)
         .eq('is_active', true)
@@ -54,14 +65,37 @@ export default function ExplorePage() {
   }, [])
 
   const filtered = useMemo(() => {
-    return establishments.filter((e) => {
+    const result = establishments.filter((e) => {
       const matchesCategory = activeCategory === 'all' || e.category === activeCategory
-      const matchesSearch =
+      const matchesSearch   =
         e.name.toLowerCase().includes(search.toLowerCase()) ||
         e.city.toLowerCase().includes(search.toLowerCase())
-      return matchesCategory && matchesSearch
+      const matchesPrice    = activePrice === 'all' || e.price_range === activePrice
+      const hasPromo        = e.promotions?.some(
+        (p) => p.discount_percentage != null || p.discounted_price != null
+      )
+      const matchesDiscount = !onlyDiscounts || hasPromo
+      return matchesCategory && matchesSearch && matchesPrice && matchesDiscount
     })
-  }, [establishments, search, activeCategory])
+
+    // Pro establishments first, then the rest
+    return result.sort((a, b) => {
+      if (a.plan === 'pro' && b.plan !== 'pro') return -1
+      if (a.plan !== 'pro' && b.plan === 'pro') return  1
+      return 0
+    })
+  }, [establishments, search, activeCategory, activePrice, onlyDiscounts])
+
+  const activeFiltersCount = (activeCategory !== 'all' ? 1 : 0) +
+    (activePrice !== 'all' ? 1 : 0) +
+    (onlyDiscounts ? 1 : 0)
+
+  function clearFilters() {
+    setActiveCategory('all')
+    setActivePrice('all')
+    setOnlyDiscounts(false)
+    setSearch('')
+  }
 
   return (
     <>
@@ -86,6 +120,7 @@ export default function ExplorePage() {
         </div>
       </section>
 
+      {/* Category filter */}
       <div className="category-section slide-up-4">
         <div className="category-filters">
           {CATEGORIES.map((cat) => (
@@ -99,6 +134,40 @@ export default function ExplorePage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Secondary filters: price + discounts */}
+      <div style={{ padding: '0.75rem var(--space-6)', borderBottom: '1px solid var(--card-border)', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', maxWidth: 1280, margin: '0 auto' }}>
+        {PRICE_FILTERS.map((p) => (
+          <button
+            key={p.value}
+            className={`category-pill ${activePrice === p.value ? 'active' : ''}`}
+            style={{ padding: '4px 14px', fontSize: '0.8rem' }}
+            onClick={() => setActivePrice(p.value)}
+          >
+            {p.label}
+          </button>
+        ))}
+
+        <div style={{ width: 1, height: 20, background: 'var(--card-border)', margin: '0 4px' }} />
+
+        <button
+          className={`category-pill ${onlyDiscounts ? 'active' : ''}`}
+          style={{ padding: '4px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}
+          onClick={() => setOnlyDiscounts((v) => !v)}
+        >
+          <Tag size={13} />
+          Con descuentos
+        </button>
+
+        {activeFiltersCount > 0 && (
+          <button
+            onClick={clearFilters}
+            style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            Limpiar filtros ({activeFiltersCount})
+          </button>
+        )}
       </div>
 
       <section className="feed-section">
@@ -135,6 +204,7 @@ export default function ExplorePage() {
                       originalPrice={promo?.original_price ?? undefined}
                       discountedPrice={promo?.discounted_price ?? undefined}
                       discountPercentage={promo?.discount_percentage ?? undefined}
+                      featured={e.plan === 'pro'}
                     />
                   </Link>
                 </div>
@@ -145,10 +215,18 @@ export default function ExplorePage() {
           <div className="empty-state">
             <span style={{ fontSize: '3rem' }}>🔍</span>
             <p>
-              {search
-                ? `No encontramos resultados para "${search}"`
+              {search || activeFiltersCount > 0
+                ? 'No encontramos resultados con estos filtros.'
                 : 'No hay establecimientos en esta categoría todavía.'}
             </p>
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={clearFilters}
+                style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--primary-light)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
         )}
       </section>

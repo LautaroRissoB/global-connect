@@ -7,6 +7,7 @@ interface CardProps {
   originalPrice?: number
   discountedPrice?: number
   discountPercentage?: number
+  featured?: boolean
   onClick?: () => void
 }
 
@@ -30,16 +31,20 @@ export default function Card({
   originalPrice,
   discountedPrice,
   discountPercentage,
+  featured,
   onClick,
 }: CardProps) {
   return (
-    <div className="card" onClick={onClick} role={onClick ? 'button' : undefined}>
+    <div className={`card${featured ? ' card-featured' : ''}`} onClick={onClick} role={onClick ? 'button' : undefined}>
       <div className="card-image-wrapper">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={image} alt={title} className="card-image" loading="lazy" />
         <span className="card-badge">
           {CATEGORY_LABELS[category] ?? category}
         </span>
+        {featured && (
+          <span className="card-featured-badge">⭐ Destacado</span>
+        )}
         {discountPercentage && (
           <span className="card-discount-badge">-{discountPercentage}%</span>
         )}
