@@ -3,7 +3,6 @@ interface CardProps {
   title: string
   category: string
   location: string
-  rating: number
   originalPrice?: number
   discountedPrice?: number
   discountPercentage?: number
@@ -26,7 +25,6 @@ export default function Card({
   title,
   category,
   location,
-  rating,
   originalPrice,
   discountedPrice,
   discountPercentage,
@@ -50,17 +48,15 @@ export default function Card({
         <p className="card-location">{location}</p>
 
         <div className="card-footer">
-          <span className="card-rating">
-            <span className="card-rating-star">★</span> {rating.toFixed(1)}
-          </span>
-
-          {discountedPrice != null && (
+          {discountedPrice != null ? (
             <div className="card-price-wrapper">
               {originalPrice != null && (
-                <span className="card-original-price">€{originalPrice}</span>
+                <span className="card-original-price">${originalPrice}</span>
               )}
-              <span className="card-price">€{discountedPrice}</span>
+              <span className="card-price">${discountedPrice}</span>
             </div>
+          ) : (
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>Ver promociones</span>
           )}
         </div>
       </div>

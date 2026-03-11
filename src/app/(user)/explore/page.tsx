@@ -71,7 +71,7 @@ export default function ExplorePage() {
           Explorá <span className="gradient-text">todo</span>
         </h1>
         <p className="hero-subtitle slide-up-2">
-          Todos los establecimientos con descuentos para estudiantes de intercambio.
+          Todos los lugares con descuentos para estudiantes.
         </p>
         <div className="search-bar slide-up-3">
           <Search size={18} className="search-icon" />
@@ -116,7 +116,7 @@ export default function ExplorePage() {
 
         {loading ? (
           <div className="empty-state">
-            <p style={{ color: 'var(--text-muted)' }}>Cargando establecimientos...</p>
+            <p style={{ color: 'var(--text-muted)' }}>Cargando...</p>
           </div>
         ) : filtered.length > 0 ? (
           <div className="grid-establishments">
@@ -130,7 +130,6 @@ export default function ExplorePage() {
                       title={e.name}
                       category={e.category}
                       location={`${e.city}, ${e.country}`}
-                      rating={4.5}
                       originalPrice={promo?.original_price ?? undefined}
                       discountedPrice={promo?.discounted_price ?? undefined}
                       discountPercentage={promo?.discount_percentage ?? undefined}

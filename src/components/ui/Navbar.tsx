@@ -1,11 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Globe, Menu, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Globe, Menu, X, LogOut } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function Navbar() {
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUserEmail(session?.user?.email ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setMobileOpen(false)
+    router.push('/')
+    router.refresh()
+  }
 
   return (
     <nav className="navbar">
@@ -19,17 +45,25 @@ export default function Navbar() {
         {/* Desktop links */}
         <div className="navbar-links">
           <Link href="/explore">Explorar</Link>
-          <Link href="/compare">Comparar</Link>
         </div>
 
         {/* Desktop actions */}
         <div className="navbar-actions">
-          <Link href="/auth/login" className="btn btn-outline btn-sm">
-            Iniciar sesión
-          </Link>
-          <Link href="/auth/register" className="btn btn-primary btn-sm">
-            Registrarse
-          </Link>
+          {userEmail ? (
+            <button onClick={handleLogout} className="btn btn-outline btn-sm">
+              <LogOut size={14} />
+              Salir
+            </button>
+          ) : (
+            <>
+              <Link href="/auth/login" className="btn btn-outline btn-sm">
+                Iniciar sesión
+              </Link>
+              <Link href="/auth/register" className="btn btn-primary btn-sm">
+                Registrarse
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -45,10 +79,20 @@ export default function Navbar() {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="navbar-mobile">
-          <Link href="/explore"       onClick={() => setMobileOpen(false)}>Explorar</Link>
-          <Link href="/compare"       onClick={() => setMobileOpen(false)}>Comparar</Link>
-          <Link href="/auth/login"    onClick={() => setMobileOpen(false)}>Iniciar sesión</Link>
-          <Link href="/auth/register" onClick={() => setMobileOpen(false)}>Registrarse</Link>
+          <Link href="/explore" onClick={() => setMobileOpen(false)}>Explorar</Link>
+          {userEmail ? (
+            <button
+              onClick={handleLogout}
+              style={{ textAlign: 'left', padding: 'var(--space-3)', fontSize: '1rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <LogOut size={16} /> Cerrar sesión
+            </button>
+          ) : (
+            <>
+              <Link href="/auth/login"    onClick={() => setMobileOpen(false)}>Iniciar sesión</Link>
+              <Link href="/auth/register" onClick={() => setMobileOpen(false)}>Registrarse</Link>
+            </>
+          )}
         </div>
       )}
     </nav>

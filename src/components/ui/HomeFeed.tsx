@@ -56,15 +56,15 @@ export default function HomeFeed({ establishments }: Props) {
       {/* Hero */}
       <section className="hero">
         <p className="fade-in" style={{ color: 'var(--primary-light)', fontWeight: 600, marginBottom: '1rem', fontSize: '0.875rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          Para estudiantes de intercambio
+          Para estudiantes universitarios
         </p>
         <h1 className="hero-title slide-up-1">
-          Descubrí tu{' '}
-          <span className="gradient-text">nueva ciudad</span>
+          Descubrí los mejores{' '}
+          <span className="gradient-text">descuentos</span>
         </h1>
         <p className="hero-subtitle slide-up-2">
-          Encontrá los mejores restaurantes, bares y más cerca tuyo,
-          con ofertas exclusivas para estudiantes de intercambio.
+          Restaurantes, bares y más con ofertas exclusivas para estudiantes.
+          Mostrá tu carnet y ahorrá.
         </p>
 
         {/* Search */}
@@ -77,9 +77,6 @@ export default function HomeFeed({ establishments }: Props) {
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Buscar establecimientos"
           />
-          <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>
-            Buscar
-          </button>
         </div>
       </section>
 
@@ -122,7 +119,6 @@ export default function HomeFeed({ establishments }: Props) {
                       title={e.name}
                       category={e.category}
                       location={`${e.city}, ${e.country}`}
-                      rating={4.5}
                       originalPrice={promo?.original_price ?? undefined}
                       discountedPrice={promo?.discounted_price ?? undefined}
                       discountPercentage={promo?.discount_percentage ?? undefined}

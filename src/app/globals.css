@@ -167,6 +167,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 @media (max-width: 768px) {
   .container { padding: 0 var(--space-4); }
+  .hero { padding-top: var(--space-12); padding-bottom: var(--space-8); min-height: unset; }
+  .hero-title { font-size: clamp(2rem, 8vw, 3rem); }
 }
 
 /* ============================================================
@@ -675,7 +677,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 @media (max-width: 1200px) { .grid-establishments { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 900px)  { .grid-establishments { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 500px)  { .grid-establishments { grid-template-columns: 1fr; } }
+@media (max-width: 640px)  { .grid-establishments { grid-template-columns: 1fr; } }
 
 /* Empty state */
 .empty-state {

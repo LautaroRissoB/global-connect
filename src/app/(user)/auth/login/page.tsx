@@ -1,15 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Globe, Mail, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
@@ -29,21 +30,21 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/')
+    const redirectTo = searchParams.get('redirectTo') ?? '/explore'
+    router.push(redirectTo)
     router.refresh()
   }
 
   return (
     <div className="auth-page">
       <div className="auth-card fade-in">
-        {/* Logo */}
         <Link href="/" className="auth-logo">
           <Globe size={20} />
           <span>Global Connect</span>
         </Link>
 
         <h1 className="auth-title">Bienvenido de vuelta</h1>
-        <p className="auth-subtitle">Iniciá sesión para acceder a tus lugares favoritos.</p>
+        <p className="auth-subtitle">Iniciá sesión para acceder a tus descuentos exclusivos.</p>
 
         {error && (
           <div className="auth-feedback error" role="alert">
@@ -85,5 +86,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Plus, X } from 'lucide-react'
@@ -40,7 +40,7 @@ interface Establishment {
   promotions: Promo[]
 }
 
-export default function ComparePage() {
+function CompareContent() {
   const searchParams = useSearchParams()
   const [allEstablishments, setAllEstablishments] = useState<Establishment[]>([])
   const [selected, setSelected] = useState<Establishment[]>([])
@@ -104,7 +104,7 @@ export default function ComparePage() {
         </Link>
 
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text)', marginBottom: '0.5rem' }}>
             Comparar establecimientos
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>
@@ -140,7 +140,7 @@ export default function ComparePage() {
                       <span style={{ display: 'inline-block', background: 'var(--primary)', color: '#fff', borderRadius: 'var(--radius-full)', padding: '0.15rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, marginBottom: '0.4rem' }}>
                         {CATEGORY_LABELS[e.category] ?? e.category}
                       </span>
-                      <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, margin: '0 0 0.25rem' }}>{e.name}</h3>
+                      <h3 style={{ color: 'var(--text)', fontWeight: 700, margin: '0 0 0.25rem' }}>{e.name}</h3>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 1rem' }}>
                         {e.city}, {e.country}
                       </p>
@@ -187,7 +187,7 @@ export default function ComparePage() {
                   {showPicker ? (
                     <div className="glass" style={{ borderRadius: 'var(--radius-lg)', padding: '1rem', maxHeight: 400, overflowY: 'auto' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Elegir lugar</span>
+                        <span style={{ color: 'var(--text)', fontWeight: 600 }}>Elegir lugar</span>
                         <button onClick={() => setShowPicker(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                           <X size={16} />
                         </button>
@@ -197,8 +197,8 @@ export default function ComparePage() {
                           <button
                             key={e.id}
                             onClick={() => addEstablishment(e)}
-                            style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '0.6rem 0.5rem', cursor: 'pointer', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border)' }}
-                            onMouseEnter={(ev) => (ev.currentTarget.style.background = 'var(--surface-2)')}
+                            style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '0.6rem 0.5rem', cursor: 'pointer', color: 'var(--text)', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--card-border)' }}
+                            onMouseEnter={(ev) => (ev.currentTarget.style.background = 'var(--bg-secondary)')}
                             onMouseLeave={(ev) => (ev.currentTarget.style.background = 'none')}
                           >
                             <span style={{ fontWeight: 500 }}>{e.name}</span>
@@ -215,7 +215,7 @@ export default function ComparePage() {
                       style={{
                         width: '100%',
                         minHeight: 200,
-                        border: '2px dashed var(--border)',
+                        border: '2px dashed var(--card-border)',
                         borderRadius: 'var(--radius-lg)',
                         background: 'none',
                         cursor: 'pointer',
@@ -228,7 +228,7 @@ export default function ComparePage() {
                         transition: 'border-color 0.2s',
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--card-border)')}
                     >
                       <Plus size={24} />
                       <span>Agregar lugar</span>
@@ -254,11 +254,19 @@ export default function ComparePage() {
   )
 }
 
+export default function ComparePage() {
+  return (
+    <Suspense>
+      <CompareContent />
+    </Suspense>
+  )
+}
+
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-      <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{value}</span>
+      <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{value}</span>
     </div>
   )
 }
