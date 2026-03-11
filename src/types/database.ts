@@ -35,6 +35,7 @@ export type Database = {
           id: string
           full_name: string
           university: string
+          exchange_university: string | null
           home_country: string
           exchange_country: string
           exchange_city: string
@@ -45,6 +46,7 @@ export type Database = {
           id: string
           full_name: string
           university: string
+          exchange_university?: string | null
           home_country: string
           exchange_country: string
           exchange_city: string
@@ -55,6 +57,7 @@ export type Database = {
           id?: string
           full_name?: string
           university?: string
+          exchange_university?: string | null
           home_country?: string
           exchange_country?: string
           exchange_city?: string
@@ -82,6 +85,7 @@ export type Database = {
           price_range: '$' | '$$' | '$$$' | '$$$$' | null
           menu_pdf_url: string | null
           opening_hours: Record<string, string> | null
+          plan: 'free' | 'basic' | 'pro'
           is_active: boolean
           created_at: string
           updated_at: string
@@ -104,6 +108,7 @@ export type Database = {
           price_range?: '$' | '$$' | '$$$' | '$$$$' | null
           menu_pdf_url?: string | null
           opening_hours?: Record<string, string> | null
+          plan?: 'free' | 'basic' | 'pro'
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -126,6 +131,7 @@ export type Database = {
           price_range?: '$' | '$$' | '$$$' | '$$$$' | null
           menu_pdf_url?: string | null
           opening_hours?: Record<string, string> | null
+          plan?: 'free' | 'basic' | 'pro'
           is_active?: boolean
           updated_at?: string
         }
@@ -220,6 +226,30 @@ export type Database = {
         Update: {
           id?: string
           role?: AdminRole
+          created_at?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          id: string
+          type: string
+          establishment_id: string | null
+          user_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type: string
+          establishment_id?: string | null
+          user_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          type?: string
+          establishment_id?: string | null
+          user_id?: string | null
           created_at?: string
         }
         Relationships: []

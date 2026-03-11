@@ -3,33 +3,64 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Globe, Mail, Lock, User, GraduationCap, MapPin } from 'lucide-react'
+import { Globe, Mail, Lock, User, GraduationCap, MapPin, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { isUniversityEmail } from '@/lib/validators'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
+
+// Universidades en Buenos Aires (intercambio)
+const BA_UNIVERSITIES = [
+  'Universidad de Buenos Aires (UBA)',
+  'Universidad Torcuato Di Tella (UTDT)',
+  'Universidad de San Andrés (UdeSA)',
+  'Universidad Austral',
+  'ITBA – Instituto Tecnológico de Buenos Aires',
+  'Universidad Católica Argentina (UCA)',
+  'Universidad CEMA',
+  'Universidad de Palermo (UP)',
+  'ORT Argentina',
+  'UADE – Universidad Argentina de la Empresa',
+  'Universidad Abierta Interamericana (UAI)',
+  'Universidad Nacional de San Martín (UNSAM)',
+  'Universidad Nacional de Tres de Febrero (UNTREF)',
+  'Otra',
+]
+
+// Países (selección común para estudiantes de intercambio)
+const COUNTRIES = [
+  'Alemania', 'Argentina', 'Australia', 'Austria', 'Bélgica', 'Bolivia',
+  'Brasil', 'Canadá', 'Chile', 'China', 'Colombia', 'Corea del Sur',
+  'Costa Rica', 'Dinamarca', 'Ecuador', 'España', 'Estados Unidos',
+  'Finlandia', 'Francia', 'Grecia', 'Hungría', 'India', 'Israel',
+  'Italia', 'Japón', 'México', 'Noruega', 'Nueva Zelanda', 'Países Bajos',
+  'Paraguay', 'Perú', 'Polonia', 'Portugal', 'Reino Unido', 'República Checa',
+  'Rumania', 'Rusia', 'Sudáfrica', 'Suecia', 'Suiza', 'Turquía',
+  'Ucrania', 'Uruguay', 'Venezuela', 'Otro',
+]
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+}
 
 export default function RegisterPage() {
   const router = useRouter()
 
   const [form, setForm] = useState({
-    fullName:        '',
-    email:           '',
-    password:        '',
-    university:      '',
-    homeCountry:     '',
-    exchangeCountry: '',
-    exchangeCity:    '',
+    fullName:           '',
+    email:              '',
+    password:           '',
+    homeUniversity:     '',
+    homeCountry:        '',
+    exchangeUniversity: '',
+    exchangeCountry:    'Argentina',
+    exchangeCity:       'Buenos Aires',
   })
   const [error,   setError]   = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const emailValid   = form.email.length > 0 && isUniversityEmail(form.email)
-  const emailInvalid = form.email.length > 0 && !isUniversityEmail(form.email)
-
   function update(field: keyof typeof form) {
-    return (e: React.ChangeEvent<HTMLInputElement>) =>
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((prev) => ({ ...prev, [field]: e.target.value }))
   }
 
@@ -37,12 +68,20 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
-    if (!isUniversityEmail(form.email)) {
-      setError('Necesitás un email universitario para registrarte (.edu, .edu.ar, .ac.uk, etc.)')
+    if (!isValidEmail(form.email)) {
+      setError('Ingresá un email válido.')
       return
     }
     if (form.password.length < 8) {
       setError('La contraseña debe tener al menos 8 caracteres.')
+      return
+    }
+    if (!form.homeCountry) {
+      setError('Seleccioná tu país de origen.')
+      return
+    }
+    if (!form.exchangeUniversity) {
+      setError('Seleccioná la universidad en la que estás actualmente.')
       return
     }
 
@@ -61,31 +100,42 @@ export default function RegisterPage() {
       return
     }
 
-    // Crear perfil si el usuario se creó inmediatamente (sin confirmación de email)
     if (data.user) {
       await supabase.from('profiles').insert({
-        id:               data.user.id,
-        full_name:        form.fullName,
-        university:       form.university,
-        home_country:     form.homeCountry,
-        exchange_country: form.exchangeCountry,
-        exchange_city:    form.exchangeCity,
+        id:                  data.user.id,
+        full_name:           form.fullName,
+        university:          form.homeUniversity,
+        exchange_university: form.exchangeUniversity,
+        home_country:        form.homeCountry,
+        exchange_country:    form.exchangeCountry,
+        exchange_city:       form.exchangeCity,
       })
     }
 
     setSuccess(true)
     setLoading(false)
 
-    // Si no hay confirmación de email, redirigir directo
     if (data.session) {
-      setTimeout(() => router.push('/'), 1500)
+      setTimeout(() => router.push('/explore'), 1500)
     }
+  }
+
+  const selectStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.65rem 0.85rem',
+    borderRadius: 'var(--radius)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    fontSize: '0.9rem',
+    outline: 'none',
+    cursor: 'pointer',
+    appearance: 'auto',
   }
 
   return (
     <div className="auth-page">
-      <div className="auth-card fade-in" style={{ maxWidth: 520 }}>
-        {/* Logo */}
+      <div className="auth-card fade-in" style={{ maxWidth: 540 }}>
         <Link href="/" className="auth-logo">
           <Globe size={20} />
           <span>Global Connect</span>
@@ -93,7 +143,7 @@ export default function RegisterPage() {
 
         <h1 className="auth-title">Crear cuenta</h1>
         <p className="auth-subtitle">
-          Solo para estudiantes de intercambio. Necesitás un email universitario.
+          Para estudiantes de intercambio en Buenos Aires.
         </p>
 
         {error && (
@@ -109,6 +159,7 @@ export default function RegisterPage() {
 
         {!success && (
           <form className="auth-form" onSubmit={handleSubmit}>
+
             {/* Nombre */}
             <Input
               id="fullName"
@@ -122,26 +173,16 @@ export default function RegisterPage() {
             />
 
             {/* Email */}
-            <div>
-              <Input
-                id="email"
-                label="Email universitario"
-                type="email"
-                value={form.email}
-                onChange={update('email')}
-                icon={Mail}
-                required
-                autoComplete="email"
-              />
-              {emailValid && (
-                <p className="email-hint valid">✓ Email universitario válido</p>
-              )}
-              {emailInvalid && (
-                <p className="email-hint invalid">
-                  ✗ Necesitás un email universitario (.edu, .edu.ar, .ac.uk…)
-                </p>
-              )}
-            </div>
+            <Input
+              id="email"
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={update('email')}
+              icon={Mail}
+              required
+              autoComplete="email"
+            />
 
             {/* Contraseña */}
             <Input
@@ -156,49 +197,89 @@ export default function RegisterPage() {
               minLength={8}
             />
 
-            {/* Universidad */}
+            {/* Separador: datos académicos */}
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0.25rem 0 -0.25rem' }}>
+              Datos académicos
+            </p>
+
+            {/* País de origen */}
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                <MapPin size={14} /> País de origen
+              </label>
+              <select
+                value={form.homeCountry}
+                onChange={update('homeCountry')}
+                required
+                style={selectStyle}
+              >
+                <option value="">Seleccioná tu país</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Universidad de origen */}
             <Input
-              id="university"
+              id="homeUniversity"
               label="Universidad de origen"
               type="text"
-              value={form.university}
-              onChange={update('university')}
+              value={form.homeUniversity}
+              onChange={update('homeUniversity')}
               icon={GraduationCap}
               required
             />
 
-            {/* País de origen + País de intercambio */}
-            <div className="form-row">
-              <Input
-                id="homeCountry"
-                label="País de origen"
-                type="text"
-                value={form.homeCountry}
-                onChange={update('homeCountry')}
-                icon={MapPin}
+            {/* Universidad actual (Buenos Aires) */}
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                <Building2 size={14} /> Universidad en Buenos Aires (actual)
+              </label>
+              <select
+                value={form.exchangeUniversity}
+                onChange={update('exchangeUniversity')}
                 required
-              />
+                style={selectStyle}
+              >
+                <option value="">Seleccioná tu universidad</option>
+                {BA_UNIVERSITIES.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Separador: destino */}
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0.25rem 0 -0.25rem' }}>
+              Destino de intercambio
+            </p>
+
+            {/* País y ciudad de intercambio (pre-filled, editables) */}
+            <div className="form-row">
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                  <MapPin size={14} /> País
+                </label>
+                <select
+                  value={form.exchangeCountry}
+                  onChange={update('exchangeCountry')}
+                  style={selectStyle}
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
               <Input
-                id="exchangeCountry"
-                label="País de intercambio"
+                id="exchangeCity"
+                label="Ciudad"
                 type="text"
-                value={form.exchangeCountry}
-                onChange={update('exchangeCountry')}
+                value={form.exchangeCity}
+                onChange={update('exchangeCity')}
                 icon={MapPin}
                 required
               />
             </div>
-
-            {/* Ciudad de intercambio */}
-            <Input
-              id="exchangeCity"
-              label="Ciudad de intercambio"
-              type="text"
-              value={form.exchangeCity}
-              onChange={update('exchangeCity')}
-              icon={MapPin}
-              required
-            />
 
             <Button
               type="submit"
