@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Outfit } from 'next/font/google'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale, getMessages } from 'next-intl/server'
 import './globals.css'
 
 const inter = Inter({
@@ -16,14 +18,20 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: 'Global Connect',
-  description: 'Descubrí los mejores lugares como estudiante de intercambio. Restaurantes, bares, fiestas y más con promociones exclusivas.',
-  keywords: ['estudiantes', 'intercambio', 'restaurantes', 'Roma', 'promociones'],
+  description: 'Discover the best places as an exchange student. Restaurants, bars, and more with exclusive promotions.',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
-    <html lang="es" className={`${inter.variable} ${outfit.variable}`}>
-      <body>{children}</body>
+    <html lang={locale} className={`${inter.variable} ${outfit.variable}`}>
+      <body>
+        <NextIntlClientProvider messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   )
 }

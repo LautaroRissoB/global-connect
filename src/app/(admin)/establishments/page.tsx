@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
 import { Pencil, Eye, EyeOff, Plus } from 'lucide-react'
+import PlanSelector from '@/components/admin/PlanSelector'
 
 // Server Actions
 async function toggleActive(id: string, current: boolean) {
@@ -11,11 +12,18 @@ async function toggleActive(id: string, current: boolean) {
   revalidatePath('/establishments')
 }
 
+async function changePlan(id: string, plan: string) {
+  'use server'
+  const supabase = await createClient()
+  await supabase.from('establishments').update({ plan: plan as 'free' | 'basic' | 'pro' }).eq('id', id)
+  revalidatePath('/establishments')
+}
+
 export default async function EstablishmentsPage() {
   const supabase = await createClient()
   const { data: establishments } = await supabase
     .from('establishments')
-    .select('id, name, category, city, country, is_active, created_at')
+    .select('id, name, category, city, country, plan, is_active, created_at')
     .order('created_at', { ascending: false })
 
   const list = establishments ?? []
@@ -41,7 +49,7 @@ export default async function EstablishmentsPage() {
               <th>Nombre</th>
               <th>Categoría</th>
               <th>Ciudad</th>
-              <th>País</th>
+              <th>Plan</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -53,7 +61,9 @@ export default async function EstablishmentsPage() {
                   <td style={{ fontWeight: 500 }}>{e.name}</td>
                   <td><span className="badge badge-category">{e.category}</span></td>
                   <td style={{ color: 'var(--text-muted)' }}>{e.city}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{e.country}</td>
+                  <td>
+                    <PlanSelector id={e.id} plan={e.plan ?? 'free'} action={changePlan} />
+                  </td>
                   <td>
                     <span className={`badge ${e.is_active ? 'badge-active' : 'badge-inactive'}`}>
                       {e.is_active ? 'Activo' : 'Inactivo'}

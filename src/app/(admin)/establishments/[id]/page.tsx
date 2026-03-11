@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, X, Upload, Instagram, FileText } from 'lucide-react'
+import { X, Upload, Instagram, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { EstablishmentCategory } from '@/types/database'
+import WeekHoursEditor, { DEFAULT_WEEK, parseOpeningHours, weekToOpeningHours, type WeekHours } from '@/components/admin/WeekHoursEditor'
 
 const CATEGORIES: { value: EstablishmentCategory; label: string }[] = [
   { value: 'restaurant', label: 'Restaurante' },
@@ -25,17 +26,35 @@ const PRICE_RANGES = [
   { value: '$$$$', label: '$$$$', hint: 'Premium' },
 ]
 
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-
-interface HourRow { day: string; closed: boolean; from: string; to: string }
-
-function parseHours(raw: Record<string, string>): HourRow[] {
-  return Object.entries(raw).map(([day, val]) => {
-    if (val === 'Cerrado') return { day, closed: true, from: '10:00', to: '22:00' }
-    const parts = val.split(' - ')
-    return { day, closed: false, from: parts[0] ?? '10:00', to: parts[1] ?? '22:00' }
-  })
-}
+const PLANS = [
+  {
+    value: 'free',
+    label: 'Gratuito',
+    price: 'Sin costo',
+    desc: 'Mes de prueba · 1 promoción',
+    color: 'var(--text-muted)',
+    border: 'var(--card-border)',
+    bg: 'rgba(255,255,255,0.03)',
+  },
+  {
+    value: 'basic',
+    label: 'Básico',
+    price: '€29 / mes',
+    desc: 'Hasta 3 promos · Reporte básico',
+    color: 'var(--secondary)',
+    border: 'var(--secondary)',
+    bg: 'rgba(0,206,201,0.08)',
+  },
+  {
+    value: 'pro',
+    label: 'Pro',
+    price: '€79 / mes',
+    desc: 'Promos ilimitadas · Destacado · Reporte detallado',
+    color: 'var(--primary-light)',
+    border: 'var(--primary)',
+    bg: 'rgba(108,92,231,0.1)',
+  },
+] as const
 
 export default function EditEstablishmentPage() {
   const router = useRouter()
@@ -49,7 +68,9 @@ export default function EditEstablishmentPage() {
   const [pdfFile,       setPdfFile]       = useState<File | null>(null)
   const [existingPdf,   setExistingPdf]   = useState<string | null>(null)
   const [uploading,     setUploading]     = useState(false)
-  const [hourRows,      setHourRows]      = useState<HourRow[]>([])
+  const [weekHours,     setWeekHours]     = useState<WeekHours>(DEFAULT_WEEK)
+
+  const [plan, setPlan] = useState<'free' | 'basic' | 'pro'>('free')
 
   const [form, setForm] = useState({
     name:        '',
@@ -91,12 +112,13 @@ export default function EditEstablishmentPage() {
         instagram:   data.instagram    ?? '',
         price_range: (data.price_range ?? '') as '$' | '$$' | '$$$' | '$$$$' | '',
       })
+      setPlan((data.plan ?? 'free') as 'free' | 'basic' | 'pro')
 
       if (data.image_url)    setImagePreview(data.image_url)
       if (data.menu_pdf_url) setExistingPdf(data.menu_pdf_url)
 
       if (data.opening_hours && typeof data.opening_hours === 'object') {
-        setHourRows(parseHours(data.opening_hours as Record<string, string>))
+        setWeekHours(parseOpeningHours(data.opening_hours as Record<string, string>))
       }
 
       setFetching(false)
@@ -121,21 +143,6 @@ export default function EditEstablishmentPage() {
     if (!file) return
     setPdfFile(file)
     setExistingPdf(null)
-  }
-
-  function addHourRow() {
-    const usedDays = hourRows.map((r) => r.day)
-    const next = DAYS.find((d) => !usedDays.includes(d))
-    if (!next) return
-    setHourRows((prev) => [...prev, { day: next, closed: false, from: '10:00', to: '22:00' }])
-  }
-
-  function removeHourRow(i: number) {
-    setHourRows((prev) => prev.filter((_, idx) => idx !== i))
-  }
-
-  function updateHourRow(i: number, field: keyof HourRow, value: string | boolean) {
-    setHourRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
   }
 
   async function uploadFile(
@@ -170,13 +177,6 @@ export default function EditEstablishmentPage() {
     setUploading(false)
     if (error) { setLoading(false); return }
 
-    const opening_hours = hourRows
-      .filter((r) => r.day)
-      .reduce<Record<string, string>>((acc, r) => ({
-        ...acc,
-        [r.day]: r.closed ? 'Cerrado' : `${r.from} - ${r.to}`
-      }), {})
-
     const { error: dbError } = await supabase
       .from('establishments')
       .update({
@@ -190,9 +190,10 @@ export default function EditEstablishmentPage() {
         website:       form.website      || null,
         instagram:     form.instagram    || null,
         price_range:   (form.price_range || null) as '$' | '$$' | '$$$' | '$$$$' | null,
+        plan,
         image_url,
         menu_pdf_url,
-        opening_hours: Object.keys(opening_hours).length > 0 ? opening_hours : null,
+        opening_hours: weekToOpeningHours(weekHours),
       })
       .eq('id', id)
 
@@ -371,49 +372,47 @@ export default function EditEstablishmentPage() {
 
           {/* Horarios */}
           <div className="form-group">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <label className="form-label" style={{ marginBottom: 0 }}>Horarios <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-faint)' }}>(opcional)</span></label>
-              {hourRows.length < DAYS.length && (
-                <button type="button" onClick={addHourRow} className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem' }}>
-                  <Plus size={13} /> Agregar día
-                </button>
-              )}
+            <label className="form-label" style={{ marginBottom: 8 }}>Horarios <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-faint)' }}>(opcional)</span></label>
+            <WeekHoursEditor value={weekHours} onChange={setWeekHours} />
+          </div>
+
+          {/* Plan */}
+          <div className="form-group">
+            <label className="form-label" style={{ marginBottom: 10 }}>Plan</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {PLANS.map((p) => {
+                const active = plan === p.value
+                return (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setPlan(p.value)}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      border: `2px solid ${active ? p.border : 'var(--card-border)'}`,
+                      background: active ? p.bg : 'rgba(255,255,255,0.02)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: active ? p.color : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {p.label}
+                    </span>
+                    <span style={{ fontSize: '1rem', fontWeight: 800, color: active ? p.color : 'var(--text)' }}>
+                      {p.price}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', lineHeight: 1.4 }}>
+                      {p.desc}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
-            {hourRows.length === 0 ? (
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-faint)' }}>Sin horarios cargados. Podés agregarlos cuando quieras.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {hourRows.map((row, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 32px', gap: 8, alignItems: 'center' }}>
-                    <select className="form-select" value={row.day} onChange={(e) => updateHourRow(i, 'day', e.target.value)}>
-                      {DAYS.map((d) => <option key={d} value={d} disabled={hourRows.some((r, ri) => ri !== i && r.day === d)}>{d}</option>)}
-                    </select>
-
-                    {row.closed ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ padding: '9px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--card-border)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--text-muted)', flex: 1 }}>Cerrado</span>
-                        <button type="button" onClick={() => updateHourRow(i, 'closed', false)} style={{ fontSize: '0.72rem', background: 'none', border: '1px solid var(--card-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                          Cambiar
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <input type="time" className="form-input" value={row.from} onChange={(e) => updateHourRow(i, 'from', e.target.value)} style={{ flex: 1 }} />
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', flexShrink: 0 }}>a</span>
-                        <input type="time" className="form-input" value={row.to} onChange={(e) => updateHourRow(i, 'to', e.target.value)} style={{ flex: 1 }} />
-                        <button type="button" onClick={() => updateHourRow(i, 'closed', true)} style={{ fontSize: '0.72rem', background: 'none', border: '1px solid var(--card-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          Cerrado
-                        </button>
-                      </div>
-                    )}
-
-                    <button type="button" onClick={() => removeHourRow(i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}>
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="form-actions">

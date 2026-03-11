@@ -2,15 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Globe, Menu, X, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLocale, useTranslations } from 'next-intl'
 
 export default function Navbar() {
-  const router = useRouter()
-  const [mobileOpen,  setMobileOpen]  = useState(false)
-  const [userEmail,   setUserEmail]   = useState<string | null>(null)
-  const [authLoaded,  setAuthLoaded]  = useState(false)
+  const router     = useRouter()
+  const pathname   = usePathname()
+  const locale     = useLocale()
+  const t          = useTranslations('nav')
+
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [userEmail,  setUserEmail]  = useState<string | null>(null)
+  const [authLoaded, setAuthLoaded] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -35,6 +40,11 @@ export default function Navbar() {
     router.refresh()
   }
 
+  function toggleLocale() {
+    const next = locale === 'es' ? 'en' : 'es'
+    window.location.href = `/api/set-locale?locale=${next}&redirect=${encodeURIComponent(pathname)}`
+  }
+
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -46,24 +56,42 @@ export default function Navbar() {
 
         {/* Desktop links */}
         <div className="navbar-links">
-          <Link href="/explore">Explorar</Link>
+          <Link href="/explore">{t('explore')}</Link>
         </div>
 
         {/* Desktop actions */}
-        <div className="navbar-actions" style={{ minWidth: 140 }}>
+        <div className="navbar-actions" style={{ minWidth: 160, gap: '0.5rem' }}>
+          {/* Language toggle */}
+          <button
+            onClick={toggleLocale}
+            title={locale === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+            style={{
+              background: 'none',
+              border: '1px solid var(--card-border)',
+              borderRadius: 'var(--radius-full)',
+              padding: '3px 10px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              letterSpacing: '0.04em',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--primary)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--card-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
+          >
+            {locale === 'es' ? 'EN' : 'ES'}
+          </button>
+
           {!authLoaded ? null : userEmail ? (
             <button onClick={handleLogout} className="btn btn-outline btn-sm">
               <LogOut size={14} />
-              Salir
+              {t('logout')}
             </button>
           ) : (
             <>
-              <Link href="/auth/login" className="btn btn-outline btn-sm">
-                Iniciar sesión
-              </Link>
-              <Link href="/auth/register" className="btn btn-primary btn-sm">
-                Registrarse
-              </Link>
+              <Link href="/auth/login" className="btn btn-outline btn-sm">{t('login')}</Link>
+              <Link href="/auth/register" className="btn btn-primary btn-sm">{t('register')}</Link>
             </>
           )}
         </div>
@@ -72,7 +100,7 @@ export default function Navbar() {
         <button
           className="navbar-hamburger"
           onClick={() => setMobileOpen((o) => !o)}
-          aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
         >
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -81,18 +109,24 @@ export default function Navbar() {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="navbar-mobile">
-          <Link href="/explore" onClick={() => setMobileOpen(false)}>Explorar</Link>
+          <Link href="/explore" onClick={() => setMobileOpen(false)}>{t('explore')}</Link>
+          <button
+            onClick={toggleLocale}
+            style={{ textAlign: 'left', padding: 'var(--space-3)', fontSize: '1rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            {locale === 'es' ? '🇺🇸 English' : '🇦🇷 Español'}
+          </button>
           {userEmail ? (
             <button
               onClick={handleLogout}
               style={{ textAlign: 'left', padding: 'var(--space-3)', fontSize: '1rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 8 }}
             >
-              <LogOut size={16} /> Cerrar sesión
+              <LogOut size={16} /> {t('logout')}
             </button>
           ) : (
             <>
-              <Link href="/auth/login"    onClick={() => setMobileOpen(false)}>Iniciar sesión</Link>
-              <Link href="/auth/register" onClick={() => setMobileOpen(false)}>Registrarse</Link>
+              <Link href="/auth/login"    onClick={() => setMobileOpen(false)}>{t('login')}</Link>
+              <Link href="/auth/register" onClick={() => setMobileOpen(false)}>{t('register')}</Link>
             </>
           )}
         </div>

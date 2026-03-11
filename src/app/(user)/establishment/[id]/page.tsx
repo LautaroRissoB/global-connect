@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { MapPin, Phone, Globe, ArrowLeft, Instagram, FileText, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/ui/Navbar'
+import TrackView from '@/components/ui/TrackView'
 
 const CATEGORY_LABELS: Record<string, string> = {
   restaurant: 'Restaurante',
@@ -69,6 +70,7 @@ export default async function EstablishmentDetailPage({ params }: Props) {
   return (
     <>
       <Navbar />
+      <TrackView establishmentId={establishment.id} />
 
       <div style={{ maxWidth: 720, margin: '0 auto', paddingBottom: '5rem' }}>
 
