@@ -57,6 +57,7 @@ export default function Navbar() {
         {/* Desktop links */}
         <div className="navbar-links">
           <Link href="/explore">{t('explore')}</Link>
+          <Link href="/compare">{t('compare')}</Link>
         </div>
 
         {/* Desktop actions */}
@@ -110,6 +111,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="navbar-mobile">
           <Link href="/explore" onClick={() => setMobileOpen(false)}>{t('explore')}</Link>
+          <Link href="/compare" onClick={() => setMobileOpen(false)}>{t('compare')}</Link>
           <button
             onClick={toggleLocale}
             style={{ textAlign: 'left', padding: 'var(--space-3)', fontSize: '1rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}

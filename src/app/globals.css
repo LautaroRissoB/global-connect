@@ -830,3 +830,310 @@ h1, h2, h3, h4, h5, h6 {
 }
 .email-hint.valid { color: var(--secondary); }
 .email-hint.invalid { color: var(--accent); }
+
+/* ============================================================
+   Compare Page
+   ============================================================ */
+
+/* Page header row */
+.compare-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Scroll container ── */
+.compare-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ── Grid table ── */
+.compare-table {
+  display: grid;
+  /* gridTemplateColumns set inline — sticky col + N est cols */
+}
+
+/* ── Sticky label column ── */
+.compare-label-cell {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  padding: 0.875rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 64px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  line-height: 1.3;
+}
+
+.compare-label-icon {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  margin-bottom: 1px;
+}
+
+/* Taller label for image row */
+.compare-img-label {
+  min-height: 200px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Add slot button inside label cell ── */
+.compare-add-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 64px;
+  height: 72px;
+  border: 1px dashed var(--primary);
+  border-radius: var(--radius-md);
+  background: rgba(108, 92, 231, 0.07);
+  color: var(--primary-light);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all var(--ease);
+  text-transform: uppercase;
+}
+.compare-add-slot:hover {
+  background: rgba(108, 92, 231, 0.16);
+  border-color: var(--primary-light);
+}
+
+/* ── Data cells ── */
+.compare-data-cell {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.875rem;
+  color: var(--text);
+  transition: background var(--ease);
+}
+
+/* Winner highlight */
+.compare-winner {
+  background: rgba(0, 206, 201, 0.06);
+  color: var(--secondary);
+}
+
+/* ── Image cells ── */
+.compare-img-cell {
+  position: relative;
+  overflow: hidden;
+  min-height: 200px;
+  border-bottom: 1px solid var(--card-border);
+}
+.compare-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Remove button over image */
+.compare-remove-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+.compare-remove-btn:hover { background: rgba(253, 121, 168, 0.75); }
+
+/* ── Picker overlay ──
+   Mobile: bottom sheet | Desktop: centered modal */
+.compare-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;   /* bottom sheet default */
+  justify-content: center;
+  padding: 0;
+  animation: fadeIn 0.18s ease;
+}
+
+.compare-picker {
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.22s ease;
+}
+
+/* Handle bar */
+.compare-picker-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+
+.compare-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.875rem;
+  border-bottom: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+.compare-picker-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Search row */
+.compare-picker-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--card-border);
+  flex-shrink: 0;
+  position: relative;
+}
+.compare-picker-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.compare-picker-search-input {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-full);
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--ease);
+}
+.compare-picker-search-input:focus { border-color: var(--primary); }
+.compare-picker-search-input::placeholder { color: var(--text-muted); }
+
+/* Results list */
+.compare-picker-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.4rem 0;
+}
+
+/* Individual picker item */
+.compare-picker-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.8rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--ease);
+}
+.compare-picker-item:last-child { border-bottom: none; }
+.compare-picker-item:hover { background: rgba(255, 255, 255, 0.05); }
+
+.compare-picker-item-img {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-tertiary);
+}
+
+.compare-picker-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.compare-picker-item-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.compare-picker-item-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.compare-picker-item-add {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(108, 92, 231, 0.15);
+  color: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--ease);
+}
+.compare-picker-item:hover .compare-picker-item-add {
+  background: rgba(108, 92, 231, 0.3);
+}
+
+/* Desktop: centered modal instead of bottom sheet */
+@media (min-width: 640px) {
+  .compare-picker-overlay {
+    align-items: center;
+    padding: 1.5rem;
+  }
+  .compare-picker {
+    border-radius: var(--radius-xl);
+    max-height: 72vh;
+  }
+  .compare-picker-handle { display: none; }
+}

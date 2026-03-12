@@ -1,6 +1,7 @@
 {
   "nav": {
     "explore": "Explorar",
+    "compare": "Comparar",
     "login": "Iniciar sesión",
     "register": "Registrarse",
     "logout": "Salir"

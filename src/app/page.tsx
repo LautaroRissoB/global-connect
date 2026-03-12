@@ -21,6 +21,10 @@ async function getFeatured() {
 }
 
 export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const isLoggedIn = !!user
+
   const [featured, t] = await Promise.all([getFeatured(), getTranslations('home')])
 
   const steps = [
@@ -58,9 +62,15 @@ export default async function HomePage() {
           <Link href="/explore" className="btn btn-primary" style={{ padding: '0.7rem 1.75rem', fontSize: '0.95rem' }}>
             {t('cta_explore')} <ArrowRight size={16} />
           </Link>
-          <Link href="/auth/register" className="btn btn-outline" style={{ padding: '0.7rem 1.75rem', fontSize: '0.95rem' }}>
-            {t('cta_register')}
-          </Link>
+          {isLoggedIn ? (
+            <Link href="/compare" className="btn btn-outline" style={{ padding: '0.7rem 1.75rem', fontSize: '0.95rem' }}>
+              ⚖ Comparar lugares
+            </Link>
+          ) : (
+            <Link href="/auth/register" className="btn btn-outline" style={{ padding: '0.7rem 1.75rem', fontSize: '0.95rem' }}>
+              {t('cta_register')}
+            </Link>
+          )}
         </div>
       </section>
 
@@ -137,15 +147,36 @@ export default async function HomePage() {
       <section style={{ margin: '3rem auto 5rem', maxWidth: 600, textAlign: 'center', padding: '0 1.5rem' }}>
         <div style={{ background: 'linear-gradient(135deg, rgba(108,92,231,0.15), rgba(0,206,201,0.08))', border: '1px solid rgba(108,92,231,0.25)', borderRadius: 'var(--radius-lg)', padding: '2.5rem 2rem' }}>
           <Globe size={32} style={{ color: 'var(--primary-light)', margin: '0 auto 1rem' }} />
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', marginBottom: '0.6rem' }}>
-            {t('cta_title')}
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-            {t('cta_subtitle')}
-          </p>
-          <Link href="/auth/register" className="btn btn-primary" style={{ padding: '0.7rem 2rem' }}>
-            {t('cta_btn')}
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', marginBottom: '0.6rem' }}>
+                ¿Querés comparar opciones?
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                Poné hasta 3 lugares lado a lado y encontrá la mejor oferta para vos.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/compare" className="btn btn-primary" style={{ padding: '0.7rem 2rem' }}>
+                  ⚖ Comparar lugares
+                </Link>
+                <Link href="/explore" className="btn btn-outline" style={{ padding: '0.7rem 2rem' }}>
+                  Explorar <ArrowRight size={15} />
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', marginBottom: '0.6rem' }}>
+                {t('cta_title')}
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                {t('cta_subtitle')}
+              </p>
+              <Link href="/auth/register" className="btn btn-primary" style={{ padding: '0.7rem 2rem' }}>
+                {t('cta_btn')}
+              </Link>
+            </>
+          )}
         </div>
       </section>
     </>
