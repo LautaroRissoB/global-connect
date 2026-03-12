@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -11,19 +14,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
   }
 
-  // Check establishment redemption mode
   const { data: establishment } = await supabase
     .from('establishments')
     .select('redemption_mode')
     .eq('id', establishmentId)
     .single()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mode = (establishment as any)?.redemption_mode ?? 'one_per_promo'
 
   if (mode === 'one_per_establishment') {
-    // Check if user already has any saved/redeemed benefit from this establishment
-    const { data: existing } = await supabase
+    const { data: existing } = await db
       .from('saved_benefits')
       .select('id')
       .eq('user_id', user.id)
@@ -38,8 +38,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Upsert: ignore if already saved
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('saved_benefits')
     .upsert(
       { user_id: user.id, promotion_id: promotionId, establishment_id: establishmentId, status: 'saved' },

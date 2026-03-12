@@ -7,11 +7,13 @@ export async function POST(
 ) {
   const { id } = await params
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  // Verify the saved_benefit belongs to this user and is not already redeemed
-  const { data: benefit } = await supabase
+  const { data: benefit } = await db
     .from('saved_benefits')
     .select('id, user_id, promotion_id, establishment_id, status')
     .eq('id', id)
@@ -23,14 +25,12 @@ export async function POST(
     return NextResponse.json({ error: 'Este beneficio ya fue canjeado' }, { status: 409 })
   }
 
-  // Mark as redeemed
-  await supabase
+  await db
     .from('saved_benefits')
     .update({ status: 'redeemed' })
     .eq('id', id)
 
-  // Create redemption record
-  const { data: redemption } = await supabase
+  const { data: redemption } = await db
     .from('redemptions')
     .insert({
       saved_benefit_id: benefit.id,
@@ -43,7 +43,7 @@ export async function POST(
 
   const { rating } = await request.json().catch(() => ({ rating: null }))
   if (rating && redemption) {
-    await supabase
+    await db
       .from('redemptions')
       .update({ rating })
       .eq('id', redemption.id)
