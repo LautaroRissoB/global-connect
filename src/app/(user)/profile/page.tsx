@@ -91,15 +91,6 @@ export default async function ProfilePage() {
     redirect('/profile')
   }
 
-  // ── Server action: save interests ──
-  async function saveInterests(interests: string[]) {
-    'use server'
-    const s = await createClient()
-    const { data: { user: u } } = await s.auth.getUser()
-    if (!u) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await s.from('profiles').update({ interests } as any).eq('id', u.id)
-  }
 
   // ── No profile: show completion form ──
   if (!profile) {
@@ -132,7 +123,7 @@ export default async function ProfilePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p = profile as any
   const exchangeUniversity = p.exchange_university as string | null
-  const interests: string[] = Array.isArray(p.interests) ? p.interests : []
+  const interests: string[] = Array.isArray(user.user_metadata?.interests) ? user.user_metadata.interests : []
 
   return (
     <>
@@ -181,7 +172,7 @@ export default async function ProfilePage() {
           }}>
             Intereses
           </div>
-          <InterestsTags initial={interests} saveAction={saveInterests} />
+          <InterestsTags initial={interests} />
         </div>
 
       </div>

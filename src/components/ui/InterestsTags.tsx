@@ -1,31 +1,33 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 const ALL_INTERESTS = [
-  { id: 'food',       label: 'Gastronomía',    emoji: '🍕' },
-  { id: 'bars',       label: 'Bares',           emoji: '🍺' },
-  { id: 'nightlife',  label: 'Vida nocturna',   emoji: '🌙' },
-  { id: 'culture',    label: 'Cultura',         emoji: '🎭' },
-  { id: 'music',      label: 'Música',          emoji: '🎵' },
-  { id: 'art',        label: 'Arte',            emoji: '🎨' },
-  { id: 'sports',     label: 'Deportes',        emoji: '⚽' },
-  { id: 'fitness',    label: 'Fitness',         emoji: '🏋️' },
-  { id: 'tourism',    label: 'Turismo',         emoji: '🗺️' },
-  { id: 'coffee',     label: 'Cafeterías',      emoji: '☕' },
-  { id: 'photo',      label: 'Fotografía',      emoji: '📸' },
-  { id: 'tech',       label: 'Tecnología',      emoji: '💻' },
+  { id: 'food',      label: 'Gastronomía',  emoji: '🍕' },
+  { id: 'bars',      label: 'Bares',        emoji: '🍺' },
+  { id: 'nightlife', label: 'Vida nocturna',emoji: '🌙' },
+  { id: 'culture',   label: 'Cultura',      emoji: '🎭' },
+  { id: 'music',     label: 'Música',       emoji: '🎵' },
+  { id: 'art',       label: 'Arte',         emoji: '🎨' },
+  { id: 'sports',    label: 'Deportes',     emoji: '⚽' },
+  { id: 'fitness',   label: 'Fitness',      emoji: '🏋️' },
+  { id: 'tourism',   label: 'Turismo',      emoji: '🗺️' },
+  { id: 'coffee',    label: 'Cafeterías',   emoji: '☕' },
+  { id: 'photo',     label: 'Fotografía',   emoji: '📸' },
+  { id: 'tech',      label: 'Tecnología',   emoji: '💻' },
 ]
 
 interface Props {
   initial: string[]
-  saveAction: (interests: string[]) => Promise<void>
 }
 
-export default function InterestsTags({ initial, saveAction }: Props) {
-  const [selected, setSelected]  = useState<string[]>(initial)
-  const [saved,    setSaved]     = useState(false)
-  const [isPending, startTransition] = useTransition()
+export default function InterestsTags({ initial }: Props) {
+  const [selected,   setSelected]  = useState<string[]>(initial)
+  const [saved,      setSaved]     = useState(false)
+  const [isPending,  startTransition] = useTransition()
+
+  const dirty = JSON.stringify([...selected].sort()) !== JSON.stringify([...initial].sort())
 
   function toggle(id: string) {
     setSaved(false)
@@ -36,16 +38,14 @@ export default function InterestsTags({ initial, saveAction }: Props) {
 
   function handleSave() {
     startTransition(async () => {
-      await saveAction(selected)
+      const supabase = createClient()
+      await supabase.auth.updateUser({ data: { interests: selected } })
       setSaved(true)
     })
   }
 
-  const dirty = JSON.stringify(selected.sort()) !== JSON.stringify([...initial].sort())
-
   return (
     <div>
-      {/* Tags grid */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.875rem' }}>
         {ALL_INTERESTS.map(({ id, label, emoji }) => {
           const active = selected.includes(id)
@@ -71,27 +71,22 @@ export default function InterestsTags({ initial, saveAction }: Props) {
         })}
       </div>
 
-      {/* Save button — only when there are changes */}
-      {(dirty || saved) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {dirty && (
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isPending}
-              className="btn btn-primary btn-sm"
-              style={{ opacity: isPending ? 0.7 : 1 }}
-            >
-              {isPending ? 'Guardando…' : 'Guardar'}
-            </button>
-          )}
-          {saved && !dirty && (
-            <span style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>
-              ✓ Guardado
-            </span>
-          )}
-        </div>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minHeight: 32 }}>
+        {dirty && (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isPending}
+            className="btn btn-primary btn-sm"
+            style={{ opacity: isPending ? 0.7 : 1 }}
+          >
+            {isPending ? 'Guardando…' : 'Guardar'}
+          </button>
+        )}
+        {saved && !dirty && (
+          <span style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>✓ Guardado</span>
+        )}
+      </div>
     </div>
   )
 }
