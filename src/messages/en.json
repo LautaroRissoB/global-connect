@@ -4,7 +4,8 @@
     "compare": "Compare",
     "login": "Sign in",
     "register": "Sign up",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "profile": "My profile"
   },
   "home": {
     "badge": "For exchange students",

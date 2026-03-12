@@ -84,10 +84,13 @@ export default function Navbar() {
           </button>
 
           {!authLoaded ? null : userEmail ? (
-            <button onClick={handleLogout} className="btn btn-outline btn-sm">
-              <LogOut size={14} />
-              {t('logout')}
-            </button>
+            <>
+              <Link href="/profile" className="btn btn-outline btn-sm">{t('profile')}</Link>
+              <button onClick={handleLogout} className="btn btn-outline btn-sm">
+                <LogOut size={14} />
+                {t('logout')}
+              </button>
+            </>
           ) : (
             <>
               <Link href="/auth/login" className="btn btn-outline btn-sm">{t('login')}</Link>
@@ -117,12 +120,15 @@ export default function Navbar() {
             {locale === 'es' ? '🇺🇸 English' : '🇦🇷 Español'}
           </button>
           {userEmail ? (
-            <button
-              onClick={handleLogout}
-              style={{ textAlign: 'left', padding: 'var(--space-3)', fontSize: '1rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 8 }}
-            >
-              <LogOut size={16} /> {t('logout')}
-            </button>
+            <>
+              <Link href="/profile" onClick={() => setMobileOpen(false)}>{t('profile')}</Link>
+              <button
+                onClick={handleLogout}
+                style={{ textAlign: 'left', padding: 'var(--space-3)', fontSize: '1rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <LogOut size={16} /> {t('logout')}
+              </button>
+            </>
           ) : (
             <>
               <Link href="/auth/login"    onClick={() => setMobileOpen(false)}>{t('login')}</Link>
