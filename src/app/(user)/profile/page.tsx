@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { MapPin, GraduationCap, Building2 } from 'lucide-react'
+import { MapPin, GraduationCap, Building2, AlertCircle } from 'lucide-react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/ui/Navbar'
 import AvatarUpload from '@/components/ui/AvatarUpload'
@@ -64,7 +65,25 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .single()
 
-  if (!profile) redirect('/auth/login')
+  if (!profile) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ maxWidth: 480, margin: '4rem auto', padding: '0 1rem', textAlign: 'center' }}>
+          <AlertCircle size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 1rem' }} />
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', marginBottom: '0.5rem' }}>
+            Perfil incompleto
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+            No encontramos tus datos. Volvé a registrarte para completar tu perfil.
+          </p>
+          <Link href="/auth/register" className="btn btn-primary">
+            Completar registro
+          </Link>
+        </div>
+      </>
+    )
+  }
 
   const initials = profile.full_name
     .split(' ')
