@@ -5,6 +5,7 @@ import Navbar from '@/components/ui/Navbar'
 import AvatarUpload from '@/components/ui/AvatarUpload'
 import ProfileCompleteForm from '@/components/ui/ProfileCompleteForm'
 import InterestsTags from '@/components/ui/InterestsTags'
+import ProfileTabs from '@/components/ui/ProfileTabs'
 
 function formatJoinDate(iso: string) {
   try {
@@ -66,6 +67,39 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .single()
 
+  // Fetch saved benefits + redemptions (graceful if tables don't exist yet)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const s = supabase as any
+  const [{ data: rawBenefits }, { data: rawRedemptions }] = await Promise.all([
+    s.from('saved_benefits')
+      .select('id, saved_at, status, promotion_id, promotions(title, discount_percentage), establishments(name, category)')
+      .eq('user_id', user.id)
+      .order('saved_at', { ascending: false })
+      .catch(() => ({ data: [] })),
+    s.from('redemptions')
+      .select('id, redeemed_at, rating, promotion_id, promotions(title, discount_percentage), establishments(name)')
+      .eq('user_id', user.id)
+      .order('redeemed_at', { ascending: false })
+      .catch(() => ({ data: [] })),
+  ])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const savedBenefits = (rawBenefits ?? []).map((b: any) => ({
+    id: b.id, saved_at: b.saved_at, status: b.status,
+    promo_title: b.promotions?.title ?? '',
+    promo_discount: b.promotions?.discount_percentage ?? null,
+    establishment_name: b.establishments?.name ?? '',
+    establishment_category: b.establishments?.category ?? '',
+  }))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const redemptions = (rawRedemptions ?? []).map((r: any) => ({
+    id: r.id, redeemed_at: r.redeemed_at, rating: r.rating,
+    promo_title: r.promotions?.title ?? '',
+    promo_discount: r.promotions?.discount_percentage ?? null,
+    establishment_name: r.establishments?.name ?? '',
+  }))
+
   // ── Server action: create profile for authenticated user ──
   async function createProfile(formData: FormData) {
     'use server'
@@ -125,24 +159,45 @@ export default async function ProfilePage() {
   const exchangeUniversity = p.exchange_university as string | null
   const interests: string[] = Array.isArray(user.user_metadata?.interests) ? user.user_metadata.interests : []
 
+  // Profile tab content (passed as prop to avoid re-fetching)
+  const profileContent = (
+    <div>
+      {/* ── Info cards ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginBottom: '2rem' }}>
+        {profile.home_country && (
+          <InfoRow icon={MapPin} label="País de origen" value={profile.home_country} />
+        )}
+        {profile.university && (
+          <InfoRow icon={GraduationCap} label="Universidad de origen" value={profile.university} />
+        )}
+        {exchangeUniversity && (
+          <InfoRow icon={Building2} label="Universidad en Buenos Aires" value={exchangeUniversity} accent />
+        )}
+      </div>
+
+      {/* ── Interests ── */}
+      <div>
+        <div style={{
+          fontSize: '0.72rem', color: 'var(--text-faint)',
+          textTransform: 'uppercase', letterSpacing: '0.07em',
+          marginBottom: '0.75rem', fontWeight: 600,
+        }}>
+          Intereses
+        </div>
+        <InterestsTags initial={interests} />
+      </div>
+    </div>
+  )
+
   return (
     <>
       <Navbar />
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 1rem 5rem' }}>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '2.5rem 1rem 5rem' }}>
-
-        {/* ── Header ── */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <AvatarUpload
-            userId={user.id}
-            avatarUrl={profile.avatar_url}
-            initials={initials}
-          />
-          <h1 style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: '1.5rem', fontWeight: 800,
-            margin: '0.875rem 0 0.3rem', color: 'var(--text)',
-          }}>
+        {/* ── Header (always visible) ── */}
+        <div style={{ textAlign: 'center', padding: '2rem 0 1.5rem' }}>
+          <AvatarUpload userId={user.id} avatarUrl={profile.avatar_url} initials={initials} />
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, margin: '0.875rem 0 0.3rem', color: 'var(--text)' }}>
             {profile.full_name}
           </h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>
@@ -150,31 +205,11 @@ export default async function ProfilePage() {
           </p>
         </div>
 
-        {/* ── Info cards ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginBottom: '2rem' }}>
-          {profile.home_country && (
-            <InfoRow icon={MapPin} label="País de origen" value={profile.home_country} />
-          )}
-          {profile.university && (
-            <InfoRow icon={GraduationCap} label="Universidad de origen" value={profile.university} />
-          )}
-          {exchangeUniversity && (
-            <InfoRow icon={Building2} label="Universidad en Buenos Aires" value={exchangeUniversity} accent />
-          )}
-        </div>
-
-        {/* ── Interests ── */}
-        <div>
-          <div style={{
-            fontSize: '0.72rem', color: 'var(--text-faint)',
-            textTransform: 'uppercase', letterSpacing: '0.07em',
-            marginBottom: '0.75rem', fontWeight: 600,
-          }}>
-            Intereses
-          </div>
-          <InterestsTags initial={interests} />
-        </div>
-
+        <ProfileTabs
+          profileContent={profileContent}
+          savedBenefits={savedBenefits}
+          redemptions={redemptions}
+        />
       </div>
     </>
   )

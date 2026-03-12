@@ -4,6 +4,7 @@ import { MapPin, Phone, Globe, ArrowLeft, Instagram, FileText, Clock } from 'luc
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/ui/Navbar'
 import TrackView from '@/components/ui/TrackView'
+import SaveBenefitButton from '@/components/ui/SaveBenefitButton'
 
 const CATEGORY_LABELS: Record<string, string> = {
   restaurant: 'Restaurante',
@@ -50,6 +51,21 @@ export default async function EstablishmentDetailPage({ params }: Props) {
     .single()
 
   if (!establishment) notFound()
+
+  // Fetch user's saved benefits for this establishment (if logged in)
+  const { data: { user } } = await supabase.auth.getUser()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let savedMap: Record<string, { id: string; status: string }> = {}
+  if (user) {
+    const { data: saved } = await (supabase as any)
+      .from('saved_benefits')
+      .select('id, promotion_id, status')
+      .eq('user_id', user.id)
+      .eq('establishment_id', id)
+    if (saved) {
+      for (const s of saved) savedMap[s.promotion_id] = { id: s.id, status: s.status }
+    }
+  }
 
   const activePromos = (establishment.promotions as {
     id: string
@@ -276,7 +292,7 @@ export default async function EstablishmentDetailPage({ params }: Props) {
                       )}
 
                       {/* Footer: valid until + terms */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 6 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 6, marginBottom: user ? '0.875rem' : 0 }}>
                         {promo.valid_until && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-sm)', padding: '3px 8px' }}>
                             Válido hasta {formatDate(promo.valid_until)}
@@ -288,6 +304,18 @@ export default async function EstablishmentDetailPage({ params }: Props) {
                           </span>
                         )}
                       </div>
+
+                      {/* Save / redeem button — only for logged-in users */}
+                      {user && (
+                        <SaveBenefitButton
+                          promotionId={promo.id}
+                          establishmentId={establishment.id}
+                          promoTitle={promo.title}
+                          termsConditions={promo.terms_conditions}
+                          savedBenefitId={savedMap[promo.id]?.id ?? null}
+                          isRedeemed={savedMap[promo.id]?.status === 'redeemed'}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
