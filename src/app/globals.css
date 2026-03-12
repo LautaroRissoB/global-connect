@@ -1137,3 +1137,293 @@ h1, h2, h3, h4, h5, h6 {
   }
   .compare-picker-handle { display: none; }
 }
+
+/* ============================================================
+   Explore — Card Compare Selection
+   ============================================================ */
+
+.card-select-wrapper {
+  position: relative;
+}
+
+/* Selected card gets a primary-colored ring */
+.card-select-wrapper.is-selected .card {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.25);
+}
+
+/* The +/✓ toggle button on each card */
+.card-select-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(13, 17, 23, 0.65);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--ease);
+}
+.card-select-btn:hover {
+  border-color: var(--primary-light);
+  background: rgba(108, 92, 231, 0.5);
+  color: white;
+  transform: scale(1.1);
+}
+.card-select-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 2px 12px rgba(108, 92, 231, 0.5);
+}
+.card-select-btn.maxed {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.card-select-btn.maxed:hover {
+  transform: none;
+  border-color: rgba(255,255,255,0.6);
+  background: rgba(13,17,23,0.65);
+}
+
+/* ============================================================
+   Explore — Floating Compare Bar
+   ============================================================ */
+.compare-float-bar {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem 0.6rem 0.6rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-full);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: slideUp 0.22s ease;
+  max-width: calc(100vw - 2rem);
+  white-space: nowrap;
+}
+
+.compare-float-thumbs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.compare-float-thumb {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  overflow: visible;
+  flex-shrink: 0;
+}
+.compare-float-thumb img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  display: block;
+  border: 2px solid var(--bg-secondary);
+}
+.compare-float-thumb button {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 9px;
+  transition: all var(--ease);
+}
+.compare-float-thumb button:hover {
+  background: rgba(253, 121, 168, 0.8);
+  color: white;
+  border-color: transparent;
+}
+
+/* ============================================================
+   Explore — Compare Overlay Panel
+   ============================================================ */
+.cmp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.18s ease;
+}
+
+.cmp-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  width: 100%;
+  max-width: 680px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cmp-handle {
+  width: 44px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+
+.cmp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+.cmp-header-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.cmp-content {
+  overflow-y: auto;
+  overflow-x: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem;
+}
+
+/* Grid for comparison columns */
+.cmp-cols {
+  display: grid;
+  gap: 0.75rem;
+  /* gridTemplateColumns set inline */
+  min-width: fit-content;
+}
+
+/* Image + name card at top of each column */
+.cmp-col-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--card-border);
+}
+.cmp-col-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  display: block;
+}
+.cmp-col-name {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--text);
+  line-height: 1.3;
+}
+.cmp-col-cat {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Section label (metric name) */
+.cmp-section {
+  margin-top: 0.875rem;
+}
+.cmp-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  margin-bottom: 0.4rem;
+}
+
+/* Metric value cell */
+.cmp-metric-cell {
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.5rem;
+  text-align: center;
+  transition: background var(--ease);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid transparent;
+}
+.cmp-metric-cell.winner {
+  background: rgba(0, 200, 100, 0.1);
+  border-color: rgba(0, 200, 100, 0.25);
+}
+.cmp-metric-cell.loser {
+  background: rgba(255, 70, 70, 0.08);
+  border-color: rgba(255, 70, 70, 0.2);
+}
+.cmp-metric-value {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text);
+  display: block;
+}
+.cmp-metric-cell.winner .cmp-metric-value { color: #2ecc71; }
+.cmp-metric-cell.loser  .cmp-metric-value { color: #ff5252; }
+.cmp-metric-verdict {
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-top: 3px;
+  display: block;
+  letter-spacing: 0.02em;
+}
+.cmp-metric-cell.winner .cmp-metric-verdict { color: #2ecc71; }
+.cmp-metric-cell.loser  .cmp-metric-verdict { color: #ff5252; }
+
+/* CTA row */
+.cmp-cta-row {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--card-border);
+}
+
+@media (min-width: 640px) {
+  .cmp-panel {
+    border-radius: var(--radius-xl);
+    margin: 1.5rem;
+    max-height: 80vh;
+  }
+  .cmp-backdrop {
+    align-items: center;
+  }
+  .cmp-handle { display: none; }
+}

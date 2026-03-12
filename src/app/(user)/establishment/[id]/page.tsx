@@ -93,14 +93,6 @@ export default async function EstablishmentDetailPage({ params }: Props) {
             <ArrowLeft size={14} /> Volver
           </Link>
 
-          {/* Compare button */}
-          <Link
-            href={`/compare?ids=${establishment.id}`}
-            style={{ position: 'absolute', top: 16, right: 16, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', color: '#fff', fontSize: '0.8rem', borderRadius: 'var(--radius-full)', padding: '6px 14px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            ⚖ Comparar
-          </Link>
-
           {/* Name overlay at bottom of hero */}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '1rem 1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>

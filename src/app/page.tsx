@@ -63,8 +63,8 @@ export default async function HomePage() {
             {t('cta_explore')} <ArrowRight size={16} />
           </Link>
           {isLoggedIn ? (
-            <Link href="/compare" className="btn btn-outline" style={{ padding: '0.7rem 1.75rem', fontSize: '0.95rem' }}>
-              ⚖ Comparar lugares
+            <Link href="/explore" className="btn btn-outline" style={{ padding: '0.7rem 1.75rem', fontSize: '0.95rem' }}>
+              Ver descuentos →
             </Link>
           ) : (
             <Link href="/auth/register" className="btn btn-outline" style={{ padding: '0.7rem 1.75rem', fontSize: '0.95rem' }}>
@@ -150,19 +150,14 @@ export default async function HomePage() {
           {isLoggedIn ? (
             <>
               <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', marginBottom: '0.6rem' }}>
-                ¿Querés comparar opciones?
+                {t('cta_title')}
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                Poné hasta 3 lugares lado a lado y encontrá la mejor oferta para vos.
+                {t('cta_subtitle')}
               </p>
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Link href="/compare" className="btn btn-primary" style={{ padding: '0.7rem 2rem' }}>
-                  ⚖ Comparar lugares
-                </Link>
-                <Link href="/explore" className="btn btn-outline" style={{ padding: '0.7rem 2rem' }}>
-                  Explorar <ArrowRight size={15} />
-                </Link>
-              </div>
+              <Link href="/explore" className="btn btn-primary" style={{ padding: '0.7rem 2rem' }}>
+                Explorar <ArrowRight size={15} />
+              </Link>
             </>
           ) : (
             <>

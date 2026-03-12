@@ -1,12 +1,19 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Search, Tag } from 'lucide-react'
+import { Search, Tag, Check, Plus, X } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import Navbar from '@/components/ui/Navbar'
 import Card from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
+
+interface Promotion {
+  discounted_price: number | null
+  original_price: number | null
+  discount_percentage: number | null
+  is_active: boolean
+}
 
 interface Establishment {
   id: string
@@ -17,10 +24,62 @@ interface Establishment {
   image_url: string | null
   price_range: string | null
   plan: string
-  promotions: { discounted_price: number | null; original_price: number | null; discount_percentage: number | null }[]
+  promotions: Promotion[]
 }
 
 const PRICE_FILTERS = ['$', '$$', '$$$', '$$$$']
+
+const CATEGORY_LABELS: Record<string, string> = {
+  restaurant: 'Restaurante',
+  bar:        'Bar',
+  club:       'Discoteca',
+  cafe:       'Cafetería',
+  cultural:   'Cultura',
+  theater:    'Teatro',
+  sports:     'Deportes',
+  other:      'Otro',
+}
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  restaurant: '🍽️',
+  bar:        '🍺',
+  club:       '🎵',
+  cafe:       '☕',
+  cultural:   '🎭',
+  theater:    '🎪',
+  sports:     '💪',
+  other:      '🌟',
+}
+
+const PRICE_ORDER: Record<string, number> = {
+  '$':    1,
+  '$$':   2,
+  '$$$':  3,
+  '$$$$': 4,
+}
+
+/** Returns 'winner' | 'loser' | 'neutral' for each value in the array */
+function getStates(
+  values: (number | null)[],
+  lowerIsBetter: boolean,
+): ('winner' | 'loser' | 'neutral')[] {
+  const nums = values.map((v) => (v === null ? null : v))
+
+  const defined = nums.filter((v): v is number => v !== null)
+  if (defined.length < 2) return values.map(() => 'neutral')
+
+  const best  = lowerIsBetter ? Math.min(...defined) : Math.max(...defined)
+  const worst = lowerIsBetter ? Math.max(...defined) : Math.min(...defined)
+
+  if (best === worst) return values.map(() => 'neutral')
+
+  return nums.map((v) => {
+    if (v === null) return 'neutral'
+    if (v === best)  return 'winner'
+    if (v === worst) return 'loser'
+    return 'neutral'
+  })
+}
 
 export default function ExplorePage() {
   const t  = useTranslations('explore')
@@ -43,6 +102,8 @@ export default function ExplorePage() {
   const [onlyDiscounts,  setOnlyDiscounts]  = useState(false)
   const [establishments, setEstablishments] = useState<Establishment[]>([])
   const [loading,        setLoading]        = useState(true)
+  const [compareIds,     setCompareIds]     = useState<string[]>([])
+  const [showPanel,      setShowPanel]      = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -50,7 +111,7 @@ export default function ExplorePage() {
       const { data } = await supabase
         .from('establishments')
         .select(`id, name, category, city, country, image_url, price_range, plan,
-          promotions ( discounted_price, original_price, discount_percentage )`)
+          promotions ( discounted_price, original_price, discount_percentage, is_active )`)
         .eq('is_active', true)
         .order('name')
 
@@ -59,6 +120,14 @@ export default function ExplorePage() {
     }
     load()
   }, [])
+
+  function toggleCompare(id: string) {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id)
+      if (prev.length >= 3)  return prev
+      return [...prev, id]
+    })
+  }
 
   const filtered = useMemo(() => {
     const result = establishments.filter((e) => {
@@ -89,6 +158,32 @@ export default function ExplorePage() {
   const heroWords = t('hero_title').split(' ')
   const heroStart = heroWords.slice(0, -1).join(' ')
   const heroEnd   = heroWords.slice(-1)[0]
+
+  // Establishments selected for comparison
+  const selectedForCompare = establishments.filter((e) => compareIds.includes(e.id))
+
+  // ── Metric helpers ──────────────────────────────────────────────────────────
+
+  // Price numeric values (null if no price_range)
+  const priceValues = selectedForCompare.map((e) =>
+    e.price_range ? (PRICE_ORDER[e.price_range] ?? null) : null,
+  )
+  const priceStates = getStates(priceValues, true)
+
+  // Best discount_percentage per establishment
+  const discountValues = selectedForCompare.map((e) => {
+    const percs = e.promotions
+      .map((p) => p.discount_percentage)
+      .filter((d): d is number => d !== null)
+    return percs.length > 0 ? Math.max(...percs) : null
+  })
+  const discountStates = getStates(discountValues, false)
+
+  // Active promos count
+  const activePromoValues = selectedForCompare.map((e) =>
+    e.promotions.filter((p) => p.is_active).length,
+  )
+  const activePromoStates = getStates(activePromoValues, false)
 
   return (
     <>
@@ -166,9 +261,25 @@ export default function ExplorePage() {
         ) : filtered.length > 0 ? (
           <div className="grid-establishments">
             {filtered.map((e, i) => {
-              const promo = e.promotions?.[0]
+              const promo      = e.promotions?.[0]
+              const isSelected = compareIds.includes(e.id)
+              const isMaxed    = !isSelected && compareIds.length >= 3
               return (
-                <div key={e.id} className="slide-up" style={{ animationDelay: `${i * 0.06}s` }}>
+                <div
+                  key={e.id}
+                  className={`card-select-wrapper slide-up${isSelected ? ' is-selected' : ''}`}
+                  style={{ animationDelay: `${i * 0.06}s` }}
+                >
+                  {/* Compare toggle button */}
+                  <button
+                    className={`card-select-btn${isSelected ? ' active' : ''}${isMaxed ? ' maxed' : ''}`}
+                    onClick={() => !isMaxed && toggleCompare(e.id)}
+                    aria-label={isSelected ? 'Quitar de comparación' : 'Agregar a comparación'}
+                    title={isMaxed ? 'Máximo 3 lugares' : isSelected ? 'Quitar de comparación' : 'Agregar a comparación'}
+                  >
+                    {isSelected ? <Check size={14} /> : <Plus size={14} />}
+                  </button>
+
                   <Link href={`/establishment/${e.id}`} style={{ textDecoration: 'none' }}>
                     <Card
                       image={e.image_url ?? `https://picsum.photos/seed/${e.id}/400/300`}
@@ -197,6 +308,209 @@ export default function ExplorePage() {
           </div>
         )}
       </section>
+
+      {/* ── Floating compare bar ──────────────────────────────────────────── */}
+      {compareIds.length > 0 && (
+        <div className="compare-float-bar">
+          {/* Thumbnails */}
+          <div className="compare-float-thumbs">
+            {selectedForCompare.map((e) => (
+              <div key={e.id} className="compare-float-thumb">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={e.image_url ?? `https://picsum.photos/seed/${e.id}/48/48`}
+                  alt={e.name}
+                />
+                <button
+                  onClick={() => toggleCompare(e.id)}
+                  aria-label={`Quitar ${e.name}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Actions */}
+          {compareIds.length >= 2 ? (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowPanel(true)}
+              style={{ borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
+            >
+              Comparar ({compareIds.length}) →
+            </button>
+          ) : (
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingRight: '0.25rem' }}>
+              Seleccioná 1 más
+            </span>
+          )}
+
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setCompareIds([])}
+            style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
+          >
+            Limpiar
+          </button>
+        </div>
+      )}
+
+      {/* ── Comparison overlay panel ──────────────────────────────────────── */}
+      {showPanel && selectedForCompare.length >= 2 && (
+        <div
+          className="cmp-backdrop"
+          onClick={() => setShowPanel(false)}
+        >
+          <div
+            className="cmp-panel"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="cmp-handle" />
+
+            {/* Header */}
+            <div className="cmp-header">
+              <span className="cmp-header-title">
+                Comparando {selectedForCompare.length} lugares
+              </span>
+              <button
+                onClick={() => setShowPanel(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: 4 }}
+                aria-label="Cerrar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="cmp-content">
+              <div
+                className="cmp-cols"
+                style={{ gridTemplateColumns: `repeat(${selectedForCompare.length}, minmax(140px, 1fr))` }}
+              >
+                {/* Row 1: image + name + category */}
+                {selectedForCompare.map((e) => (
+                  <div key={e.id} className="cmp-col-header">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={e.image_url ?? `https://picsum.photos/seed/${e.id}/400/300`}
+                      alt={e.name}
+                      className="cmp-col-img"
+                    />
+                    <span className="cmp-col-name">{e.name}</span>
+                    <span className="cmp-col-cat">
+                      {CATEGORY_EMOJI[e.category] ?? '🌟'} {CATEGORY_LABELS[e.category] ?? e.category}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Metric: Precio */}
+              <div className="cmp-section">
+                <div
+                  className="cmp-cols"
+                  style={{ gridTemplateColumns: `repeat(${selectedForCompare.length}, minmax(140px, 1fr))` }}
+                >
+                  <div className="cmp-section-label" style={{ gridColumn: `1 / -1` }}>
+                    Precio
+                  </div>
+                  {selectedForCompare.map((e, idx) => {
+                    const state = priceStates[idx]
+                    return (
+                      <div key={e.id} className={`cmp-metric-cell ${state}`}>
+                        <span className="cmp-metric-value">
+                          {e.price_range ?? '—'}
+                        </span>
+                        {state === 'winner' && (
+                          <span className="cmp-metric-verdict">✓ Mejor precio</span>
+                        )}
+                        {state === 'loser' && (
+                          <span className="cmp-metric-verdict">Precio más alto</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Metric: Mejor descuento */}
+              <div className="cmp-section">
+                <div
+                  className="cmp-cols"
+                  style={{ gridTemplateColumns: `repeat(${selectedForCompare.length}, minmax(140px, 1fr))` }}
+                >
+                  <div className="cmp-section-label" style={{ gridColumn: `1 / -1` }}>
+                    Mejor descuento
+                  </div>
+                  {selectedForCompare.map((e, idx) => {
+                    const state = discountStates[idx]
+                    const val   = discountValues[idx]
+                    return (
+                      <div key={e.id} className={`cmp-metric-cell ${state}`}>
+                        <span className="cmp-metric-value">
+                          {val !== null ? `${val}%` : 'Sin desc'}
+                        </span>
+                        {state === 'winner' && (
+                          <span className="cmp-metric-verdict">✓ Mejor opción</span>
+                        )}
+                        {state === 'loser' && (
+                          <span className="cmp-metric-verdict">Menor descuento</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Metric: Promos activas */}
+              <div className="cmp-section">
+                <div
+                  className="cmp-cols"
+                  style={{ gridTemplateColumns: `repeat(${selectedForCompare.length}, minmax(140px, 1fr))` }}
+                >
+                  <div className="cmp-section-label" style={{ gridColumn: `1 / -1` }}>
+                    Promos activas
+                  </div>
+                  {selectedForCompare.map((e, idx) => {
+                    const state = activePromoStates[idx]
+                    const val   = activePromoValues[idx]
+                    return (
+                      <div key={e.id} className={`cmp-metric-cell ${state}`}>
+                        <span className="cmp-metric-value">{val}</span>
+                        {state === 'winner' && (
+                          <span className="cmp-metric-verdict">✓ Mejor opción</span>
+                        )}
+                        {state === 'loser' && (
+                          <span className="cmp-metric-verdict">Menos promos</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* CTA row */}
+              <div
+                className="cmp-cta-row"
+                style={{ gridTemplateColumns: `repeat(${selectedForCompare.length}, minmax(140px, 1fr))` }}
+              >
+                {selectedForCompare.map((e) => (
+                  <Link
+                    key={e.id}
+                    href={`/establishment/${e.id}`}
+                    className="btn btn-outline btn-sm"
+                    style={{ textAlign: 'center', borderRadius: 'var(--radius-md)', justifyContent: 'center' }}
+                    onClick={() => setShowPanel(false)}
+                  >
+                    Ver detalle →
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
