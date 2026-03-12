@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
-import { MapPin, GraduationCap, Building2, AlertCircle } from 'lucide-react'
-import Link from 'next/link'
+import { MapPin, GraduationCap, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/ui/Navbar'
 import AvatarUpload from '@/components/ui/AvatarUpload'
+import ProfileCompleteForm from '@/components/ui/ProfileCompleteForm'
 
 function formatJoinDate(iso: string) {
   try {
@@ -65,21 +65,49 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .single()
 
+  // Server action: create profile for authenticated user
+  async function createProfile(formData: FormData) {
+    'use server'
+    const supabaseServer = await createClient()
+    const { data: { user: u } } = await supabaseServer.auth.getUser()
+    if (!u) return
+
+    await supabaseServer.from('profiles').insert({
+      id: u.id,
+      full_name: formData.get('full_name') as string,
+      university: formData.get('university') as string,
+      home_country: formData.get('home_country') as string,
+      exchange_country: 'Argentina',
+      exchange_city: 'Buenos Aires',
+    })
+
+    // Try to also set exchange_university (column may or may not exist)
+    const exchangeUniv = formData.get('exchange_university') as string
+    if (exchangeUniv) {
+      await supabaseServer
+        .from('profiles')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ exchange_university: exchangeUniv } as any)
+        .eq('id', u.id)
+    }
+
+    redirect('/profile')
+  }
+
   if (!profile) {
     return (
       <>
         <Navbar />
-        <div style={{ maxWidth: 480, margin: '4rem auto', padding: '0 1rem', textAlign: 'center' }}>
-          <AlertCircle size={40} style={{ color: 'var(--text-faint)', margin: '0 auto 1rem' }} />
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', marginBottom: '0.5rem' }}>
-            Perfil incompleto
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-            No encontramos tus datos. Volvé a registrarte para completar tu perfil.
-          </p>
-          <Link href="/auth/register" className="btn btn-primary">
-            Completar registro
-          </Link>
+        <div style={{ maxWidth: 480, margin: '0 auto', padding: '2.5rem 1rem 5rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.4rem' }}>
+              Completá tu perfil
+            </h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Necesitamos algunos datos para mostrarte tu perfil.
+            </p>
+          </div>
+          <ProfileCompleteForm action={createProfile} />
         </div>
       </>
     )
