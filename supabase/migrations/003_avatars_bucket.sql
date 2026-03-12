@@ -3,8 +3,9 @@
 -- Ejecutar en: Supabase → SQL Editor
 -- =============================================================
 
--- Agregar exchange_university a profiles si no existe
+-- Agregar columnas a profiles si no existen
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS exchange_university TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS interests TEXT[] DEFAULT '{}';
 
 -- Bucket público para avatars de usuarios
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

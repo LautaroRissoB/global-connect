@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/ui/Navbar'
 import AvatarUpload from '@/components/ui/AvatarUpload'
 import ProfileCompleteForm from '@/components/ui/ProfileCompleteForm'
+import InterestsTags from '@/components/ui/InterestsTags'
 
 function formatJoinDate(iso: string) {
   try {
@@ -65,14 +66,14 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .single()
 
-  // Server action: create profile for authenticated user
+  // ── Server action: create profile for authenticated user ──
   async function createProfile(formData: FormData) {
     'use server'
-    const supabaseServer = await createClient()
-    const { data: { user: u } } = await supabaseServer.auth.getUser()
+    const s = await createClient()
+    const { data: { user: u } } = await s.auth.getUser()
     if (!u) return
 
-    await supabaseServer.from('profiles').insert({
+    await s.from('profiles').insert({
       id: u.id,
       full_name: formData.get('full_name') as string,
       university: formData.get('university') as string,
@@ -81,19 +82,26 @@ export default async function ProfilePage() {
       exchange_city: 'Buenos Aires',
     })
 
-    // Try to also set exchange_university (column may or may not exist)
     const exchangeUniv = formData.get('exchange_university') as string
     if (exchangeUniv) {
-      await supabaseServer
-        .from('profiles')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .update({ exchange_university: exchangeUniv } as any)
-        .eq('id', u.id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await s.from('profiles').update({ exchange_university: exchangeUniv } as any).eq('id', u.id)
     }
 
     redirect('/profile')
   }
 
+  // ── Server action: save interests ──
+  async function saveInterests(interests: string[]) {
+    'use server'
+    const s = await createClient()
+    const { data: { user: u } } = await s.auth.getUser()
+    if (!u) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await s.from('profiles').update({ interests } as any).eq('id', u.id)
+  }
+
+  // ── No profile: show completion form ──
   if (!profile) {
     return (
       <>
@@ -122,7 +130,9 @@ export default async function ProfilePage() {
     .toUpperCase()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const exchangeUniversity = (profile as any).exchange_university as string | null
+  const p = profile as any
+  const exchangeUniversity = p.exchange_university as string | null
+  const interests: string[] = Array.isArray(p.interests) ? p.interests : []
 
   return (
     <>
@@ -150,31 +160,28 @@ export default async function ProfilePage() {
         </div>
 
         {/* ── Info cards ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginBottom: '2rem' }}>
           {profile.home_country && (
-            <InfoRow
-              icon={MapPin}
-              label="País de origen"
-              value={profile.home_country}
-            />
+            <InfoRow icon={MapPin} label="País de origen" value={profile.home_country} />
           )}
-
           {profile.university && (
-            <InfoRow
-              icon={GraduationCap}
-              label="Universidad de origen"
-              value={profile.university}
-            />
+            <InfoRow icon={GraduationCap} label="Universidad de origen" value={profile.university} />
           )}
-
           {exchangeUniversity && (
-            <InfoRow
-              icon={Building2}
-              label="Universidad en Buenos Aires"
-              value={exchangeUniversity}
-              accent
-            />
+            <InfoRow icon={Building2} label="Universidad en Buenos Aires" value={exchangeUniversity} accent />
           )}
+        </div>
+
+        {/* ── Interests ── */}
+        <div>
+          <div style={{
+            fontSize: '0.72rem', color: 'var(--text-faint)',
+            textTransform: 'uppercase', letterSpacing: '0.07em',
+            marginBottom: '0.75rem', fontWeight: 600,
+          }}>
+            Intereses
+          </div>
+          <InterestsTags initial={interests} saveAction={saveInterests} />
         </div>
 
       </div>
