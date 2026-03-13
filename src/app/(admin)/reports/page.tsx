@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import ReportActions from '@/components/admin/ReportActions'
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:  { label: 'Gratuito', color: 'var(--text-faint)' },
@@ -18,16 +19,20 @@ export default async function ReportsPage() {
   const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     .toLocaleDateString('es-AR', { month: 'long' })
 
-  const [{ data: establishments }, { data: events }] = await Promise.all([
+  const [{ data: establishments }, { data: events }, { data: promotions }] = await Promise.all([
     supabase
       .from('establishments')
-      .select('id, name, city, plan')
+      .select('id, name, city, plan, is_active')
       .order('name'),
     supabase
       .from('events')
       .select('establishment_id, created_at')
       .eq('type', 'establishment_view')
       .gte('created_at', lastMonthStart),
+    supabase
+      .from('promotions')
+      .select('establishment_id, is_active')
+      .eq('is_active', true),
   ])
 
   // Aggregate views per establishment per period
@@ -43,13 +48,19 @@ export default async function ReportsPage() {
     }
   }
 
-  // Build rows sorted by this month views desc
+  // Active promotions per establishment
+  const promoCounts: Record<string, number> = {}
+  for (const p of promotions ?? []) {
+    if (p.establishment_id) promoCounts[p.establishment_id] = (promoCounts[p.establishment_id] ?? 0) + 1
+  }
+
   const rows = (establishments ?? [])
     .map((e) => ({
       ...e,
       plan: e.plan ?? 'free',
       viewsThis: thisMonth[e.id] ?? 0,
       viewsLast: lastMonth[e.id] ?? 0,
+      activePromos: promoCounts[e.id] ?? 0,
     }))
     .sort((a, b) => b.viewsThis - a.viewsThis)
 
@@ -78,9 +89,7 @@ export default async function ReportsPage() {
               Vistas este mes
               {totalDelta !== null && (
                 <span style={{
-                  marginLeft: 8,
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
+                  marginLeft: 8, fontSize: '0.72rem', fontWeight: 700,
                   color: totalDelta >= 0 ? '#4caf50' : '#f44336',
                 }}>
                   {totalDelta >= 0 ? '+' : ''}{totalDelta}%
@@ -91,7 +100,7 @@ export default async function ReportsPage() {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon teal" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
+          <div className="stat-icon" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
             <TrendingUp size={20} />
           </div>
           <div className="stat-info">
@@ -121,15 +130,17 @@ export default async function ReportsPage() {
               <th>Establecimiento</th>
               <th>Ciudad</th>
               <th>Plan</th>
+              <th>Promos activas</th>
               <th style={{ textAlign: 'right' }}>{monthName.split(' ')[0]} (este mes)</th>
               <th style={{ textAlign: 'right' }}>{lastMonthName}</th>
               <th style={{ textAlign: 'right' }}>Variación</th>
+              <th style={{ textAlign: 'center' }}>Reporte</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="admin-table-empty">
+                <td colSpan={8} className="admin-table-empty">
                   No hay establecimientos todavía.
                 </td>
               </tr>
@@ -139,22 +150,43 @@ export default async function ReportsPage() {
                   ? Math.round(((row.viewsThis - row.viewsLast) / row.viewsLast) * 100)
                   : null
                 const plan = PLAN_LABELS[row.plan] ?? PLAN_LABELS.free
+
+                const reportData = {
+                  name: row.name,
+                  city: row.city ?? '',
+                  plan: plan.label,
+                  viewsThis: row.viewsThis,
+                  viewsLast: row.viewsLast,
+                  delta,
+                  activePromos: row.activePromos,
+                  monthName,
+                  lastMonthName,
+                }
+
                 return (
                   <tr key={row.id}>
-                    <td style={{ fontWeight: 500 }}>{row.name}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {row.name}
+                        {!row.is_active && (
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>
+                            inactivo
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td style={{ color: 'var(--text-muted)' }}>{row.city}</td>
                     <td>
                       <span style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        color: plan.color,
-                        background: 'rgba(255,255,255,0.05)',
-                        border: `1px solid ${plan.color}40`,
-                        borderRadius: 'var(--radius-full)',
-                        padding: '2px 8px',
+                        fontSize: '0.72rem', fontWeight: 700, color: plan.color,
+                        background: 'rgba(255,255,255,0.05)', border: `1px solid ${plan.color}40`,
+                        borderRadius: 'var(--radius-full)', padding: '2px 8px',
                       }}>
                         {plan.label}
                       </span>
+                    </td>
+                    <td style={{ textAlign: 'center', color: row.activePromos > 0 ? 'var(--secondary)' : 'var(--text-faint)' }}>
+                      {row.activePromos > 0 ? row.activePromos : '—'}
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text)' }}>
                       {row.viewsThis}
@@ -178,6 +210,9 @@ export default async function ReportsPage() {
                           <TrendingDown size={12} /> {delta}%
                         </span>
                       )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <ReportActions report={reportData} />
                     </td>
                   </tr>
                 )
