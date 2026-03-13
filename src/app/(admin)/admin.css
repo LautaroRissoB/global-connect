@@ -223,6 +223,7 @@
 }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-table tbody tr:hover td { background: rgba(255, 255, 255, 0.018); }
+.admin-table-row:hover { background: rgba(255, 255, 255, 0.03); }
 .admin-table-empty {
   text-align: center;
   padding: 48px 16px;

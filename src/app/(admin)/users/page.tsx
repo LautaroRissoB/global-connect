@@ -66,12 +66,10 @@ export default async function UsersPage() {
                 {users.map((u, i) => (
                   <tr
                     key={u.id}
+                    className="admin-table-row"
                     style={{
                       borderBottom: i < users.length - 1 ? '1px solid var(--card-border)' : 'none',
-                      transition: 'background 0.15s',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 500 }}>{u.full_name}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{u.university}</td>
