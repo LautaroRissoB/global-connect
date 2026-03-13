@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { TrendingUp, TrendingDown, Minus, BarChart2, Bookmark, Gift } from 'lucide-react'
+import AnalyticsFilters from '@/components/admin/AnalyticsFilters'
 
 const PLAN_COLORS: Record<string, string> = {
   free:  'var(--text-faint)',
@@ -86,13 +87,6 @@ export default async function AnalyticsPage({ searchParams }: SearchProps) {
   const totalSaved    = rows.reduce((s: number, r: any) => s + r.saved, 0)
   const totalRedeemed = rows.reduce((s: number, r: any) => s + r.redeemed, 0)
 
-  const sortOptions = [
-    { value: 'views',    label: 'Vistas este mes' },
-    { value: 'trend',    label: 'Mayor crecimiento' },
-    { value: 'saved',    label: 'Beneficios guardados' },
-    { value: 'redeemed', label: 'Más canjes' },
-  ]
-
   return (
     <>
       <h1 className="admin-page-title">Estadísticas</h1>
@@ -135,27 +129,7 @@ export default async function AnalyticsPage({ searchParams }: SearchProps) {
       </div>
 
       {/* Filter + sort toolbar */}
-      <form method="GET" style={{ display: 'flex', gap: 10, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="Buscar establecimiento o ciudad…"
-          className="form-input"
-          style={{ flex: '1 1 220px', maxWidth: 320, paddingTop: '0.45rem', paddingBottom: '0.45rem', fontSize: '0.85rem' }}
-        />
-        <select
-          name="sort"
-          defaultValue={sort}
-          className="form-select"
-          style={{ width: 'auto', paddingTop: '0.45rem', paddingBottom: '0.45rem', fontSize: '0.85rem' }}
-          onChange={(e) => (e.target.form as HTMLFormElement).submit()}
-        >
-          {sortOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <span style={{ fontSize: '0.78rem', color: 'var(--text-faint)' }}>
-          {rows.length} establecimiento{rows.length !== 1 ? 's' : ''}
-        </span>
-      </form>
+      <AnalyticsFilters q={q ?? ''} sort={sort} count={rows.length} />
 
       {/* Cards grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
