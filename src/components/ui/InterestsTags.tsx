@@ -39,7 +39,10 @@ export default function InterestsTags({ initial }: Props) {
   function handleSave() {
     startTransition(async () => {
       const supabase = createClient()
-      await supabase.auth.updateUser({ data: { interests: selected } })
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from('profiles').update({ interests: selected }).eq('id', user.id)
       setSaved(true)
     })
   }

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { X, Upload, Instagram, FileText } from 'lucide-react'
+import { X, Upload, Instagram, FileText, Images } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { EstablishmentCategory } from '@/types/database'
 import WeekHoursEditor, { DEFAULT_WEEK, weekToOpeningHours, type WeekHours } from '@/components/admin/WeekHoursEditor'
@@ -64,8 +64,11 @@ export default function NewEstablishmentPage() {
   const [imagePreview,  setImagePreview]  = useState<string | null>(null)
   const [pdfFile,       setPdfFile]       = useState<File | null>(null)
   const [uploading,     setUploading]     = useState(false)
-  const [weekHours,     setWeekHours]     = useState<WeekHours>(DEFAULT_WEEK)
-  const [plan,          setPlan]          = useState<'free' | 'basic' | 'pro'>('free')
+  const [weekHours,       setWeekHours]       = useState<WeekHours>(DEFAULT_WEEK)
+  const [plan,            setPlan]            = useState<'free' | 'basic' | 'pro'>('free')
+  const [redemptionMode,  setRedemptionMode]  = useState<'one_per_promo' | 'one_per_establishment'>('one_per_promo')
+  const [galleryFiles,    setGalleryFiles]    = useState<File[]>([])
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([])
 
   const [form, setForm] = useState({
     name:        '',
@@ -98,6 +101,18 @@ export default function NewEstablishmentPage() {
     setPdfFile(file)
   }
 
+  function handleGalleryChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []).slice(0, 6 - galleryFiles.length)
+    if (!files.length) return
+    setGalleryFiles((prev) => [...prev, ...files])
+    setGalleryPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))])
+  }
+
+  function removeGalleryItem(index: number) {
+    setGalleryFiles((prev) => prev.filter((_, i) => i !== index))
+    setGalleryPreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
   async function uploadFile(
     supabase: ReturnType<typeof createClient>,
     file: File,
@@ -126,24 +141,33 @@ export default function NewEstablishmentPage() {
     const image_url    = imageFile ? await uploadFile(supabase, imageFile, `img_${ts}.${imageFile.name.split('.').pop()}`) : null
     const menu_pdf_url = pdfFile   ? await uploadFile(supabase, pdfFile,   `pdf_${ts}.pdf`)                               : null
 
+    const gallery_urls: string[] = []
+    for (let i = 0; i < galleryFiles.length; i++) {
+      const url = await uploadFile(supabase, galleryFiles[i], `gallery_${ts}_${i}.${galleryFiles[i].name.split('.').pop()}`)
+      if (url) gallery_urls.push(url)
+    }
+
     setUploading(false)
     if (error) { setLoading(false); return }
 
-    const { error: dbError } = await supabase.from('establishments').insert({
-      name:          form.name,
-      description:   form.description  || null,
-      category:      form.category,
-      address:       form.address,
-      city:          form.city,
-      country:       form.country,
-      phone:         form.phone        || null,
-      website:       form.website      || null,
-      instagram:     form.instagram    || null,
-      price_range:   (form.price_range || null) as '$' | '$$' | '$$$' | '$$$$' | null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: dbError } = await (supabase as any).from('establishments').insert({
+      name:             form.name,
+      description:      form.description  || null,
+      category:         form.category,
+      address:          form.address,
+      city:             form.city,
+      country:          form.country,
+      phone:            form.phone        || null,
+      website:          form.website      || null,
+      instagram:        form.instagram    || null,
+      price_range:      (form.price_range || null) as '$' | '$$' | '$$$' | '$$$$' | null,
       plan,
       image_url,
       menu_pdf_url,
-      opening_hours: weekToOpeningHours(weekHours),
+      gallery_urls,
+      redemption_mode:  redemptionMode,
+      opening_hours:    weekToOpeningHours(weekHours),
     })
 
     if (dbError) { setError(dbError.message); setLoading(false); return }
@@ -344,6 +368,58 @@ export default function NewEstablishmentPage() {
                   </button>
                 )
               })}
+            </div>
+          </div>
+
+          {/* Galería */}
+          <div className="form-group">
+            <label className="form-label">
+              Galería <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-faint)' }}>(hasta 6 fotos)</span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
+              {galleryPreviews.map((src, i) => (
+                <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--bg-tertiary)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button type="button" onClick={() => removeGalleryItem(i)}
+                    style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+              {galleryPreviews.length < 6 && (
+                <label style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, border: '2px dashed var(--card-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--text-muted)', transition: 'border-color 0.2s' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
+                  <Images size={18} />
+                  <span style={{ fontSize: '0.7rem' }}>Agregar</span>
+                  <input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={handleGalleryChange} style={{ display: 'none' }} />
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Modo de canje */}
+          <div className="form-group">
+            <label className="form-label">Modo de canje</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {([
+                { value: 'one_per_promo'          as const, label: 'Por promoción',       desc: 'El estudiante puede canjear cada promo una vez' },
+                { value: 'one_per_establishment'  as const, label: 'Por establecimiento', desc: 'Solo un canje total por estudiante' },
+              ]).map((opt) => (
+                <button key={opt.value} type="button" onClick={() => setRedemptionMode(opt.value)}
+                  style={{
+                    padding: '12px 14px', borderRadius: 'var(--radius-md)', textAlign: 'left',
+                    border: `2px solid ${redemptionMode === opt.value ? 'var(--primary)' : 'var(--card-border)'}`,
+                    background: redemptionMode === opt.value ? 'rgba(108,92,231,0.1)' : 'rgba(255,255,255,0.02)',
+                    cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4,
+                  }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: redemptionMode === opt.value ? 'var(--primary-light)' : 'var(--text-muted)' }}>
+                    {opt.label}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', lineHeight: 1.4 }}>{opt.desc}</span>
+                </button>
+              ))}
             </div>
           </div>
 

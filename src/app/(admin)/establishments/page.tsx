@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
-import { Pencil, Eye, EyeOff, Plus } from 'lucide-react'
+import { Pencil, Eye, EyeOff, Plus, Search } from 'lucide-react'
 import PlanSelector from '@/components/admin/PlanSelector'
 
 // Server Actions
@@ -19,13 +19,22 @@ async function changePlan(id: string, plan: string) {
   revalidatePath('/establishments')
 }
 
-export default async function EstablishmentsPage() {
+interface Props {
+  searchParams: Promise<{ q?: string }>
+}
+
+export default async function EstablishmentsPage({ searchParams }: Props) {
+  const { q } = await searchParams
   const supabase = await createClient()
-  const { data: establishments } = await supabase
+
+  let query = supabase
     .from('establishments')
     .select('id, name, category, city, country, plan, is_active, created_at')
     .order('created_at', { ascending: false })
 
+  if (q) query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%`)
+
+  const { data: establishments } = await query
   const list = establishments ?? []
 
   return (
@@ -34,13 +43,27 @@ export default async function EstablishmentsPage() {
         <div>
           <h1 className="admin-page-title">Establecimientos</h1>
           <p className="admin-page-subtitle" style={{ marginBottom: 0 }}>
-            {list.length} en total
+            {list.length} {q ? 'resultado(s)' : 'en total'}
           </p>
         </div>
         <Link href="/establishments/new" className="btn btn-primary btn-sm">
           <Plus size={15} /> Nuevo
         </Link>
       </div>
+
+      {/* Search */}
+      <form method="GET" style={{ marginBottom: '1rem' }}>
+        <div style={{ position: 'relative', maxWidth: 340 }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            name="q"
+            defaultValue={q ?? ''}
+            placeholder="Buscar por nombre o ciudad…"
+            className="form-input"
+            style={{ paddingLeft: 36, paddingTop: '0.5rem', paddingBottom: '0.5rem' }}
+          />
+        </div>
+      </form>
 
       <div className="admin-table-wrap">
         <table className="admin-table">

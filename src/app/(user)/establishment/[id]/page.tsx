@@ -43,7 +43,7 @@ export default async function EstablishmentDetailPage({ params }: Props) {
     .from('establishments')
     .select(`
       id, name, description, category, address, city, country,
-      phone, website, instagram, price_range, image_url, menu_pdf_url, opening_hours, is_active,
+      phone, website, instagram, price_range, image_url, gallery_urls, menu_pdf_url, opening_hours, is_active,
       promotions ( id, title, description, original_price, discounted_price, discount_percentage, valid_until, terms_conditions, is_active )
     `)
     .eq('id', id)
@@ -141,6 +141,20 @@ export default async function EstablishmentDetailPage({ params }: Props) {
               {establishment.description}
             </p>
           )}
+
+          {/* ── Gallery ── */}
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {((establishment as any).gallery_urls as string[] | null)?.length ? (
+            <div style={{ overflowX: 'auto', marginBottom: '1.5rem', marginLeft: '-1rem', marginRight: '-1rem', paddingLeft: '1rem', paddingRight: '1rem' }}>
+              <div style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {((establishment as any).gallery_urls as string[]).map((url, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={url} alt="" style={{ height: 160, width: 240, objectFit: 'cover', borderRadius: 'var(--radius-md)', flexShrink: 0 }} />
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* ── Info chips row ── */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>

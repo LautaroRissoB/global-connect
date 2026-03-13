@@ -157,7 +157,7 @@ export default async function ProfilePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p = profile as any
   const exchangeUniversity = p.exchange_university as string | null
-  const interests: string[] = Array.isArray(user.user_metadata?.interests) ? user.user_metadata.interests : []
+  const interests: string[] = Array.isArray(p.interests) ? p.interests : []
 
   // Profile tab content (passed as prop to avoid re-fetching)
   const profileContent = (
