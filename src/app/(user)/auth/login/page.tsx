@@ -34,8 +34,7 @@ function LoginForm() {
     }
 
     const redirectTo = searchParams.get('redirectTo') ?? '/explore'
-    router.push(redirectTo)
-    router.refresh()
+    window.location.href = redirectTo
   }
 
   return (

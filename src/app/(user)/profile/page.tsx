@@ -70,18 +70,26 @@ export default async function ProfilePage() {
   // Fetch saved benefits + redemptions (graceful if tables don't exist yet)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const s = supabase as any
-  const [{ data: rawBenefits }, { data: rawRedemptions }] = await Promise.all([
-    s.from('saved_benefits')
-      .select('id, saved_at, status, promotion_id, promotions(title, discount_percentage), establishments(name, category)')
-      .eq('user_id', user.id)
-      .order('saved_at', { ascending: false })
-      .catch(() => ({ data: [] })),
-    s.from('redemptions')
-      .select('id, redeemed_at, rating, promotion_id, promotions(title, discount_percentage), establishments(name)')
-      .eq('user_id', user.id)
-      .order('redeemed_at', { ascending: false })
-      .catch(() => ({ data: [] })),
-  ])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rawBenefits: any[] | null = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rawRedemptions: any[] | null = []
+  try {
+    const [benefitsRes, redemptionsRes] = await Promise.all([
+      s.from('saved_benefits')
+        .select('id, saved_at, status, promotion_id, promotions(title, discount_percentage), establishments(name, category)')
+        .eq('user_id', user.id)
+        .order('saved_at', { ascending: false }),
+      s.from('redemptions')
+        .select('id, redeemed_at, rating, promotion_id, promotions(title, discount_percentage), establishments(name)')
+        .eq('user_id', user.id)
+        .order('redeemed_at', { ascending: false }),
+    ])
+    rawBenefits = benefitsRes.data
+    rawRedemptions = redemptionsRes.data
+  } catch {
+    // Tables may not exist yet
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const savedBenefits = (rawBenefits ?? []).map((b: any) => ({
