@@ -77,8 +77,8 @@ export default async function AnalyticsPage({ searchParams }: SearchProps) {
       .select('establishment_id, created_at, user_id')
       .eq('type', 'establishment_view')
       .gte('created_at', lastMonthStart),
-    supabase.from('saved_benefits').select('establishment_id'),
-    supabase.from('redemptions').select('establishment_id'),
+    supabase.from('saved_benefits').select('establishment_id').gte('saved_at', thisMonthStart),
+    supabase.from('redemptions').select('establishment_id').gte('redeemed_at', thisMonthStart),
   ])
 
   // Fetch viewer profiles for country data
@@ -159,7 +159,7 @@ export default async function AnalyticsPage({ searchParams }: SearchProps) {
       <p className="admin-page-subtitle">Actividad por establecimiento — {monthName}</p>
 
       {/* Summary KPIs */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', marginBottom: '1.5rem' }}>
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', marginBottom: '1.5rem' }}>
         <div className="stat-card">
           <div className="stat-icon purple"><BarChart2 size={18} /></div>
           <div className="stat-info">
@@ -205,7 +205,7 @@ export default async function AnalyticsPage({ searchParams }: SearchProps) {
       <AnalyticsFilters q={q ?? ''} sort={sort} count={rows.length} />
 
       {/* Cards grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
         {rows.length === 0 ? (
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', gridColumn: '1/-1', padding: '2rem 0', textAlign: 'center' }}>
             Sin resultados.
@@ -232,100 +232,98 @@ export default async function AnalyticsPage({ searchParams }: SearchProps) {
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {row.name}
                     {!row.isActive && (
-                      <span style={{ marginLeft: 6, fontSize: '0.62rem', color: 'var(--text-faint)', fontWeight: 400 }}>inactivo</span>
+                      <span style={{ marginLeft: 7, fontSize: '0.65rem', color: 'var(--text-faint)', fontWeight: 400 }}>inactivo</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{row.city}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 3 }}>{row.city}</div>
                 </div>
                 <span style={{
-                  fontSize: '0.62rem', fontWeight: 700, color: planColor,
+                  fontSize: '0.63rem', fontWeight: 700, color: planColor,
                   background: 'rgba(255,255,255,0.05)', border: `1px solid ${planColor}40`,
-                  borderRadius: 'var(--radius-full)', padding: '2px 8px', flexShrink: 0,
+                  borderRadius: 'var(--radius-full)', padding: '3px 10px', flexShrink: 0,
                   textTransform: 'uppercase', letterSpacing: '0.05em',
                 }}>
                   {PLAN_LABELS[row.plan] ?? row.plan}
                 </span>
               </div>
 
-              {/* Metrics: 3 boxes + save rate inline */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {/* Metrics: 3 boxes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {[
                   { label: 'Vistas',     value: row.vt,       color: 'var(--primary-light)' },
                   { label: 'Guardados',  value: row.saved,    color: 'var(--secondary)' },
                   { label: 'Canjes',     value: row.redeemed, color: 'var(--accent)' },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{
-                    background: 'rgba(255,255,255,0.03)', borderRadius: 8,
-                    padding: '0.5rem 0.25rem', textAlign: 'center',
+                    background: 'rgba(255,255,255,0.04)', borderRadius: 10,
+                    padding: '0.625rem 0.25rem', textAlign: 'center',
                   }}>
-                    <div style={{ fontSize: '1.3rem', fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-faint)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+                    <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Insights row: save rate + top countries */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 22 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {/* Save rate pill */}
                 <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  fontSize: '0.72rem', fontWeight: 700, color: saveRateColor,
+                  display: 'inline-flex', alignItems: 'center',
+                  fontSize: '0.75rem', fontWeight: 700, color: saveRateColor,
                   background: 'rgba(255,255,255,0.04)', borderRadius: 'var(--radius-full)',
-                  padding: '2px 9px', border: `1px solid ${saveRateColor}30`, flexShrink: 0,
+                  padding: '3px 10px', border: `1px solid ${saveRateColor}25`, flexShrink: 0,
                 }}>
-                  {row.saveRate}% guardado
+                  {row.saveRate}% conversión
                 </span>
 
                 {/* Top countries flags */}
-                {hasCountries && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)', flexShrink: 0 }}>visitantes:</span>
+                {hasCountries ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>de</span>
                     {row.topCountries.map(({ country, flag, count }: { country: string; flag: string; count: number }) => (
                       <span
                         key={country}
                         title={`${country} · ${count} vista${count !== 1 ? 's' : ''}`}
-                        style={{ fontSize: '1rem', lineHeight: 1, cursor: 'default' }}
+                        style={{ fontSize: '1.1rem', lineHeight: 1, cursor: 'default' }}
                       >
                         {flag}
                       </span>
                     ))}
                   </div>
-                )}
-
-                {!hasCountries && row.vt > 0 && (
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)' }}>sin datos de país</span>
-                )}
+                ) : row.vt > 0 ? (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>sin país registrado</span>
+                ) : null}
               </div>
 
               {/* Mini bar comparison */}
-              <div style={{ paddingTop: '0.125rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-faint)', marginBottom: 6 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Vistas vs {lastMonthName}</span>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', marginBottom: 7 }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Vistas vs {lastMonthName}</span>
                   {row.delta !== null ? (
                     <span style={{
                       fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3,
                       color: row.delta > 0 ? '#4caf50' : row.delta < 0 ? '#f44336' : 'var(--text-faint)',
                     }}>
-                      {row.delta > 0 ? <TrendingUp size={10} /> : row.delta < 0 ? <TrendingDown size={10} /> : <Minus size={10} />}
+                      {row.delta > 0 ? <TrendingUp size={11} /> : row.delta < 0 ? <TrendingDown size={11} /> : <Minus size={11} />}
                       {row.delta > 0 ? `+${row.delta}%` : `${row.delta}%`}
                     </span>
                   ) : (
-                    <span style={{ color: 'var(--text-faint)' }}>primer mes</span>
+                    <span style={{ color: 'var(--text-faint)', fontSize: '0.68rem' }}>primer mes</span>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   {[
                     { label: monthName.split(' ')[0], v: row.vt, color: 'var(--primary)' },
-                    { label: lastMonthName,           v: row.vl, color: 'rgba(255,255,255,0.1)' },
+                    { label: lastMonthName,           v: row.vl, color: 'rgba(255,255,255,0.12)' },
                   ].map(({ label, v, color }) => (
                     <div key={label} style={{ flex: 1 }}>
-                      <div style={{ height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 3, marginBottom: 4 }}>
-                        <div style={{ height: '100%', width: `${(v / barMax) * 100}%`, background: color, borderRadius: 3, transition: 'width 0.4s' }} />
+                      <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, marginBottom: 5 }}>
+                        <div style={{ height: '100%', width: `${(v / barMax) * 100}%`, background: color, borderRadius: 3 }} />
                       </div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-faint)' }}>{label} · {v}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>{label} · <strong style={{ color: 'var(--text-muted)' }}>{v}</strong></div>
                     </div>
                   ))}
                 </div>
