@@ -30,7 +30,7 @@ export default async function DashboardPage() {
     supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('created_at, home_country').gte('created_at', fourteenDaysAgo.toISOString()),
-    supabase.from('events').select('establishment_id, created_at').eq('type', 'establishment_view').gte('created_at', thirtyDaysAgo.toISOString()),
+    supabase.from('events').select('establishment_id, created_at, user_id').eq('type', 'establishment_view').gte('created_at', thirtyDaysAgo.toISOString()),
     supabase.from('establishments').select('id, name').eq('is_active', true),
   ])
 
@@ -69,7 +69,9 @@ export default async function DashboardPage() {
     .slice(0, 6)
 
   // Views this month vs last month
-  const viewsThisMonth = (events ?? []).filter(e => e.created_at >= thisMonthStart).length
+  const eventsThisMonth = (events ?? []).filter(e => e.created_at >= thisMonthStart)
+  const viewsThisMonth = eventsThisMonth.length
+  const uniqueVisitorsThisMonth = new Set(eventsThisMonth.map(e => e.user_id).filter(Boolean)).size
   const viewsLastMonth = (events ?? []).filter(e => e.created_at >= lastMonthStart && e.created_at < thisMonthStart).length
   const viewDelta = viewsLastMonth > 0 ? Math.round(((viewsThisMonth - viewsLastMonth) / viewsLastMonth) * 100) : null
 
@@ -128,6 +130,11 @@ export default async function DashboardPage() {
               {viewDelta !== null && (
                 <span style={{ marginLeft: 6, fontSize: '0.72rem', fontWeight: 700, color: viewDelta >= 0 ? '#4caf50' : '#f44336' }}>
                   {viewDelta >= 0 ? `+${viewDelta}%` : `${viewDelta}%`} vs mes ant.
+                </span>
+              )}
+              {uniqueVisitorsThisMonth > 0 && (
+                <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 2 }}>
+                  {uniqueVisitorsThisMonth} visitantes únicos
                 </span>
               )}
             </div>

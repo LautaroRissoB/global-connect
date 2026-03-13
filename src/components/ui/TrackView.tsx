@@ -13,11 +13,14 @@ export default function TrackView({ establishmentId, type = 'establishment_view'
     const key = `tracked_${type}_${establishmentId}`
     if (sessionStorage.getItem(key)) return
     sessionStorage.setItem(key, '1')
+
     const supabase = createClient()
-    supabase
-      .from('events')
-      .insert({ type, establishment_id: establishmentId })
-      .then(() => {})
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      supabase
+        .from('events')
+        .insert({ type, establishment_id: establishmentId, user_id: user?.id ?? null })
+        .then(() => {})
+    })
   }, [establishmentId, type])
 
   return null

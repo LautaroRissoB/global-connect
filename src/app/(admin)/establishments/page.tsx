@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
-import { Pencil, Eye, EyeOff, Plus, Search } from 'lucide-react'
+import { Pencil, Eye, EyeOff, Plus, Search, BarChart2 } from 'lucide-react'
 import PlanSelector from '@/components/admin/PlanSelector'
 
 // Server Actions
@@ -94,6 +94,13 @@ export default async function EstablishmentsPage({ searchParams }: Props) {
                   </td>
                   <td>
                     <div className="action-btns">
+                      <Link
+                        href={`/establishments/${e.id}/stats`}
+                        className="action-btn"
+                        title="Ver estadísticas"
+                      >
+                        <BarChart2 size={14} />
+                      </Link>
                       <Link
                         href={`/establishments/${e.id}`}
                         className="action-btn"
