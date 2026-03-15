@@ -7,6 +7,7 @@ interface CardProps {
   originalPrice?: number
   discountedPrice?: number
   discountPercentage?: number
+  avgRating?: string | null
   featured?: boolean
   onClick?: () => void
 }
@@ -31,6 +32,7 @@ export default function Card({
   originalPrice,
   discountedPrice,
   discountPercentage,
+  avgRating,
   featured,
   onClick,
 }: CardProps) {
@@ -55,18 +57,29 @@ export default function Card({
         <p className="card-location">{location}</p>
 
         <div className="card-footer">
-          {discountedPrice != null ? (
-            <div className="card-price-wrapper">
-              {originalPrice != null && (
-                <span className="card-original-price">${originalPrice}</span>
-              )}
-              <span className="card-price">${discountedPrice}</span>
-            </div>
-          ) : (
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>Ver promociones</span>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            {discountedPrice != null ? (
+              <div className="card-price-wrapper">
+                {originalPrice != null && (
+                  <span className="card-original-price">${originalPrice}</span>
+                )}
+                <span className="card-price">${discountedPrice}</span>
+              </div>
+            ) : (
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>Ver promos</span>
+            )}
+            {avgRating ? (
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#fdcb6e' }}>
+                ⭐ {avgRating}
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)' }}>
+                ☆☆☆☆☆
+              </span>
+            )}
+          </div>
           {priceRange && (
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
               {priceRange}
             </span>
           )}

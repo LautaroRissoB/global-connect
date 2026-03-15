@@ -32,10 +32,11 @@ export default function RedeemScreen({
   termsConditions,
 }: Props) {
   const router = useRouter()
-  const [seconds,  setSeconds]  = useState(TIMER_SECONDS)
-  const [phase,    setPhase]    = useState<'ready' | 'confirmed' | 'rating' | 'done' | 'expired'>('ready')
-  const [loading,  setLoading]  = useState(false)
-  const [rating,   setRating]   = useState(0)
+  const [seconds,      setSeconds]      = useState(TIMER_SECONDS)
+  const [phase,        setPhase]        = useState<'ready' | 'confirmed' | 'rating' | 'done' | 'expired'>('ready')
+  const [loading,      setLoading]      = useState(false)
+  const [rating,       setRating]       = useState(0)
+  const [redemptionId, setRedemptionId] = useState<string | null>(null)
 
   // Countdown
   useEffect(() => {
@@ -54,17 +55,21 @@ export default function RedeemScreen({
     const res = await fetch(`/api/redeem/${benefitId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
     setLoading(false)
     if (res.ok) {
+      const json = await res.json().catch(() => ({}))
+      setRedemptionId(json.redemptionId ?? null)
       setPhase('rating')
     }
   }, [benefitId])
 
   async function submitRating(stars: number) {
     setRating(stars)
-    await fetch(`/api/redeem/${benefitId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rating: stars }),
-    }).catch(() => {})
+    if (redemptionId) {
+      await fetch(`/api/redeem/${benefitId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redemptionId, rating: stars }),
+      }).catch(() => {})
+    }
     setPhase('done')
     setTimeout(() => router.push('/profile?tab=history'), 1800)
   }
@@ -143,6 +148,13 @@ export default function RedeemScreen({
         padding: '0.75rem 1.25rem',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
       }}>
+        <button
+          onClick={() => router.back()}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 6px 0 0', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          aria-label="Volver"
+        >
+          ←
+        </button>
         <span style={{ fontSize: '1.3rem' }}>⚠️</span>
         <div>
           <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ff5252', lineHeight: 1.3 }}>

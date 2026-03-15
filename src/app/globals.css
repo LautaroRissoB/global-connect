@@ -298,14 +298,16 @@ h1, h2, h3, h4, h5, h6 {
 
 .card-discount-badge {
   position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  padding: 3px var(--space-3);
-  background: var(--accent);
+  bottom: var(--space-3);
+  left: var(--space-3);
+  padding: 4px 10px;
+  background: var(--secondary);
   border-radius: var(--radius-full);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 800;
   color: white;
+  letter-spacing: -0.01em;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .card-featured-badge {
@@ -698,7 +700,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 @media (max-width: 1200px) { .grid-establishments { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 900px)  { .grid-establishments { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px)  { .grid-establishments { grid-template-columns: 1fr; } }
+@media (max-width: 640px)  {
+  .feed-section { padding: var(--space-5) var(--space-3) var(--space-16); }
+  .grid-establishments { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .card-body { padding: 0.5rem 0.6rem 0.65rem; }
+  .card-title { font-size: 0.78rem; line-height: 1.25; margin-bottom: 1px; }
+  .card-location { font-size: 0.68rem; margin-bottom: 0.3rem; }
+  .card-discount-badge { font-size: 0.68rem; padding: 2px 6px; }
+  .card-footer { gap: 3px; }
+  .card-original-price { display: none; }
+}
 
 /* Empty state */
 .empty-state {
