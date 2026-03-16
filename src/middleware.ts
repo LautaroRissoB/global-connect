@@ -43,6 +43,15 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  // --- Raíz: redirigir según estado de sesión ---
+  if (pathname === '/') {
+    if (user) {
+      return NextResponse.redirect(new URL('/explore', request.url))
+    } else {
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
+  }
+
   // --- Rutas de usuario protegidas ---
   if (isUserProtectedPath(pathname)) {
     if (!user) {
