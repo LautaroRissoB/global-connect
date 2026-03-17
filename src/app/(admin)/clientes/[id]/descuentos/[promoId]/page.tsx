@@ -3,15 +3,18 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function EditDescuentoPage() {
   const router = useRouter()
   const { id, promoId } = useParams<{ id: string; promoId: string }>()
 
-  const [loading,  setLoading]  = useState(false)
-  const [fetching, setFetching] = useState(true)
-  const [error,    setError]    = useState('')
+  const [loading,        setLoading]        = useState(false)
+  const [fetching,       setFetching]       = useState(true)
+  const [error,          setError]          = useState('')
+  const [confirmDelete,  setConfirmDelete]  = useState(false)
+  const [deleting,       setDeleting]       = useState(false)
 
   const [form, setForm] = useState({
     title: '', description: '',
@@ -76,6 +79,14 @@ export default function EditDescuentoPage() {
     if (dbError) { setError(dbError.message); setLoading(false); return }
 
     router.push(`/clientes/${id}?tab=descuentos`)
+    router.refresh()
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    const supabase = createClient()
+    await supabase.from('promotions').delete().eq('id', promoId)
+    router.push(`/clientes/${id}`)
     router.refresh()
   }
 
@@ -145,6 +156,30 @@ export default function EditDescuentoPage() {
             <Link href={`/clientes/${id}`} className="btn btn-ghost btn-md">Cancelar</Link>
           </div>
         </form>
+
+        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--card-border)' }}>
+          {!confirmDelete ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid rgba(220,53,69,0.35)', color: 'rgba(220,53,69,0.8)', borderRadius: 'var(--radius-md)', padding: '8px 14px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 600 }}
+            >
+              <Trash2 size={14} /> Eliminar descuento
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(220,53,69,0.08)', border: '1px solid rgba(220,53,69,0.3)', borderRadius: 'var(--radius-md)' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text)', flex: 1 }}>¿Eliminar este descuento? Esta acción no se puede deshacer.</span>
+              <button onClick={handleDelete} disabled={deleting}
+                style={{ background: 'rgb(220,53,69)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+              <button onClick={() => setConfirmDelete(false)}
+                style={{ background: 'none', border: '1px solid var(--card-border)', color: 'var(--text-muted)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', flexShrink: 0 }}>
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </>
   )

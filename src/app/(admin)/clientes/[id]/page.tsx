@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { X, Upload, Instagram, FileText, Images, Plus, Pencil, Eye, EyeOff, Tag } from 'lucide-react'
+import { X, Upload, Instagram, FileText, Images, Plus, Pencil, Eye, EyeOff, Tag, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { EstablishmentCategory } from '@/types/database'
 import WeekHoursEditor, { DEFAULT_WEEK, parseOpeningHours, weekToOpeningHours, type WeekHours } from '@/components/admin/WeekHoursEditor'
@@ -102,8 +102,12 @@ export default function ClienteDetallePage() {
   })
 
   // ── Promotions state ──
-  const [promotions,    setPromotions]    = useState<Promotion[]>([])
-  const [promoLoading,  setPromoLoading]  = useState(false)
+  const [promotions,         setPromotions]         = useState<Promotion[]>([])
+  const [promoLoading,       setPromoLoading]       = useState(false)
+  const [confirmDeleteEstab, setConfirmDeleteEstab] = useState(false)
+  const [deletingEstab,      setDeletingEstab]      = useState(false)
+  const [confirmDeletePromo, setConfirmDeletePromo] = useState<string | null>(null)
+  const [deletingPromo,      setDeletingPromo]      = useState(false)
 
   // ── Load establishment data ──
   useEffect(() => {
@@ -254,6 +258,24 @@ export default function ClienteDetallePage() {
     const supabase = createClient()
     await supabase.from('promotions').update({ is_active: !current }).eq('id', promoId)
     setPromotions((prev) => prev.map((p) => p.id === promoId ? { ...p, is_active: !current } : p))
+  }
+
+  async function deleteEstablishment() {
+    setDeletingEstab(true)
+    const supabase = createClient()
+    await supabase.from('promotions').delete().eq('establishment_id', id)
+    await supabase.from('establishments').delete().eq('id', id)
+    router.push('/clientes')
+    router.refresh()
+  }
+
+  async function deletePromo(promoId: string) {
+    setDeletingPromo(true)
+    const supabase = createClient()
+    await supabase.from('promotions').delete().eq('id', promoId)
+    setPromotions((prev) => prev.filter((p) => p.id !== promoId))
+    setConfirmDeletePromo(null)
+    setDeletingPromo(false)
   }
 
   if (fetching) return <p style={{ color: 'var(--text-muted)', padding: '2rem' }}>Cargando...</p>
@@ -511,6 +533,31 @@ export default function ClienteDetallePage() {
               <Link href="/clientes" className="btn btn-ghost btn-md">Cancelar</Link>
             </div>
           </form>
+
+          {/* Zona de peligro */}
+          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--card-border)' }}>
+            {!confirmDeleteEstab ? (
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteEstab(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid rgba(220,53,69,0.35)', color: 'rgba(220,53,69,0.8)', borderRadius: 'var(--radius-md)', padding: '8px 14px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 600 }}
+              >
+                <Trash2 size={14} /> Eliminar establecimiento
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(220,53,69,0.08)', border: '1px solid rgba(220,53,69,0.3)', borderRadius: 'var(--radius-md)' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text)', flex: 1 }}>¿Eliminar <strong>{form.name}</strong> y todos sus descuentos? Esta acción no se puede deshacer.</span>
+                <button onClick={deleteEstablishment} disabled={deletingEstab}
+                  style={{ background: 'rgb(220,53,69)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                  {deletingEstab ? 'Eliminando...' : 'Sí, eliminar'}
+                </button>
+                <button onClick={() => setConfirmDeleteEstab(false)}
+                  style={{ background: 'none', border: '1px solid var(--card-border)', color: 'var(--text-muted)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', flexShrink: 0 }}>
+                  Cancelar
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -573,18 +620,38 @@ export default function ClienteDetallePage() {
                         </span>
                       </td>
                       <td>
-                        <div className="action-btns">
-                          <Link href={`/clientes/${id}/descuentos/${p.id}`} className="action-btn" title="Editar">
-                            <Pencil size={14} />
-                          </Link>
-                          <button
-                            onClick={() => togglePromo(p.id, p.is_active)}
-                            className={`action-btn ${p.is_active ? 'deactivate' : 'activate'}`}
-                            title={p.is_active ? 'Desactivar' : 'Activar'}
-                          >
-                            {p.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
-                          </button>
-                        </div>
+                        {confirmDeletePromo === p.id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <button onClick={() => deletePromo(p.id)} disabled={deletingPromo}
+                              style={{ background: 'rgb(220,53,69)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '4px 10px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
+                              {deletingPromo ? '...' : 'Confirmar'}
+                            </button>
+                            <button onClick={() => setConfirmDeletePromo(null)}
+                              style={{ background: 'none', border: '1px solid var(--card-border)', color: 'var(--text-muted)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="action-btns">
+                            <Link href={`/clientes/${id}/descuentos/${p.id}`} className="action-btn" title="Editar">
+                              <Pencil size={14} />
+                            </Link>
+                            <button
+                              onClick={() => togglePromo(p.id, p.is_active)}
+                              className={`action-btn ${p.is_active ? 'deactivate' : 'activate'}`}
+                              title={p.is_active ? 'Desactivar' : 'Activar'}
+                            >
+                              {p.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeletePromo(p.id)}
+                              className="action-btn deactivate"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
