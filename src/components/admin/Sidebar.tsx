@@ -2,15 +2,13 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Globe, LayoutDashboard, Building2, Tag, Users, BarChart2, TrendingUp, User } from 'lucide-react'
+import { Globe, Building2, Users, TrendingUp, BarChart3, User } from 'lucide-react'
 
 const NAV = [
-  { href: '/dashboard',      label: 'Dashboard',          icon: LayoutDashboard },
-  { href: '/establishments', label: 'Establecimientos',   icon: Building2 },
-  { href: '/promotions',     label: 'Promociones',        icon: Tag },
-  { href: '/users',          label: 'Usuarios',           icon: Users },
-  { href: '/analytics',      label: 'Estadísticas',       icon: TrendingUp },
-  { href: '/reports',        label: 'Reportes',           icon: BarChart2 },
+  { href: '/clientes',     label: 'Clientes',      icon: Building2 },
+  { href: '/estudiantes',  label: 'Estudiantes',   icon: Users },
+  { href: '/empresa',      label: 'Mi Empresa',    icon: BarChart3 },
+  { href: '/estadisticas', label: 'Estadísticas',  icon: TrendingUp },
 ]
 
 interface Props {
