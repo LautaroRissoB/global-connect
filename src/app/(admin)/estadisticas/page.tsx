@@ -50,11 +50,11 @@ function topCountriesFromUsers(
 }
 
 interface SearchProps {
-  searchParams: Promise<{ q?: string; sort?: string }>
+  searchParams: Promise<{ q?: string; sort?: string; plan?: string }>
 }
 
 export default async function EstadisticasPage({ searchParams }: SearchProps) {
-  const { q, sort = 'views' } = await searchParams
+  const { q, sort = 'views', plan } = await searchParams
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = await createClient() as any
 
@@ -195,7 +195,7 @@ export default async function EstadisticasPage({ searchParams }: SearchProps) {
         </div>
       </div>
 
-      <AnalyticsFilters q={q ?? ''} sort={sort} count={rows.length} />
+      <AnalyticsFilters q={q ?? ''} sort={sort} plan={plan ?? ''} count={rows.length} />
 
       {/* Cards grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
