@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Search, Tag, Check, Plus } from 'lucide-react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { Search, Tag, Check, Plus, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -52,11 +52,26 @@ export default function ExploreClient({ establishments }: { establishments: Esta
   const [activePrice,    setActivePrice]    = useState('all')
   const [onlyDiscounts,  setOnlyDiscounts]  = useState(false)
   const [compareIds,     setCompareIds]     = useState<string[]>([])
+  const [showPriceMenu,    setShowPriceMenu]    = useState(false)
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false)
+  const priceMenuRef    = useRef<HTMLDivElement>(null)
+  const categoryMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (priceMenuRef.current && !priceMenuRef.current.contains(e.target as Node))
+        setShowPriceMenu(false)
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node))
+        setShowCategoryMenu(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   function toggleCompare(id: string) {
     setCompareIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id)
-      if (prev.length >= 3)  return prev
+      if (prev.length >= 2)  return prev
       return [...prev, id]
     })
   }
@@ -111,43 +126,67 @@ export default function ExploreClient({ establishments }: { establishments: Esta
         </div>
       </section>
 
-      {/* Category filter */}
-      <div className="category-section slide-up-4">
-        <div className="category-filters">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.slug}
-              className={`category-pill ${activeCategory === cat.slug ? 'active' : ''}`}
-              onClick={() => setActiveCategory(cat.slug)}
-            >
-              <span>{cat.emoji}</span>{cat.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Compact filter bar — three controls always visible */}
+      <div className="filters-bar slide-up-4">
 
-      {/* Price + discount filters */}
-      <div style={{ padding: '0.75rem var(--space-6)', borderBottom: '1px solid var(--card-border)', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', maxWidth: 1280, margin: '0 auto' }}>
+        {/* Category dropdown */}
+        <div ref={categoryMenuRef} className="price-dropdown-wrapper">
+          <button
+            className={`filter-pill price-dropdown-trigger ${activeCategory !== 'all' ? 'active' : ''}`}
+            onClick={() => setShowCategoryMenu((v) => !v)}
+          >
+            {CATEGORIES.find((c) => c.slug === activeCategory)?.emoji}{' '}
+            {CATEGORIES.find((c) => c.slug === activeCategory)?.name ?? tc('all')}
+            <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: showCategoryMenu ? 'rotate(180deg)' : 'none' }} />
+          </button>
+          {showCategoryMenu && (
+            <div className="price-dropdown-menu">
+              {CATEGORIES.map((cat) => (
+                <button key={cat.slug}
+                  className={`price-dropdown-item ${activeCategory === cat.slug ? 'active' : ''}`}
+                  onClick={() => { setActiveCategory(cat.slug); setShowCategoryMenu(false) }}
+                >
+                  {cat.emoji} {cat.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Price dropdown */}
+        <div ref={priceMenuRef} className="price-dropdown-wrapper">
+          <button
+            className={`filter-pill price-dropdown-trigger ${activePrice !== 'all' ? 'active' : ''}`}
+            onClick={() => setShowPriceMenu((v) => !v)}
+          >
+            {activePrice === 'all' ? t('any_price') : activePrice}
+            <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: showPriceMenu ? 'rotate(180deg)' : 'none' }} />
+          </button>
+          {showPriceMenu && (
+            <div className="price-dropdown-menu">
+              <button
+                className={`price-dropdown-item ${activePrice === 'all' ? 'active' : ''}`}
+                onClick={() => { setActivePrice('all'); setShowPriceMenu(false) }}
+              >{t('any_price')}</button>
+              {PRICE_FILTERS.map((p) => (
+                <button key={p}
+                  className={`price-dropdown-item ${activePrice === p ? 'active' : ''}`}
+                  onClick={() => { setActivePrice(p); setShowPriceMenu(false) }}
+                >{p}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Discount toggle */}
         <button
-          className={`category-pill ${activePrice === 'all' ? 'active' : ''}`}
-          style={{ padding: '4px 14px', fontSize: '0.8rem' }}
-          onClick={() => setActivePrice('all')}
-        >{t('any_price')}</button>
-        {PRICE_FILTERS.map((p) => (
-          <button key={p}
-            className={`category-pill ${activePrice === p ? 'active' : ''}`}
-            style={{ padding: '4px 14px', fontSize: '0.8rem' }}
-            onClick={() => setActivePrice(p)}
-          >{p}</button>
-        ))}
-        <div style={{ width: 1, height: 20, background: 'var(--card-border)', margin: '0 4px' }} />
-        <button
-          className={`category-pill ${onlyDiscounts ? 'active' : ''}`}
-          style={{ padding: '4px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}
+          className={`filter-pill filter-pill-discount ${onlyDiscounts ? 'active' : ''}`}
           onClick={() => setOnlyDiscounts((v) => !v)}
-        ><Tag size={13} />{t('with_discounts')}</button>
+        ><Tag size={12} />{t('with_discounts')}</button>
+
+        {/* Clear */}
         {activeFiltersCount > 0 && (
-          <button onClick={clearFilters} style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+          <button className="filters-clear" onClick={clearFilters}>
             {t('clear_filters')} ({activeFiltersCount})
           </button>
         )}
@@ -166,27 +205,17 @@ export default function ExploreClient({ establishments }: { establishments: Esta
             {filtered.map((e, i) => {
               const promo      = e.promotions?.[0]
               const isSelected = compareIds.includes(e.id)
-              const isMaxed    = !isSelected && compareIds.length >= 3
+              const isMaxed    = !isSelected && compareIds.length >= 2
               return (
                 <div
                   key={e.id}
                   className={`card-select-wrapper slide-up${isSelected ? ' is-selected' : ''}`}
                   style={{ animationDelay: `${i * 0.06}s` }}
                 >
-                  <button
-                    className={`card-select-btn${isSelected ? ' active' : ''}${isMaxed ? ' maxed' : ''}`}
-                    onClick={() => !isMaxed && toggleCompare(e.id)}
-                    aria-label={isSelected ? 'Quitar de comparación' : 'Agregar a comparación'}
-                    title={isMaxed ? 'Máximo 3 lugares' : isSelected ? 'Quitar de comparación' : 'Agregar a comparación'}
-                  >
-                    {isSelected ? <Check size={14} /> : <Plus size={14} />}
-                  </button>
-
                   <Link href={`/establishment/${e.id}`} style={{ textDecoration: 'none' }}>
                     <Card
                       image={e.image_url ?? `https://picsum.photos/seed/${e.id}/400/300`}
                       title={e.name} category={e.category}
-                      location={`${e.city}, ${e.country}`}
                       priceRange={e.price_range}
                       originalPrice={promo?.original_price ?? undefined}
                       discountedPrice={promo?.discounted_price ?? undefined}
@@ -195,6 +224,14 @@ export default function ExploreClient({ establishments }: { establishments: Esta
                       featured={e.plan === 'pro'}
                     />
                   </Link>
+                  <button
+                    className={`card-select-btn${isSelected ? ' active' : ''}${isMaxed ? ' maxed' : ''}`}
+                    onClick={() => !isMaxed && toggleCompare(e.id)}
+                    aria-label={isSelected ? 'Quitar de comparación' : 'Agregar a comparación'}
+                    title={isMaxed ? 'Máximo 2 lugares' : undefined}
+                  >
+                    {isSelected ? <><Check size={12} /> Comparando</> : <><Plus size={12} /> Comparar</>}
+                  </button>
                 </div>
               )
             })}
