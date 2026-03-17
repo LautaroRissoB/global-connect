@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Eye, Users, Bookmark, Gift, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { ArrowLeft, Eye, Bookmark, Gift, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import EstabStatsReport from '@/components/admin/EstabStatsReport'
 
 interface Props {
@@ -43,6 +43,21 @@ export default async function EstablishmentStatsPage({ params }: Props) {
   ])
 
   if (!estab) notFound()
+
+  // --- Top universities from saved-benefit users ---
+  const savedUserIds = [...new Set((savedBenefits ?? []).map((b: any) => b.user_id).filter(Boolean))]
+  const { data: savedUserProfiles } = savedUserIds.length > 0
+    ? await supabase.from('profiles').select('id, university').in('id', savedUserIds)
+    : { data: [] }
+
+  const univCounts: Record<string, number> = {}
+  for (const p of savedUserProfiles ?? []) {
+    if (p.university) univCounts[p.university] = (univCounts[p.university] ?? 0) + 1
+  }
+  const topUniversities = Object.entries(univCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, count]) => ({ name, pct: Math.round((count / savedUserIds.length) * 100) }))
 
   const monthName     = now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
   const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -94,6 +109,21 @@ export default async function EstablishmentStatsPage({ params }: Props) {
   // --- Avg rating ---
   const ratings = (redemptions ?? []).map((r: any) => r.rating).filter(Boolean) as number[]
   const avgRating = ratings.length > 0 ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : null
+
+  // --- Peak days of week ---
+  const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  const dayCount = [0, 0, 0, 0, 0, 0, 0]
+  for (const e of events ?? []) {
+    if (e.created_at >= thisMonthStart) {
+      dayCount[new Date(e.created_at).getDay()]++
+    }
+  }
+  const maxDayCount = Math.max(...dayCount, 1)
+  const peakDays = dayCount
+    .map((count, i) => ({ day: DAY_NAMES[i], count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 2)
+    .filter((d) => d.count > 0)
 
   const planLabels: Record<string, string> = { free: 'Gratuito', basic: 'Básico', pro: 'Pro' }
 
@@ -216,6 +246,22 @@ export default async function EstablishmentStatsPage({ params }: Props) {
               </tbody>
             </table>
           </div>
+
+          {/* Top universities */}
+          {topUniversities.length > 0 && (
+            <div className="admin-form-card" style={{ maxWidth: 'none', padding: '1rem 1.25rem', marginTop: '1rem' }}>
+              <h2 style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+                Universidades más frecuentes
+              </h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {topUniversities.map(({ name, pct }) => (
+                  <span key={name} style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)', background: 'rgba(0,206,201,0.08)', border: '1px solid rgba(0,206,201,0.2)', borderRadius: 'var(--radius-full)', padding: '3px 10px' }}>
+                    {name} <span style={{ color: 'var(--secondary)' }}>{pct}%</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Month comparison + report */}
@@ -253,6 +299,32 @@ export default async function EstablishmentStatsPage({ params }: Props) {
               )}
             </div>
           </div>
+
+          {/* Peak days */}
+          {peakDays.length > 0 && (
+            <div className="admin-form-card" style={{ maxWidth: 'none', padding: '1.25rem' }}>
+              <h2 style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', margin: '0 0 0.875rem' }}>
+                Pico de visitas
+              </h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text)', margin: '0 0 0.875rem' }}>
+                {peakDays.length === 1 ? 'Tu pico es ' : 'Tus picos son '}
+                <strong>{peakDays.map((d) => d.day).join(' y ')}</strong>
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {DAY_NAMES.map((day, i) => (
+                  <div key={day}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                      <span>{day}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>{dayCount[i]}</span>
+                    </div>
+                    <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }}>
+                      <div style={{ height: '100%', width: `${(dayCount[i] / maxDayCount) * 100}%`, background: peakDays.some((d) => d.day === day) ? 'var(--primary)' : 'rgba(255,255,255,0.15)', borderRadius: 3 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Report generator */}
           <EstabStatsReport report={{

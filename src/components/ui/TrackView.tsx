@@ -12,15 +12,16 @@ export default function TrackView({ establishmentId, type = 'establishment_view'
   useEffect(() => {
     const key = `tracked_${type}_${establishmentId}`
     if (sessionStorage.getItem(key)) return
-    sessionStorage.setItem(key, '1')
 
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      supabase
-        .from('events')
-        .insert({ type, establishment_id: establishmentId, user_id: user?.id ?? null })
-        .then(() => {})
-    })
+    supabase.auth.getUser()
+      .then(({ data: { user } }) =>
+        supabase
+          .from('events')
+          .insert({ type, establishment_id: establishmentId, user_id: user?.id ?? null })
+          .then(() => { sessionStorage.setItem(key, '1') })
+      )
+      .catch(() => {/* fire-and-forget: ignore tracking errors */})
   }, [establishmentId, type])
 
   return null

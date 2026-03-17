@@ -51,3 +51,25 @@ export async function POST(
 
   return NextResponse.json({ success: true, redemptionId: redemption?.id })
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const { redemptionId, rating } = await request.json().catch(() => ({}))
+  if (!redemptionId || !rating) {
+    return NextResponse.json({ error: 'redemptionId y rating son requeridos' }, { status: 400 })
+  }
+
+  await db.from('redemptions').update({ rating }).eq('id', redemptionId).eq('user_id', user.id)
+
+  return NextResponse.json({ success: true })
+}

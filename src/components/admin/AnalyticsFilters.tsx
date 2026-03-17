@@ -13,10 +13,11 @@ const SORT_OPTIONS = [
 interface Props {
   q: string
   sort: string
+  plan: string
   count: number
 }
 
-export default function AnalyticsFilters({ q, sort, count }: Props) {
+export default function AnalyticsFilters({ q, sort, plan, count }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -37,8 +38,10 @@ export default function AnalyticsFilters({ q, sort, count }: Props) {
         const params = new URLSearchParams()
         const qVal = fd.get('q') as string
         const sVal = fd.get('sort') as string
+        const pVal = fd.get('plan') as string
         if (qVal) params.set('q', qVal)
         if (sVal) params.set('sort', sVal)
+        if (pVal) params.set('plan', pVal)
         router.push(`?${params.toString()}`)
       }}
     >
@@ -57,6 +60,18 @@ export default function AnalyticsFilters({ q, sort, count }: Props) {
         onChange={(e) => updateParam('sort', e.target.value)}
       >
         {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <select
+        name="plan"
+        defaultValue={plan}
+        className="form-select"
+        style={{ width: 'auto', paddingTop: '0.45rem', paddingBottom: '0.45rem', fontSize: '0.85rem' }}
+        onChange={(e) => updateParam('plan', e.target.value)}
+      >
+        <option value="">Todos los planes</option>
+        <option value="free">Gratuito</option>
+        <option value="basic">Básico</option>
+        <option value="pro">Pro</option>
       </select>
       <button type="submit" className="btn btn-outline btn-sm" style={{ padding: '0.45rem 0.75rem', fontSize: '0.85rem' }}>
         Buscar

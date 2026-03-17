@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Check, MessageCircle, Mail, Zap } from 'lucide-react'
+import { Copy, Check, MessageCircle, Mail, Zap, X } from 'lucide-react'
 
 interface PromoRow {
   title: string
@@ -145,7 +145,7 @@ const FORMATS: { key: Format; label: string; icon: React.ElementType; desc: stri
   { key: 'exec',     label: 'Ejecutivo', icon: Zap,           desc: '3 cifras + 1 insight, para revisiones rápidas' },
 ]
 
-export default function EstabStatsReport({ report }: { report: ReportData }) {
+export default function EstabStatsReport({ report, compact = false }: { report: ReportData; compact?: boolean }) {
   const [open,   setOpen]   = useState(false)
   const [format, setFormat] = useState<Format>('whatsapp')
   const [copied, setCopied] = useState(false)
@@ -159,6 +159,108 @@ export default function EstabStatsReport({ report }: { report: ReportData }) {
     await navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2200)
+  }
+
+  function renderBody() {
+    return (
+      <>
+        {/* Format picker */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: '0.875rem' }}>
+          {FORMATS.map(f => {
+            const Icon = f.icon
+            const active = format === f.key
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFormat(f.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '0.55rem 0.875rem', borderRadius: 8,
+                  border: `1px solid ${active ? 'var(--primary)' : 'var(--card-border)'}`,
+                  background: active ? 'rgba(108,92,231,0.12)' : 'rgba(255,255,255,0.02)',
+                  cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
+                }}
+              >
+                <Icon size={15} style={{ color: active ? 'var(--primary-light)' : 'var(--text-muted)', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: active ? 'var(--primary-light)' : 'var(--text)' }}>
+                    {f.label}
+                  </div>
+                  <div style={{ fontSize: '0.67rem', color: 'var(--text-faint)', lineHeight: 1.3, marginTop: 1 }}>
+                    {f.desc}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Preview */}
+        <pre style={{
+          fontFamily: 'monospace', fontSize: '0.71rem', lineHeight: 1.65,
+          color: 'var(--text)', background: 'rgba(0,0,0,0.22)', borderRadius: 8,
+          padding: '0.875rem', whiteSpace: 'pre-wrap', maxHeight: 300,
+          overflowY: 'auto', margin: '0 0 0.75rem', border: '1px solid var(--card-border)',
+        }}>
+          {text}
+        </pre>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setOpen(false)}
+            className="btn btn-ghost btn-sm"
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            Cerrar
+          </button>
+          <button
+            onClick={copy}
+            className="btn btn-primary btn-sm"
+            style={{ flex: 2, justifyContent: 'center', gap: 6 }}
+          >
+            {copied
+              ? <><Check size={13} /> Copiado</>
+              : <><Copy size={13} /> Copiar {FORMATS.find(f => f.key === format)?.label}</>
+            }
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  if (compact) {
+    return (
+      <>
+        <button
+          onClick={() => setOpen(true)}
+          className="action-btn"
+          title="Generar reporte"
+          style={{ fontSize: '0.72rem', width: 'auto', padding: '3px 10px', borderRadius: 6, gap: 4, display: 'inline-flex' }}
+        >
+          <Copy size={13} /> Reporte
+        </button>
+
+        {open && (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(4px)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+          }}>
+            <div style={{
+              background: 'var(--bg-secondary)', border: '1px solid var(--card-border)',
+              borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 540, padding: '1.25rem',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
+                <h2 style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>{report.name} — Reporte {report.monthName}</h2>
+                <button onClick={() => setOpen(false)} className="action-btn"><X size={16} /></button>
+              </div>
+              {renderBody()}
+            </div>
+          </div>
+        )}
+      </>
+    )
   }
 
   return (
@@ -177,67 +279,7 @@ export default function EstabStatsReport({ report }: { report: ReportData }) {
         </button>
       ) : (
         <>
-          {/* Format picker */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: '0.875rem' }}>
-            {FORMATS.map(f => {
-              const Icon = f.icon
-              const active = format === f.key
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setFormat(f.key)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '0.55rem 0.875rem', borderRadius: 8,
-                    border: `1px solid ${active ? 'var(--primary)' : 'var(--card-border)'}`,
-                    background: active ? 'rgba(108,92,231,0.12)' : 'rgba(255,255,255,0.02)',
-                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
-                  }}
-                >
-                  <Icon size={15} style={{ color: active ? 'var(--primary-light)' : 'var(--text-muted)', flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: active ? 'var(--primary-light)' : 'var(--text)' }}>
-                      {f.label}
-                    </div>
-                    <div style={{ fontSize: '0.67rem', color: 'var(--text-faint)', lineHeight: 1.3, marginTop: 1 }}>
-                      {f.desc}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Preview */}
-          <pre style={{
-            fontFamily: 'monospace', fontSize: '0.71rem', lineHeight: 1.65,
-            color: 'var(--text)', background: 'rgba(0,0,0,0.22)', borderRadius: 8,
-            padding: '0.875rem', whiteSpace: 'pre-wrap', maxHeight: 300,
-            overflowY: 'auto', margin: '0 0 0.75rem', border: '1px solid var(--card-border)',
-          }}>
-            {text}
-          </pre>
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => setOpen(false)}
-              className="btn btn-ghost btn-sm"
-              style={{ flex: 1, justifyContent: 'center' }}
-            >
-              Cerrar
-            </button>
-            <button
-              onClick={copy}
-              className="btn btn-primary btn-sm"
-              style={{ flex: 2, justifyContent: 'center', gap: 6 }}
-            >
-              {copied
-                ? <><Check size={13} /> Copiado</>
-                : <><Copy size={13} /> Copiar {FORMATS.find(f => f.key === format)?.label}</>
-              }
-            </button>
-          </div>
+          {renderBody()}
         </>
       )}
     </div>

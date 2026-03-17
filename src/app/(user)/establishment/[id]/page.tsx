@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { MapPin, Phone, Globe, ArrowLeft, Instagram, FileText, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
@@ -35,25 +36,54 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('establishments')
+    .select('name, description, city, category')
+    .eq('id', id)
+    .single()
+
+  if (!data) return { title: 'Establecimiento | Global Connect' }
+
+  const categoryLabel = CATEGORY_LABELS[data.category] ?? data.category
+  return {
+    title: `${data.name} | Global Connect`,
+    description: data.description ??
+      `${categoryLabel} en ${data.city}. Descubrí beneficios exclusivos para estudiantes internacionales.`,
+  }
+}
+
 export default async function EstablishmentDetailPage({ params }: Props) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: establishment } = await supabase
-    .from('establishments')
-    .select(`
-      id, name, description, category, address, city, country,
-      phone, website, instagram, price_range, image_url, gallery_urls, menu_pdf_url, opening_hours, is_active,
-      promotions ( id, title, description, original_price, discounted_price, discount_percentage, valid_until, terms_conditions, is_active )
-    `)
-    .eq('id', id)
-    .eq('is_active', true)
-    .single()
+  // Fetch establishment + auth user + ratings in parallel
+  const [{ data: establishment }, { data: { user } }, { data: ratingRows }] = await Promise.all([
+    supabase
+      .from('establishments')
+      .select(`
+        id, name, description, category, address, city, country,
+        phone, website, instagram, price_range, image_url, gallery_urls, menu_pdf_url, opening_hours, is_active,
+        promotions ( id, title, description, original_price, discounted_price, discount_percentage, valid_until, terms_conditions, is_active )
+      `)
+      .eq('id', id)
+      .eq('is_active', true)
+      .single(),
+    supabase.auth.getUser(),
+    supabase.from('redemptions').select('rating').eq('establishment_id', id).not('rating', 'is', null),
+  ])
 
   if (!establishment) notFound()
 
-  // Fetch user's saved benefits for this establishment (if logged in)
-  const { data: { user } } = await supabase.auth.getUser()
+  // Rating
+  const ratings = (ratingRows ?? []).map((r) => (r as { rating: number }).rating)
+  const avgRating = ratings.length > 0
+    ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1)
+    : null
+
+  // Fetch user's saved benefits (only if logged in)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let savedMap: Record<string, { id: string; status: string }> = {}
   if (user) {
@@ -123,6 +153,11 @@ export default async function EstablishmentDetailPage({ params }: Props) {
               {activePromos.length > 0 && (
                 <span style={{ background: 'var(--secondary)', color: '#fff', borderRadius: 'var(--radius-full)', padding: '0.2rem 0.7rem', fontSize: '0.72rem', fontWeight: 700 }}>
                   {activePromos.length} promo{activePromos.length > 1 ? 's' : ''} activa{activePromos.length > 1 ? 's' : ''}
+                </span>
+              )}
+              {avgRating && (
+                <span style={{ background: 'rgba(253,203,110,0.2)', color: '#fdcb6e', borderRadius: 'var(--radius-full)', padding: '0.2rem 0.7rem', fontSize: '0.72rem', fontWeight: 700, backdropFilter: 'blur(6px)', border: '1px solid rgba(253,203,110,0.3)' }}>
+                  ⭐ {avgRating} ({ratings.length} reseña{ratings.length !== 1 ? 's' : ''})
                 </span>
               )}
             </div>
@@ -306,7 +341,7 @@ export default async function EstablishmentDetailPage({ params }: Props) {
                       )}
 
                       {/* Footer: valid until + terms */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 6, marginBottom: user ? '0.875rem' : 0 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 6, marginBottom: '0.875rem' }}>
                         {promo.valid_until && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-sm)', padding: '3px 8px' }}>
                             Válido hasta {formatDate(promo.valid_until)}
@@ -319,8 +354,8 @@ export default async function EstablishmentDetailPage({ params }: Props) {
                         )}
                       </div>
 
-                      {/* Save / redeem button — only for logged-in users */}
-                      {user && (
+                      {/* Save / redeem button */}
+                      {user ? (
                         <SaveBenefitButton
                           promotionId={promo.id}
                           establishmentId={establishment.id}
@@ -329,6 +364,30 @@ export default async function EstablishmentDetailPage({ params }: Props) {
                           savedBenefitId={savedMap[promo.id]?.id ?? null}
                           isRedeemed={savedMap[promo.id]?.status === 'redeemed'}
                         />
+                      ) : (
+                        <Link
+                          href={`/auth/register?redirect=/establishment/${establishment.id}`}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 8, padding: '0.75rem 1rem',
+                            background: 'rgba(108,92,231,0.12)',
+                            border: '1px solid rgba(108,92,231,0.25)',
+                            borderRadius: 'var(--radius-md)',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary-light)' }}>
+                              Guardá este beneficio
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-faint)', marginTop: 1 }}>
+                              Registrate gratis como estudiante internacional
+                            </div>
+                          </div>
+                          <span style={{ flexShrink: 0, background: 'var(--primary)', color: '#fff', borderRadius: 'var(--radius-full)', padding: '0.35rem 0.875rem', fontSize: '0.78rem', fontWeight: 700 }}>
+                            Unirme →
+                          </span>
+                        </Link>
                       )}
                     </div>
                   </div>

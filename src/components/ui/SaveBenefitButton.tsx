@@ -29,16 +29,21 @@ export default function SaveBenefitButton({
 
   async function handleSave() {
     setLoading(true); setError('')
-    const res = await fetch('/api/save-benefit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ promotionId, establishmentId }),
-    })
-    const json = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(json.error ?? 'Error al guardar'); return }
-    setBenefitId(json.id)
-    setShowModal(false)
+    try {
+      const res = await fetch('/api/save-benefit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promotionId, establishmentId }),
+      })
+      const json = await res.json().catch(() => ({})) as { error?: string; id?: string }
+      setLoading(false)
+      if (!res.ok) { setError(json.error ?? 'Error al guardar'); return }
+      setBenefitId(json.id ?? null)
+      setShowModal(false)
+    } catch {
+      setLoading(false)
+      setError('Error de conexión. Intentá de nuevo.')
+    }
   }
 
   // Already redeemed

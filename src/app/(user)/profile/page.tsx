@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { MapPin, GraduationCap, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/ui/Navbar'
 import AvatarUpload from '@/components/ui/AvatarUpload'
 import ProfileCompleteForm from '@/components/ui/ProfileCompleteForm'
-import InterestsTags from '@/components/ui/InterestsTags'
 import ProfileTabs from '@/components/ui/ProfileTabs'
 
 function formatJoinDate(iso: string) {
@@ -77,7 +77,7 @@ export default async function ProfilePage() {
   try {
     const [benefitsRes, redemptionsRes] = await Promise.all([
       s.from('saved_benefits')
-        .select('id, saved_at, status, promotion_id, promotions(title, discount_percentage), establishments(name, category)')
+        .select('id, saved_at, status, promotion_id, establishment_id, promotions(title, discount_percentage, valid_until), establishments(name, category)')
         .eq('user_id', user.id)
         .order('saved_at', { ascending: false }),
       s.from('redemptions')
@@ -94,8 +94,10 @@ export default async function ProfilePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const savedBenefits = (rawBenefits ?? []).map((b: any) => ({
     id: b.id, saved_at: b.saved_at, status: b.status,
+    establishment_id: b.establishment_id ?? null,
     promo_title: b.promotions?.title ?? '',
     promo_discount: b.promotions?.discount_percentage ?? null,
+    valid_until: b.promotions?.valid_until ?? null,
     establishment_name: b.establishments?.name ?? '',
     establishment_category: b.establishments?.category ?? '',
   }))
@@ -165,8 +167,6 @@ export default async function ProfilePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p = profile as any
   const exchangeUniversity = p.exchange_university as string | null
-  const interests: string[] = Array.isArray(p.interests) ? p.interests : []
-
   // Profile tab content (passed as prop to avoid re-fetching)
   const profileContent = (
     <div>
@@ -183,17 +183,6 @@ export default async function ProfilePage() {
         )}
       </div>
 
-      {/* ── Interests ── */}
-      <div>
-        <div style={{
-          fontSize: '0.72rem', color: 'var(--text-faint)',
-          textTransform: 'uppercase', letterSpacing: '0.07em',
-          marginBottom: '0.75rem', fontWeight: 600,
-        }}>
-          Intereses
-        </div>
-        <InterestsTags initial={interests} />
-      </div>
     </div>
   )
 
@@ -213,11 +202,13 @@ export default async function ProfilePage() {
           </p>
         </div>
 
-        <ProfileTabs
-          profileContent={profileContent}
-          savedBenefits={savedBenefits}
-          redemptions={redemptions}
-        />
+        <Suspense>
+          <ProfileTabs
+            profileContent={profileContent}
+            savedBenefits={savedBenefits}
+            redemptions={redemptions}
+          />
+        </Suspense>
       </div>
     </>
   )

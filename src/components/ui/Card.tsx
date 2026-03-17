@@ -2,7 +2,6 @@ interface CardProps {
   image: string
   title: string
   category: string
-  location: string
   priceRange?: string | null
   originalPrice?: number
   discountedPrice?: number
@@ -27,7 +26,6 @@ export default function Card({
   image,
   title,
   category,
-  location,
   priceRange,
   originalPrice,
   discountedPrice,
@@ -47,41 +45,31 @@ export default function Card({
         {featured && (
           <span className="card-featured-badge">⭐ Destacado</span>
         )}
-        {discountPercentage && (
-          <span className="card-discount-badge">-{discountPercentage}%</span>
-        )}
       </div>
 
       <div className="card-body">
-        <h3 className="card-title">{title}</h3>
-        <p className="card-location">{location}</p>
+        <div className="card-header-row">
+          <h3 className="card-title">{title}</h3>
+          {priceRange && <span className="card-price-range">{priceRange}</span>}
+        </div>
 
-        <div className="card-footer">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-            {discountedPrice != null ? (
-              <div className="card-price-wrapper">
-                {originalPrice != null && (
-                  <span className="card-original-price">${originalPrice}</span>
-                )}
-                <span className="card-price">${discountedPrice}</span>
-              </div>
-            ) : (
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>Ver promos</span>
-            )}
-            {avgRating ? (
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#fdcb6e' }}>
-                ⭐ {avgRating}
-              </span>
-            ) : (
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-faint)' }}>
-                ☆☆☆☆☆
-              </span>
-            )}
-          </div>
-          {priceRange && (
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
-              {priceRange}
-            </span>
+        <div className="card-info-row">
+          {discountPercentage ? (
+            <span className="card-discount-text">-{discountPercentage}% OFF</span>
+          ) : discountedPrice != null ? (
+            <div className="card-price-wrapper">
+              {originalPrice != null && (
+                <span className="card-original-price">${originalPrice}</span>
+              )}
+              <span className="card-price">${discountedPrice}</span>
+            </div>
+          ) : (
+            <span className="card-see-promos">Ver promos</span>
+          )}
+          {avgRating ? (
+            <span className="card-avg-rating">⭐ {avgRating}</span>
+          ) : (
+            <span className="card-new-badge">Nuevo</span>
           )}
         </div>
       </div>

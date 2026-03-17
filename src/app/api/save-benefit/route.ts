@@ -20,7 +20,12 @@ export async function POST(request: NextRequest) {
     .eq('id', establishmentId)
     .single()
 
-  const mode = (establishment as any)?.redemption_mode ?? 'one_per_promo'
+  if (!establishment) {
+    return NextResponse.json({ error: 'Establecimiento no encontrado' }, { status: 404 })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mode = (establishment as any).redemption_mode ?? 'one_per_promo'
 
   if (mode === 'one_per_establishment') {
     const { data: existing } = await db

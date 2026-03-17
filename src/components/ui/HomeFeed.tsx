@@ -119,7 +119,6 @@ export default function HomeFeed({ establishments }: Props) {
                       image={e.image_url ?? `https://picsum.photos/seed/${e.id}/400/300`}
                       title={e.name}
                       category={e.category}
-                      location={`${e.city}, ${e.country}`}
                       priceRange={e.price_range}
                       originalPrice={promo?.original_price ?? undefined}
                       discountedPrice={promo?.discounted_price ?? undefined}

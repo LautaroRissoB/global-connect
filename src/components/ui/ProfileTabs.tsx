@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight, Clock } from 'lucide-react'
 
@@ -8,8 +9,10 @@ interface SavedBenefit {
   id: string
   saved_at: string
   status: 'saved' | 'redeemed'
+  establishment_id: string | null
   promo_title: string
   promo_discount: number | null
+  valid_until: string | null
   establishment_name: string
   establishment_category: string
 }
@@ -40,6 +43,11 @@ function formatDate(iso: string) {
   catch { return iso }
 }
 
+function daysUntil(iso: string): number {
+  const diff = new Date(iso).getTime() - Date.now()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   restaurant: 'Restaurante', bar: 'Bar', club: 'Discoteca',
   cafe: 'Cafetería', cultural: 'Cultura', theater: 'Teatro',
@@ -48,11 +56,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function ProfileTabs({ profileContent, savedBenefits, redemptions }: Props) {
   const available = savedBenefits.filter((b) => b.status === 'saved')
+  const searchParams = useSearchParams()
 
-  const urlTab = typeof window !== 'undefined'
-    ? (new URLSearchParams(window.location.search).get('tab') ?? 'profile')
-    : 'profile'
-
+  const urlTab = searchParams.get('tab') ?? 'profile'
   const [active, setActive] = useState<string>(
     urlTab === 'benefits' ? 'benefits' : urlTab === 'history' ? 'history' : 'profile'
   )
@@ -113,13 +119,34 @@ export default function ProfileTabs({ profileContent, savedBenefits, redemptions
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
                     {CATEGORY_LABELS[b.establishment_category] ?? b.establishment_category}
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {b.establishment_name}
-                  </div>
+                  {b.establishment_id ? (
+                    <Link href={`/establishment/${b.establishment_id}`} style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', textDecoration: 'none' }}>
+                      {b.establishment_name}
+                    </Link>
+                  ) : (
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {b.establishment_name}
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
                     {b.promo_discount && <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>-{b.promo_discount}%</span>}
                     {b.promo_title}
                   </div>
+                  {b.valid_until && (() => {
+                    const days = daysUntil(b.valid_until)
+                    const expiring = days >= 0 && days <= 7
+                    const expired = days < 0
+                    if (expired) return null
+                    return (
+                      <div style={{ fontSize: '0.7rem', marginTop: 4, fontWeight: 600,
+                        color: expiring ? '#e17055' : 'var(--text-faint)',
+                        background: expiring ? 'rgba(225,112,85,0.1)' : 'transparent',
+                        borderRadius: 4, padding: expiring ? '1px 5px' : 0, display: 'inline-block',
+                      }}>
+                        {expiring ? `⚠️ Vence en ${days} día${days !== 1 ? 's' : ''}` : `Válido hasta ${formatDate(b.valid_until)}`}
+                      </div>
+                    )
+                  })()}
                 </div>
                 <Link
                   href={`/redeem/${b.id}`}
