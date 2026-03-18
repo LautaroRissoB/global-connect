@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <rect width="800" height="400" fill="#16162a"/>
+  <circle cx="400" cy="170" r="52" fill="#1e1e3a"/>
+  <circle cx="400" cy="170" r="52" fill="none" stroke="#2d2d52" stroke-width="2"/>
+  <text x="400" y="155" font-family="system-ui,sans-serif" font-size="38" fill="#2d2d52" text-anchor="middle">🌐</text>
+  <text x="400" y="242" font-family="system-ui,sans-serif" font-size="15" font-weight="600" fill="#3a3a5e" text-anchor="middle" letter-spacing="1">GLOBAL CONNECT</text>
+  <text x="400" y="268" font-family="system-ui,sans-serif" font-size="12" fill="#2a2a48" text-anchor="middle">Sin imagen disponible</text>
+</svg>

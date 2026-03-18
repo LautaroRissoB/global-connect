@@ -124,7 +124,7 @@ export default async function EstablishmentDetailPage({ params }: Props) {
         <div style={{ position: 'relative', height: 280, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={establishment.image_url ?? '/placeholder-establishment.png'}
+            src={establishment.image_url ?? '/placeholder-establishment.svg'}
             alt={establishment.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />

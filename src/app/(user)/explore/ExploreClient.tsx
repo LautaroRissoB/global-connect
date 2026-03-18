@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Search, Tag, Check, Plus, ChevronDown } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Search, Tag, Check, Plus, ChevronDown, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import Card from '@/components/ui/Card'
@@ -31,8 +32,9 @@ const PRICE_FILTERS = ['$', '$$', '$$$', '$$$$']
 
 
 export default function ExploreClient({ establishments }: { establishments: Establishment[] }) {
-  const t  = useTranslations('explore')
-  const tc = useTranslations('categories')
+  const t      = useTranslations('explore')
+  const tc     = useTranslations('categories')
+  const router = useRouter()
 
   const CATEGORIES = [
     { slug: 'all',        emoji: '✨', name: tc('all') },
@@ -193,7 +195,16 @@ export default function ExploreClient({ establishments }: { establishments: Esta
           <h2 className="feed-title">
             {activeCategory === 'all' ? t('all_places') : CATEGORIES.find((c) => c.slug === activeCategory)?.name}
           </h2>
-          <span className="feed-count">{t('results', { count: filtered.length })}</span>
+          {compareIds.length >= 2 ? (
+            <button
+              className="compare-go-btn"
+              onClick={() => router.push(`/compare?ids=${compareIds.join(',')}`)}
+            >
+              Comparar <ArrowRight size={13} />
+            </button>
+          ) : (
+            <span className="feed-count">{t('results', { count: filtered.length })}</span>
+          )}
         </div>
 
         {filtered.length > 0 ? (
@@ -210,7 +221,7 @@ export default function ExploreClient({ establishments }: { establishments: Esta
                 >
                   <Link href={`/establishment/${e.id}`} style={{ textDecoration: 'none' }}>
                     <Card
-                      image={e.image_url ?? '/placeholder-establishment.png'}
+                      image={e.image_url ?? '/placeholder-establishment.svg'}
                       title={e.name} category={e.category}
                       priceRange={e.price_range}
                       originalPrice={promo?.original_price ?? undefined}
