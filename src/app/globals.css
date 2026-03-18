@@ -1783,3 +1783,256 @@ h1, h2, h3, h4, h5, h6 {
   }
   .cmp-handle { display: none; }
 }
+
+/* ============================================================
+   Landing Page
+   ============================================================ */
+
+/* Hero */
+.landing-hero {
+  position: relative;
+  padding: var(--space-20) 0 var(--space-16);
+  text-align: center;
+  overflow: hidden;
+}
+.landing-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(108, 92, 231, 0.22) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(0, 206, 201, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+.landing-hero-content {
+  position: relative;
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+}
+.landing-eyebrow {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary-light);
+  background: rgba(108, 92, 231, 0.12);
+  border: 1px solid rgba(108, 92, 231, 0.25);
+  border-radius: var(--radius-full);
+  padding: 4px 16px;
+}
+.landing-headline {
+  font-family: var(--font-heading);
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.landing-subhead {
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  color: var(--text-muted);
+  line-height: 1.7;
+  max-width: 560px;
+}
+.landing-hero-ctas {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Stats bar */
+.landing-stats {
+  padding: var(--space-10) 0;
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  background: var(--bg-secondary);
+}
+.landing-stats-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.landing-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.landing-stat-number {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.landing-stat-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--card-border);
+}
+
+/* How it works */
+.landing-how {
+  padding: var(--space-20) 0;
+  text-align: center;
+}
+.landing-section-title {
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+  margin-bottom: var(--space-3);
+}
+.landing-section-sub {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-10);
+}
+.landing-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+.landing-step {
+  flex: 1;
+  min-width: 180px;
+  max-width: 260px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  transition: border-color var(--ease), transform var(--ease-slow);
+}
+.landing-step:hover {
+  border-color: rgba(108, 92, 231, 0.35);
+  transform: translateY(-4px);
+}
+.landing-step-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+.landing-step h3 {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.landing-step p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.landing-step-arrow {
+  font-size: 1.5rem;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+/* Recent places */
+.landing-places {
+  padding: var(--space-16) 0;
+  background: var(--bg-secondary);
+}
+.landing-places-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+.landing-places-scroll {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding: var(--space-2) var(--space-6) var(--space-4);
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.landing-place-item {
+  flex-shrink: 0;
+  width: 260px;
+}
+
+/* Final CTA */
+.landing-cta {
+  position: relative;
+  padding: var(--space-20) 0;
+  text-align: center;
+  overflow: hidden;
+}
+.landing-cta-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 80% at 50% 50%, rgba(108, 92, 231, 0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+.landing-cta-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+}
+.landing-cta-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+}
+.landing-cta-sub {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+}
+
+/* Footer */
+.landing-footer {
+  border-top: 1px solid var(--card-border);
+  padding: var(--space-8) 0;
+  background: var(--bg-secondary);
+}
+.landing-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.landing-footer-brand {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.landing-footer-copy {
+  font-size: 0.8rem;
+  color: var(--text-faint);
+}
+
+/* Landing responsive */
+@media (max-width: 768px) {
+  .landing-hero { padding: var(--space-16) 0 var(--space-12); }
+  .landing-step-arrow { display: none; }
+  .landing-steps { flex-direction: column; align-items: center; }
+  .landing-step { max-width: 100%; width: 100%; }
+  .landing-stat-divider { width: 40px; height: 1px; }
+  .landing-stats-grid { flex-direction: column; gap: var(--space-5); }
+  .landing-places-scroll { padding: var(--space-2) var(--space-4) var(--space-4); }
+  .landing-places-header { flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+  .landing-footer-inner { flex-direction: column; text-align: center; }
+}

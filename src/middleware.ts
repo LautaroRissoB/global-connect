@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 const ADMIN_PATHS = ['/dashboard', '/establishments', '/promotions']
 
 // Rutas de usuario que requieren auth (excluye /auth/*)
-const USER_AUTH_REQUIRED_PATHS = ['/explore', '/establishment', '/compare']
+const USER_AUTH_REQUIRED_PATHS = ['/establishment', '/compare', '/profile', '/redeem']
 
 function isAdminPath(pathname: string) {
   return ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(path + '/'))
@@ -43,13 +43,12 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // --- Raíz: redirigir según estado de sesión ---
+  // --- Raíz: usuarios logueados van a /explore, no-logueados ven la landing ---
   if (pathname === '/') {
     if (user) {
       return NextResponse.redirect(new URL('/explore', request.url))
-    } else {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
     }
+    return supabaseResponse
   }
 
   // --- Rutas de usuario protegidas ---
