@@ -5,6 +5,12 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export const revalidate = 300
 
+const CATEGORY_LABELS: Record<string, string> = {
+  restaurant: 'Restaurante', bar: 'Bar', club: 'Discoteca',
+  cafe: 'Cafetería', cultural: 'Cultura', theater: 'Teatro',
+  sports: 'Deportes', other: 'Otro',
+}
+
 const TICKER_ITEMS = [
   { flag: '🇧🇷', name: 'Ana', action: 'canjeó -30% en La Biela', time: '1h' },
   { flag: '🇮🇹', name: 'Marco', action: 'usó descuento en Irish Pub', time: '2h' },
@@ -171,36 +177,73 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* ── ESTABLECIMIENTOS ── */}
+      {/* ── STATS BAR ── */}
+      <div className="lp-statsbar">
+        <span className="lp-statsbar-item">
+          <strong>+{totalEstabs}</strong> establecimientos activos
+        </span>
+        <span className="lp-statsbar-dot" aria-hidden />
+        <span className="lp-statsbar-item">
+          Hasta <strong>-35%</strong> de descuento
+        </span>
+        <span className="lp-statsbar-dot" aria-hidden />
+        <span className="lp-statsbar-item lp-statsbar-free">
+          <strong>$0</strong> para acceder
+        </span>
+      </div>
+
+      {/* ── CUPONES ── */}
       {places.length > 0 && (
-        <section className="lp-places">
-          <div className="lp-section-header lp-places-header-row">
-            <div>
-              <h2 className="lp-section-title">Algunos de los lugares</h2>
-              <p className="lp-section-sub">Nuevos establecimientos se suman cada semana.</p>
-            </div>
-            <Link href="/auth/register" className="btn btn-outline btn-sm lp-places-cta">
-              Ver todos los descuentos →
+        <section className="lp-coupons">
+          <div className="lp-coupons-header">
+            <h2 className="lp-section-title">Algunos de los deals</h2>
+            <Link href="/auth/register" className="btn btn-outline btn-sm">
+              Ver todos →
             </Link>
           </div>
-          <div className="lp-places-grid">
+          <div className="lp-coupons-list">
             {places.map((place) => (
-              <div key={place.id} className="lp-place-card">
-                <div className="lp-place-img-wrap">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={place.image_url ?? '/placeholder.jpg'}
-                    alt={place.name}
-                    className="lp-place-img"
-                    loading="lazy"
-                  />
-                  {place.discount && (
-                    <span className="lp-place-discount-badge">-{place.discount}%</span>
-                  )}
+              <div key={place.id} className="lp-coupon">
+                {/* Left: place info */}
+                <div className="lp-coupon-left">
+                  <div className="lp-coupon-thumb-wrap">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={place.image_url ?? '/placeholder.jpg'}
+                      alt={place.name}
+                      className="lp-coupon-thumb"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="lp-coupon-info">
+                    <span className="lp-coupon-name">{place.name}</span>
+                    <span className="lp-coupon-cat">
+                      {CATEGORY_LABELS[place.category] ?? place.category}
+                      {place.price_range && <> · {place.price_range}</>}
+                    </span>
+                  </div>
                 </div>
-                <div className="lp-place-body">
-                  <span className="lp-place-name">{place.name}</span>
-                  {place.price_range && <span className="lp-place-price">{place.price_range}</span>}
+
+                {/* Coupon tear line */}
+                <div className="lp-coupon-tear" aria-hidden>
+                  <span className="lp-coupon-notch lp-coupon-notch-top" />
+                  <span className="lp-coupon-notch lp-coupon-notch-bottom" />
+                </div>
+
+                {/* Right: discount */}
+                <div className="lp-coupon-right">
+                  {place.discount ? (
+                    <>
+                      <span className="lp-coupon-pct">-{place.discount}%</span>
+                      <span className="lp-coupon-off">OFF</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="lp-coupon-pct lp-coupon-pct-sm">Beneficio</span>
+                      <span className="lp-coupon-off">exclusivo</span>
+                    </>
+                  )}
+                  <Link href="/auth/register" className="lp-coupon-cta">Usar →</Link>
                 </div>
               </div>
             ))}
@@ -208,31 +251,41 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ── CÓMO FUNCIONA ── */}
-      <section className="lp-how">
+      {/* ── TERMINAL ── */}
+      <section className="lp-terminal-section">
         <h2 className="lp-section-title">Así de simple.</h2>
-        <div className="lp-steps">
-          <div className="lp-step">
-            <span className="lp-step-num">01</span>
-            <div>
-              <h3 className="lp-step-title">Creá tu cuenta gratis</h3>
-              <p className="lp-step-body">Con cualquier email. Sin tarjeta. En 2 minutos.</p>
-            </div>
+        <div className="lp-terminal">
+          <div className="lp-terminal-bar">
+            <span className="lp-terminal-dot lp-td-red" />
+            <span className="lp-terminal-dot lp-td-yellow" />
+            <span className="lp-terminal-dot lp-td-green" />
+            <span className="lp-terminal-title">global-connect</span>
           </div>
-          <div className="lp-step-sep" />
-          <div className="lp-step">
-            <span className="lp-step-num">02</span>
-            <div>
-              <h3 className="lp-step-title">Encontrá tu lugar</h3>
-              <p className="lp-step-body">Filtrá por categoría o descuento. Elegí dónde ir esta noche.</p>
+          <div className="lp-terminal-body">
+            <div className="lp-terminal-line">
+              <span className="lp-t-prompt">$</span>
+              <span className="lp-t-cmd">register</span>
+              <span className="lp-t-dots">·················</span>
+              <span className="lp-t-ok">✓</span>
+              <span className="lp-t-result">cuenta creada · gratis · 2 minutos</span>
             </div>
-          </div>
-          <div className="lp-step-sep" />
-          <div className="lp-step">
-            <span className="lp-step-num">03</span>
-            <div>
-              <h3 className="lp-step-title">Mostrá y listo</h3>
-              <p className="lp-step-body">Abrí la app en el local, mostrá el beneficio, pagás menos. Nada más.</p>
+            <div className="lp-terminal-line">
+              <span className="lp-t-prompt">$</span>
+              <span className="lp-t-cmd">explore</span>
+              <span className="lp-t-dots">··················</span>
+              <span className="lp-t-ok">✓</span>
+              <span className="lp-t-result">+{totalEstabs} lugares con descuento en Buenos Aires</span>
+            </div>
+            <div className="lp-terminal-line">
+              <span className="lp-t-prompt">$</span>
+              <span className="lp-t-cmd">redeem</span>
+              <span className="lp-t-dots">···················</span>
+              <span className="lp-t-ok">✓</span>
+              <span className="lp-t-result">ahorraste <span className="lp-t-saving">-${saving.toLocaleString('es-AR')}</span> esta noche</span>
+            </div>
+            <div className="lp-terminal-line lp-terminal-cursor-line">
+              <span className="lp-t-prompt">$</span>
+              <span className="lp-terminal-cursor" aria-hidden />
             </div>
           </div>
         </div>
