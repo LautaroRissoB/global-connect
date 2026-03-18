@@ -3,7 +3,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { Search, Tag, Check, Plus, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Card from '@/components/ui/Card'
 
@@ -34,7 +33,6 @@ const PRICE_FILTERS = ['$', '$$', '$$$', '$$$$']
 export default function ExploreClient({ establishments }: { establishments: Establishment[] }) {
   const t  = useTranslations('explore')
   const tc = useTranslations('categories')
-  const router = useRouter()
 
   const CATEGORIES = [
     { slug: 'all',        emoji: '✨', name: tc('all') },
@@ -104,8 +102,6 @@ export default function ExploreClient({ establishments }: { establishments: Esta
   const heroWords = t('hero_title').split(' ')
   const heroStart = heroWords.slice(0, -1).join(' ')
   const heroEnd   = heroWords.slice(-1)[0]
-
-  const selectedForCompare = establishments.filter((e) => compareIds.includes(e.id))
 
   return (
     <>
@@ -214,7 +210,7 @@ export default function ExploreClient({ establishments }: { establishments: Esta
                 >
                   <Link href={`/establishment/${e.id}`} style={{ textDecoration: 'none' }}>
                     <Card
-                      image={e.image_url ?? `https://picsum.photos/seed/${e.id}/400/300`}
+                      image={e.image_url ?? '/placeholder-establishment.png'}
                       title={e.name} category={e.category}
                       priceRange={e.price_range}
                       originalPrice={promo?.original_price ?? undefined}
@@ -248,43 +244,6 @@ export default function ExploreClient({ establishments }: { establishments: Esta
           </div>
         )}
       </section>
-
-      {/* ── Floating compare bar ──────────────────────────────────────────── */}
-      {compareIds.length > 0 && (
-        <div className="compare-float-bar">
-          <div className="compare-float-thumbs">
-            {selectedForCompare.map((e) => (
-              <div key={e.id} className="compare-float-thumb">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={e.image_url ?? `https://picsum.photos/seed/${e.id}/48/48`} alt={e.name} />
-                <button onClick={() => toggleCompare(e.id)} aria-label={`Quitar ${e.name}`}>✕</button>
-              </div>
-            ))}
-          </div>
-
-          {compareIds.length >= 2 ? (
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => router.push(`/compare?ids=${compareIds.join(',')}`)}
-              style={{ borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
-            >
-              Comparar ({compareIds.length}) →
-            </button>
-          ) : (
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingRight: '0.25rem' }}>
-              Seleccioná 1 más
-            </span>
-          )}
-
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setCompareIds([])}
-            style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
-          >
-            Limpiar
-          </button>
-        </div>
-      )}
 
     </>
   )
