@@ -242,7 +242,7 @@ function CompareContent() {
                     <div className="cmp-sb-photo-wrap">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={e.image_url ?? `https://picsum.photos/seed/${e.id}/400/225`}
+                        src={e.image_url ?? '/placeholder-establishment.svg'}
                         alt={e.name}
                         className="cmp-sb-photo"
                       />
@@ -364,20 +364,17 @@ function CompareContent() {
             {/* ─ CTA ─ */}
             <div className="cmp-sb-row cmp-sb-cta-row">
               <div className="cmp-sb-cells">
-                {selected.map((e, i) => {
-                  const isWinner = selected.length === 2 && discountValues[i] > 0 && discountValues[i] === maxDiscount
-                  return (
-                    <div key={e.id} className="cmp-sb-cell">
-                      <Link
-                        href={`/establishment/${e.id}`}
-                        className={`btn btn-sm${isWinner ? ' btn-primary' : ' btn-outline'}`}
-                        style={{ width: '100%', justifyContent: 'center' }}
-                      >
-                        Ver detalle
-                      </Link>
-                    </div>
-                  )
-                })}
+                {selected.map((e) => (
+                  <div key={e.id} className="cmp-sb-cell">
+                    <Link
+                      href={`/establishment/${e.id}`}
+                      className="btn btn-outline btn-sm"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                    >
+                      Ver detalle
+                    </Link>
+                  </div>
+                ))}
                 {showSlot && <div className="cmp-sb-cell is-empty" />}
               </div>
             </div>
@@ -435,7 +432,7 @@ function CompareContent() {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={e.image_url ?? `https://picsum.photos/seed/${e.id}/80/80`}
+                      src={e.image_url ?? '/placeholder-establishment.svg'}
                       alt={e.name}
                       className="compare-picker-item-img"
                     />

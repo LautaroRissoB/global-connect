@@ -1436,8 +1436,8 @@ h1, h2, h3, h4, h5, h6 {
 .cmp-sb-row { border-bottom: 1px solid var(--card-border); }
 .cmp-sb-row:last-child { border-bottom: none; }
 .cmp-sb-row-label {
-  padding: 0.55rem 1rem 0.15rem;
-  font-size: 0.58rem;
+  padding: 0.6rem 1rem 0.2rem;
+  font-size: 0.57rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1446,7 +1446,7 @@ h1, h2, h3, h4, h5, h6 {
 .cmp-sb-cells { display: flex; }
 .cmp-sb-cell {
   flex: 1;
-  padding: 0 1rem 0.75rem;
+  padding: 0.1rem 1rem 0.8rem;
   border-right: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
