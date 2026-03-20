@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Rutas que requieren ser admin
-const ADMIN_PATHS = ['/dashboard', '/establishments', '/promotions']
+const ADMIN_PATHS = ['/clientes', '/empresa', '/estadisticas', '/estudiantes']
 
 // Rutas de usuario que requieren auth (excluye /auth/*)
 const USER_AUTH_REQUIRED_PATHS = ['/establishment', '/compare', '/profile', '/redeem']

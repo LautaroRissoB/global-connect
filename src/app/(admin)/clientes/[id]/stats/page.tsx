@@ -8,7 +8,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-export default async function EstablishmentStatsPage({ params }: Props) {
+export default async function ClienteStatsPage({ params }: Props) {
   const { id } = await params
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = await createClient() as any
@@ -16,7 +16,6 @@ export default async function EstablishmentStatsPage({ params }: Props) {
   const now = new Date()
   const thisMonthStart  = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const lastMonthStart  = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
-  const thirtyDaysAgo   = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 29)
 
   const [
     { data: estab },
@@ -131,8 +130,8 @@ export default async function EstablishmentStatsPage({ params }: Props) {
     <>
       {/* Back link */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <Link href="/establishments" className="btn btn-ghost btn-sm" style={{ gap: 6, paddingLeft: 6 }}>
-          <ArrowLeft size={14} /> Volver a establecimientos
+        <Link href="/clientes" className="btn btn-ghost btn-sm" style={{ gap: 6, paddingLeft: 6 }}>
+          <ArrowLeft size={14} /> Volver a clientes
         </Link>
       </div>
 
@@ -143,8 +142,8 @@ export default async function EstablishmentStatsPage({ params }: Props) {
             {estab.city} · Plan {planLabels[estab.plan] ?? estab.plan} · Estadísticas de actividad
           </p>
         </div>
-        <Link href={`/establishments/${id}`} className="btn btn-outline btn-sm">
-          Editar establecimiento
+        <Link href={`/clientes/${id}`} className="btn btn-outline btn-sm">
+          Editar cliente
         </Link>
       </div>
 
@@ -165,7 +164,7 @@ export default async function EstablishmentStatsPage({ params }: Props) {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
+          <div className="stat-icon" style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-muted)' }}>
             <Eye size={18} />
           </div>
           <div className="stat-info">
@@ -275,7 +274,7 @@ export default async function EstablishmentStatsPage({ params }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
                 { label: monthName.split(' ')[0], value: viewsThis, color: 'var(--primary)' },
-                { label: lastMonthName, value: viewsLast, color: 'rgba(255,255,255,0.15)' },
+                { label: lastMonthName, value: viewsLast, color: 'rgba(0,0,0,0.12)' },
               ].map(({ label, value, color }) => {
                 const max = Math.max(viewsThis, viewsLast, 1)
                 return (
@@ -283,7 +282,7 @@ export default async function EstablishmentStatsPage({ params }: Props) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                       <span>{label}</span><span style={{ fontWeight: 600, color: 'var(--text)' }}>{value}</span>
                     </div>
-                    <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }}>
+                    <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 3 }}>
                       <div style={{ height: '100%', width: `${(value / max) * 100}%`, background: color, borderRadius: 3 }} />
                     </div>
                   </div>
@@ -317,8 +316,8 @@ export default async function EstablishmentStatsPage({ params }: Props) {
                       <span>{day}</span>
                       <span style={{ fontWeight: 600, color: 'var(--text)' }}>{dayCount[i]}</span>
                     </div>
-                    <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3 }}>
-                      <div style={{ height: '100%', width: `${(dayCount[i] / maxDayCount) * 100}%`, background: peakDays.some((d) => d.day === day) ? 'var(--primary)' : 'rgba(255,255,255,0.15)', borderRadius: 3 }} />
+                    <div style={{ height: 5, background: 'rgba(0,0,0,0.06)', borderRadius: 3 }}>
+                      <div style={{ height: '100%', width: `${(dayCount[i] / maxDayCount) * 100}%`, background: peakDays.some((d) => d.day === day) ? 'var(--primary)' : 'rgba(0,0,0,0.1)', borderRadius: 3 }} />
                     </div>
                   </div>
                 ))}

@@ -36,10 +36,10 @@ function InfoRow({ icon: Icon, label, value, accent }: InfoRowProps) {
     >
       <div style={{
         width: 38, height: 38, borderRadius: 'var(--radius)',
-        background: accent ? 'rgba(0,206,201,0.12)' : 'rgba(108,92,231,0.15)',
+        background: accent ? 'rgba(74,138,89,0.1)' : 'rgba(43,136,216,0.1)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>
-        <Icon size={17} style={{ color: accent ? 'var(--secondary)' : 'var(--primary-light)' }} />
+        <Icon size={17} style={{ color: accent ? 'var(--accent-green)' : 'var(--primary)' }} />
       </div>
       <div>
         <div style={{

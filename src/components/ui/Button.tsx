@@ -22,6 +22,7 @@ export default function Button({
   return (
     <button
       className={`btn btn-${variant} btn-${size} ${className}`}
+      style={{ borderRadius: 'var(--radius-full)', fontWeight: 600, transition: 'all 0.3s var(--ease)', ...(props.style || {}) }}
       disabled={disabled || loading}
       {...props}
     >

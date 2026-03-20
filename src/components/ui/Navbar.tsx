@@ -46,55 +46,42 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="navbar">
+    <nav className="navbar glass-card" style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(0,0,0,0.05)', padding: '1.2rem 0' }}>
       <div className="navbar-container">
         {/* Logo */}
         <Link href="/" className="navbar-logo">
-          <Globe size={22} className="navbar-logo-icon" />
-          <span>Global Connect</span>
+          <Globe size={22} color="var(--primary)" style={{ marginRight: '10px' }} />
+          <span style={{ fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.04em' }}>Global<span style={{ fontWeight: 300 }}>Connect</span></span>
         </Link>
 
         {/* Desktop links */}
         <div className="navbar-links">
-          <Link href="/explore">{t('explore')}</Link>
+          <Link href="/explore" style={{ fontWeight: 600, fontSize: '14px', letterSpacing: '0.02em' }}>Explorar</Link>
         </div>
 
         {/* Desktop actions */}
-        <div className="navbar-actions" style={{ minWidth: 160, gap: '0.5rem' }}>
+        <div className="navbar-actions" style={{ minWidth: 160, gap: '1.5rem' }}>
           {/* Language toggle */}
           <button
             onClick={toggleLocale}
-            title={locale === 'es' ? 'Switch to English' : 'Cambiar a Español'}
-            style={{
-              background: 'none',
-              border: '1px solid var(--card-border)',
-              borderRadius: 'var(--radius-full)',
-              padding: '3px 10px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              letterSpacing: '0.04em',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--primary)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--card-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
+            className="premium-chip"
+            style={{ padding: '4px 12px', fontSize: '11px', cursor: 'pointer' }}
           >
             {locale === 'es' ? 'EN' : 'ES'}
           </button>
 
           {!authLoaded ? null : userEmail ? (
             <>
-              <Link href="/profile" className="btn btn-outline btn-sm">{t('profile')}</Link>
-              <button onClick={handleLogout} className="btn btn-outline btn-sm">
-                <LogOut size={14} />
-                {t('logout')}
+              <Link href="/profile" style={{ fontSize: '14px', fontWeight: 600 }}>Perfil</Link>
+              <button onClick={handleLogout} className="btn btn-outline btn-sm" style={{ borderRadius: 'var(--radius-full)', padding: '0.5rem 1.2rem' }}>
+                <LogOut size={14} style={{ marginRight: '6px' }} />
+                Salir
               </button>
             </>
           ) : (
             <>
-              <Link href="/auth/login" className="btn btn-outline btn-sm">{t('login')}</Link>
-              <Link href="/auth/register" className="btn btn-primary btn-sm">{t('register')}</Link>
+              <Link href="/auth/login" style={{ fontSize: '14px', fontWeight: 600 }}>Ingresar</Link>
+              <Link href="/auth/register" className="btn btn-primary btn-sm" style={{ borderRadius: 'var(--radius-full)', padding: '0.5rem 1.5rem' }}>Comenzar</Link>
             </>
           )}
         </div>

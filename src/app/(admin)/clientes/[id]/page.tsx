@@ -50,7 +50,7 @@ const PLANS = [
     desc: 'Primer mes de prueba · 1 promoción',
     color: 'var(--text-muted)',
     border: 'var(--card-border)',
-    bg: 'rgba(255,255,255,0.03)',
+    bg: 'rgba(0,0,0,0.01)',
   },
   {
     value: 'basic',
@@ -68,7 +68,7 @@ const PLANS = [
     desc: 'Promos ilimitadas · Destacado · Reporte detallado',
     color: 'var(--primary-light)',
     border: 'var(--primary)',
-    bg: 'rgba(108,92,231,0.1)',
+    bg: 'rgba(43,136,216,0.08)',
   },
 ] as const
 
@@ -380,7 +380,7 @@ export default function ClienteDetallePage() {
                       style={{
                         flex: 1, padding: '9px 4px', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
                         border: `1px solid ${form.price_range === p.value ? 'var(--primary)' : 'var(--card-border)'}`,
-                        background: form.price_range === p.value ? 'rgba(108,92,231,0.15)' : 'rgba(255,255,255,0.04)',
+                        background: form.price_range === p.value ? 'rgba(43,136,216,0.12)' : 'rgba(0,0,0,0.02)',
                         color: form.price_range === p.value ? 'var(--primary-light)' : 'var(--text-muted)',
                       }}>{p.label}</button>
                   ))}
@@ -459,7 +459,7 @@ export default function ClienteDetallePage() {
                       style={{
                         padding: '14px 12px', borderRadius: 'var(--radius-md)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 4,
                         border: `2px solid ${active ? p.border : 'var(--card-border)'}`,
-                        background: active ? p.bg : 'rgba(255,255,255,0.02)',
+                        background: active ? p.bg : 'rgba(0,0,0,0.01)',
                       }}>
                       <span style={{ fontSize: '0.8rem', fontWeight: 800, color: active ? p.color : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{p.label}</span>
                       <span style={{ fontSize: '1rem', fontWeight: 800, color: active ? p.color : 'var(--text)' }}>{p.price}</span>
@@ -517,7 +517,7 @@ export default function ClienteDetallePage() {
                     style={{
                       padding: '12px 14px', borderRadius: 'var(--radius-md)', textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4,
                       border: `2px solid ${redemptionMode === opt.value ? 'var(--primary)' : 'var(--card-border)'}`,
-                      background: redemptionMode === opt.value ? 'rgba(108,92,231,0.1)' : 'rgba(255,255,255,0.02)',
+                      background: redemptionMode === opt.value ? 'rgba(43,136,216,0.08)' : 'rgba(0,0,0,0.01)',
                     }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 700, color: redemptionMode === opt.value ? 'var(--primary-light)' : 'var(--text-muted)' }}>{opt.label}</span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', lineHeight: 1.4 }}>{opt.desc}</span>

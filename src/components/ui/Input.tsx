@@ -16,7 +16,7 @@ export default function Input({
   ...props
 }: InputProps) {
   return (
-    <div className={`input-wrapper ${Icon ? 'has-icon' : ''} ${error ? 'has-error' : ''}`}>
+    <div className={`input-wrapper glass-card ${Icon ? 'has-icon' : ''} ${error ? 'has-error' : ''}`} style={{ borderRadius: 'var(--radius-md)' }}>
       {/* Input must come before label for the CSS :placeholder-shown sibling selector to work */}
       <input
         id={id}
@@ -24,11 +24,11 @@ export default function Input({
         className={`input-field ${className}`}
         {...props}
       />
-      <label htmlFor={id} className="input-label">
+      <label htmlFor={id} className="input-label" style={{ fontSize: '13px', fontWeight: 500 }}>
         {label}
       </label>
-      {Icon && <Icon className="input-icon" size={17} />}
-      {error && <span className="input-error-msg">{error}</span>}
+      {Icon && <Icon className="input-icon" size={20} color={error ? 'var(--primary)' : 'rgba(255,255,255,0.4)'} />}
+      {error && <span className="input-error-msg" style={{ fontSize: '11px', fontWeight: 600 }}>{error}</span>}
     </div>
   )
 }

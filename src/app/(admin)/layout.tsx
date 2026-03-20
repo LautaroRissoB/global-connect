@@ -27,7 +27,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
       <div className="admin-main">
         <header className="admin-header">
-          <span className="admin-header-title">Global Connect — Panel de Administración</span>
+          {/* Hamburger is rendered by Sidebar (client component) and floats into header via CSS */}
+          <span className="admin-header-title">Global Connect — Admin</span>
         </header>
 
         <main className="admin-content">

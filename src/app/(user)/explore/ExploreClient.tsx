@@ -107,38 +107,44 @@ export default function ExploreClient({ establishments }: { establishments: Esta
 
   return (
     <>
-      <section className="hero" style={{ paddingBottom: '2rem' }}>
-        <h1 className="hero-title slide-up-1">
-          {heroStart} <span className="gradient-text">{heroEnd}</span>
+      <section className="hero" style={{ padding: '6rem 0', textAlign: 'center' }}>
+        <div className="premium-chip" style={{ marginBottom: '2rem' }}>
+          <span className="live-indicator" /> 142 Estudiantes descubriendo la ciudad hoy
+        </div>
+        <h1 className="mag-title slide-up-1" style={{ fontSize: 'clamp(3rem, 7vw, 5rem)', fontWeight: 900 }}>
+          {heroStart} <span style={{ color: 'var(--primary)' }}>{heroEnd}</span>
         </h1>
-        <p className="hero-subtitle slide-up-2">{t('hero_subtitle')}</p>
-        <div className="search-bar slide-up-3">
-          <Search size={18} className="search-icon" />
+        <p className="hero-subtitle slide-up-2" style={{ opacity: 0.7, fontSize: '1.2rem', marginTop: '1rem' }}>{t('hero_subtitle')}</p>
+        
+        <div className="search-bar slide-up-3 glass-card" style={{ borderRadius: 'var(--radius-full)', marginTop: '3rem', padding: '0.8rem 2rem', maxWidth: '600px', marginInline: 'auto' }}>
+          <Search size={22} className="search-icon" color="var(--primary)" />
           <input
             type="text"
-            placeholder={t('search_placeholder')}
+            placeholder="¿Qué estás buscando hoy?"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label={t('search_placeholder')}
+            style={{ fontSize: '16px', fontWeight: 500 }}
           />
         </div>
       </section>
 
-      {/* Compact filter bar — three controls always visible */}
-      <div className="filters-bar slide-up-4">
+      {/* Elegant filter bar */}
+      <div className="filters-bar slide-up-4 glass-card" style={{ marginTop: '2rem', padding: '1.2rem 2rem', borderRadius: 'var(--radius-lg)' }}>
 
         {/* Category dropdown */}
         <div ref={categoryMenuRef} className="price-dropdown-wrapper">
           <button
-            className={`filter-pill price-dropdown-trigger ${activeCategory !== 'all' ? 'active' : ''}`}
+            className={`filter-pill price-dropdown-trigger glass-card ${activeCategory !== 'all' ? 'active' : ''}`}
             onClick={() => setShowCategoryMenu((v) => !v)}
+            style={{ borderRadius: 'var(--radius-full)', fontSize: '13px', padding: '0.6rem 1.4rem' }}
           >
-            {CATEGORIES.find((c) => c.slug === activeCategory)?.emoji}{' '}
-            {CATEGORIES.find((c) => c.slug === activeCategory)?.name ?? tc('all')}
-            <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: showCategoryMenu ? 'rotate(180deg)' : 'none' }} />
+            <span>
+              {activeCategory === 'all' ? '✨ Todos' : CATEGORIES.find((c) => c.slug === activeCategory)?.name}
+            </span>
+            <ChevronDown size={16} />
           </button>
           {showCategoryMenu && (
-            <div className="price-dropdown-menu">
+            <div className="price-dropdown-menu glass-card" style={{ borderRadius: 'var(--radius-md)', zIndex: 100 }}>
               {CATEGORIES.map((cat) => (
                 <button key={cat.slug}
                   className={`price-dropdown-item ${activeCategory === cat.slug ? 'active' : ''}`}
@@ -154,18 +160,21 @@ export default function ExploreClient({ establishments }: { establishments: Esta
         {/* Price dropdown */}
         <div ref={priceMenuRef} className="price-dropdown-wrapper">
           <button
-            className={`filter-pill price-dropdown-trigger ${activePrice !== 'all' ? 'active' : ''}`}
+            className={`filter-pill price-dropdown-trigger glass-card ${activePrice !== 'all' ? 'active' : ''}`}
             onClick={() => setShowPriceMenu((v) => !v)}
+            style={{ borderRadius: 'var(--radius-full)', fontSize: '13px', padding: '0.6rem 1.4rem' }}
           >
-            {activePrice === 'all' ? t('any_price') : activePrice}
-            <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: showPriceMenu ? 'rotate(180deg)' : 'none' }} />
+            <span>
+              {activePrice === 'all' ? 'Cualquier precio' : activePrice}
+            </span>
+            <ChevronDown size={16} />
           </button>
           {showPriceMenu && (
-            <div className="price-dropdown-menu">
+            <div className="price-dropdown-menu glass-card" style={{ borderRadius: 'var(--radius-md)', zIndex: 100 }}>
               <button
                 className={`price-dropdown-item ${activePrice === 'all' ? 'active' : ''}`}
                 onClick={() => { setActivePrice('all'); setShowPriceMenu(false) }}
-              >{t('any_price')}</button>
+              >Cualquiera</button>
               {PRICE_FILTERS.map((p) => (
                 <button key={p}
                   className={`price-dropdown-item ${activePrice === p ? 'active' : ''}`}
@@ -178,32 +187,38 @@ export default function ExploreClient({ establishments }: { establishments: Esta
 
         {/* Discount toggle */}
         <button
-          className={`filter-pill filter-pill-discount ${onlyDiscounts ? 'active' : ''}`}
+          className={`filter-pill glass-card ${onlyDiscounts ? 'active' : ''}`}
           onClick={() => setOnlyDiscounts((v) => !v)}
-        ><Tag size={12} />{t('with_discounts')}</button>
+          style={{ borderRadius: 'var(--radius-full)', padding: '0.6rem 1.4rem', fontSize: '13px' }}
+        >
+          <Tag size={16} style={{ marginRight: '8px' }} color="var(--primary)" />
+          Con descuentos
+        </button>
 
         {/* Clear */}
         {activeFiltersCount > 0 && (
-          <button className="filters-clear" onClick={clearFilters}>
-            {t('clear_filters')} ({activeFiltersCount})
+          <button onClick={clearFilters} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary)', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none', marginLeft: 'auto' }}>
+            Limpiar filtros
           </button>
         )}
       </div>
 
-      <section className="feed-section">
-        <div className="feed-header">
-          <h2 className="feed-title">
-            {activeCategory === 'all' ? t('all_places') : CATEGORIES.find((c) => c.slug === activeCategory)?.name}
-          </h2>
-          {compareIds.length >= 2 ? (
+      <section className="feed-section" style={{ marginTop: '5rem' }}>
+        <div className="feed-header" style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <h2 className="mag-title" style={{ fontSize: '2.5rem' }}>
+              {activeCategory === 'all' ? 'Explorar el circuito' : CATEGORIES.find((c) => c.slug === activeCategory)?.name}
+            </h2>
+            <p style={{ opacity: 0.5, marginTop: '0.5rem', fontWeight: 500 }}>{filtered.length} lugares encontrados para vos</p>
+          </div>
+          {compareIds.length >= 2 && (
             <button
-              className="compare-go-btn"
+              className="btn btn-primary"
               onClick={() => router.push(`/compare?ids=${compareIds.join(',')}`)}
+              style={{ padding: '1rem 2rem', borderRadius: 'var(--radius-full)', fontWeight: 600, boxShadow: 'var(--primary-glow)' }}
             >
-              Comparar <ArrowRight size={13} />
+              Comparar selecciones <ArrowRight size={18} />
             </button>
-          ) : (
-            <span className="feed-count">{t('results', { count: filtered.length })}</span>
           )}
         </div>
 
@@ -217,7 +232,7 @@ export default function ExploreClient({ establishments }: { establishments: Esta
                 <div
                   key={e.id}
                   className={`card-select-wrapper slide-up${isSelected ? ' is-selected' : ''}`}
-                  style={{ animationDelay: `${i * 0.06}s` }}
+                  style={{ animationDelay: `${i * 0.05}s` }}
                 >
                   <Link href={`/establishment/${e.id}`} style={{ textDecoration: 'none' }}>
                     <Card
@@ -232,26 +247,24 @@ export default function ExploreClient({ establishments }: { establishments: Esta
                     />
                   </Link>
                   <button
-                    className={`card-select-btn${isSelected ? ' active' : ''}${isMaxed ? ' maxed' : ''}`}
+                    className={`card-select-btn glass-card ${isSelected ? ' active' : ''}${isMaxed ? ' maxed' : ''}`}
                     onClick={() => !isMaxed && toggleCompare(e.id)}
-                    aria-label={isSelected ? 'Quitar de comparación' : 'Agregar a comparación'}
-                    title={isMaxed ? 'Máximo 2 lugares' : undefined}
+                    style={{ borderRadius: '0 0 var(--radius-md) var(--radius-md)', borderTop: 'none', fontWeight: 600, fontSize: '12px', padding: '1rem' }}
                   >
-                    {isSelected ? <><Check size={12} /> Comparando</> : <><Plus size={12} /> Comparar</>}
+                    {isSelected ? <><Check size={16} /> Comparando</> : <><Plus size={16} /> Comparar</>}
                   </button>
                 </div>
               )
             })}
           </div>
         ) : (
-          <div className="empty-state">
-            <span style={{ fontSize: '3rem' }}>🔍</span>
-            <p>{search || activeFiltersCount > 0 ? t('empty_filters') : t('empty_category')}</p>
-            {activeFiltersCount > 0 && (
-              <button onClick={clearFilters} style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--primary-light)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                {t('clear_filters')}
-              </button>
-            )}
+          <div className="empty-state glass-card" style={{ padding: '8rem 2rem', borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
+            <span style={{ fontSize: '3rem', display: 'block' }}>✨</span>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '1.5rem' }}>No encontramos resultados</h3>
+            <p style={{ opacity: 0.6, marginTop: '0.5rem' }}>Probá ajustando los filtros para descubrir nuevos lugares.</p>
+            <button onClick={clearFilters} style={{ marginTop: '2rem', color: 'var(--primary)', fontWeight: 700, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Ver todos los beneficios
+            </button>
           </div>
         )}
       </section>

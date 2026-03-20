@@ -92,7 +92,7 @@ export default async function ClientesPage({ searchParams }: Props) {
                   </td>
                   <td>
                     <div className="action-btns">
-                      <Link href={`/establishments/${e.id}/stats`} className="action-btn" title="Estadísticas">
+                      <Link href={`/clientes/${e.id}/stats`} className="action-btn" title="Estadísticas">
                         <BarChart2 size={14} />
                       </Link>
                       <Link href={`/clientes/${e.id}`} className="action-btn" title="Editar / Descuentos">

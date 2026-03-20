@@ -74,11 +74,11 @@ function Dropdown({ label, icon: Icon, value, onChange, options, placeholder }: 
           <ChevronDown size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
         </button>
         {open && (
-          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', zIndex: 200, maxHeight: 220, overflowY: 'auto' }}>
+          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--bg-secondary)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius)', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', zIndex: 200, maxHeight: 220, overflowY: 'auto' }}>
             {options.map((opt) => (
               <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false) }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.85rem', background: opt === value ? 'rgba(108,92,231,0.15)' : 'transparent', color: opt === value ? 'var(--primary-light)' : 'var(--text)', fontSize: '0.88rem', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-                onMouseEnter={(e) => { if (opt !== value) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.85rem', background: opt === value ? 'rgba(43,136,216,0.1)' : 'transparent', color: opt === value ? 'var(--primary)' : 'var(--text)', fontSize: '0.88rem', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                onMouseEnter={(e) => { if (opt !== value) (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.03)' }}
                 onMouseLeave={(e) => { if (opt !== value) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 {opt}{opt === value && <Check size={13} />}
@@ -155,13 +155,19 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card fade-in" style={{ maxWidth: 540 }}>
-        <Link href="/" className="auth-logo"><Globe size={20} /><span>Global Connect</span></Link>
-        <h1 className="auth-title">{t('title')}</h1>
-        <p className="auth-subtitle">{t('subtitle')}</p>
+      <div className="auth-card fade-in" style={{ maxWidth: 540, borderRadius: 'var(--radius-lg)', background: 'var(--bg-secondary)', padding: 'var(--space-8)', boxShadow: '0 8px 40px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.05)' }}>
+        <Link href="/" className="auth-logo" style={{ color: 'var(--text)', marginBottom: '2rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ background: 'var(--primary)', padding: '0.35rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Globe size={16} color="#fff" />
+          </div>
+          <span style={{ fontWeight: 800, fontSize: '1.2rem', letterSpacing: '-0.02em' }}>Global<span style={{ fontWeight: 300, color: 'var(--primary)' }}>Connect</span></span>
+        </Link>
 
-        {error   && <div className="auth-feedback error"   role="alert">{error}</div>}
-        {success && <div className="auth-feedback success" role="status">{t('success')}</div>}
+        <h1 className="auth-title" style={{ fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>{t('title') || 'Comenzá tu aventura'}</h1>
+        <p className="auth-subtitle" style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{t('subtitle')}</p>
+
+        {error   && <div className="auth-feedback error" role="alert" style={{ background: 'rgba(224, 93, 67, 0.08)', border: '1px solid rgba(224, 93, 67, 0.3)', color: 'var(--accent)', borderRadius: 'var(--radius-xs)', padding: '0.75rem 1rem', fontSize: '0.9rem', marginBottom: '1rem' }}>{error}</div>}
+        {success && <div className="auth-feedback success" role="status" style={{ background: 'rgba(74, 138, 89, 0.08)', border: '1px solid rgba(74, 138, 89, 0.3)', color: 'var(--accent-green)', borderRadius: 'var(--radius-xs)', padding: '0.75rem 1rem', fontSize: '0.9rem', marginBottom: '1rem' }}>{t('success')}</div>}
 
         {!success && (
           <form className="auth-form" onSubmit={handleSubmit}>
